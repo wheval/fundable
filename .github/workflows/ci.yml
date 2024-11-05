@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  SCARB_VERSION: 2.3.1
+
+jobs:
+  check:
+    name: Check Project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Scarb
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh -s -- -v $SCARB_VERSION
+          echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Starknet Foundry
+        run: |
+          curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh
+          echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Check format
+        run: scarb fmt --check
+
+      - name: Check cairo files
+        run: scarb check
+
+  test:
+    name: Test Project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Scarb
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh -s -- -v $SCARB_VERSION
+          echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Starknet Foundry
+        run: |
+          curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh
+          echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Run tests
+        run: snforge test
+
+  build:
+    name: Build Project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Scarb
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh -s -- -v $SCARB_VERSION
+          echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Build
+        run: scarb build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: target
+          path: target/

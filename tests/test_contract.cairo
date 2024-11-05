@@ -42,15 +42,19 @@ fn test_successful_distribution() {
 
     let amount_per_recipient = 100_u256;
 
+    let sender_balance_before = token.balance_of(sender);
+    println!("Sender balance is {}", sender_balance_before);
+
     // Approve tokens for distributor
     start_cheat_caller_address(token_address, sender);
-    token.approve(distributor.contract_address, amount_per_recipient * 3);
-    stop_cheat_caller_address(sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 3 + amount_per_recipient);
+    println!("Approved tokens for distributor: {}", token.allowance(sender, distributor.contract_address));
+    stop_cheat_caller_address(token_address);
 
     // Distribute tokens
     start_cheat_caller_address(distributor.contract_address, sender);
     distributor.distribute(amount_per_recipient, recipients, token_address);
-    stop_cheat_caller_address(sender);
+    stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
     assert(token.balance_of(contract_address_const::<0x2>()) == amount_per_recipient, 'Wrong balance recipient 1');
