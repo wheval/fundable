@@ -100,9 +100,9 @@ fn test_zero_amount() {
 //     start_cheat_caller_address(token_address, sender);
 //     token.approve(distributor.contract_address, 50_u256);
 //     stop_cheat_caller_address(sender);
-
 //     start_cheat_caller_address(distributor.contract_address, sender);
 //     distributor.distribute(100_u256, recipients, token_address);
 //     stop_cheat_caller_address(sender);
 // }
+
 
