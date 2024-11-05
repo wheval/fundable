@@ -11,21 +11,14 @@ fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
     let erc20_class = declare("MockUsdc").unwrap().contract_class();
-    let mut calldata = array![
-        sender.into(),
-        sender.into(),
-    ];
+    let mut calldata = array![sender.into(), sender.into(),];
     let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
 
     // Deploy distributor contract
     let distributor_class = declare("Distributor").unwrap().contract_class();
     let (distributor_address, _) = distributor_class.deploy(@array![]).unwrap();
 
-    (
-        erc20_address,
-        sender,
-        IDistributorDispatcher { contract_address: distributor_address }
-    )
+    (erc20_address, sender, IDistributorDispatcher { contract_address: distributor_address })
 }
 
 #[test]
@@ -48,7 +41,9 @@ fn test_successful_distribution() {
     // Approve tokens for distributor
     start_cheat_caller_address(token_address, sender);
     token.approve(distributor.contract_address, amount_per_recipient * 3 + amount_per_recipient);
-    println!("Approved tokens for distributor: {}", token.allowance(sender, distributor.contract_address));
+    println!(
+        "Approved tokens for distributor: {}", token.allowance(sender, distributor.contract_address)
+    );
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
@@ -57,9 +52,18 @@ fn test_successful_distribution() {
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
-    assert(token.balance_of(contract_address_const::<0x2>()) == amount_per_recipient, 'Wrong balance recipient 1');
-    assert(token.balance_of(contract_address_const::<0x3>()) == amount_per_recipient, 'Wrong balance recipient 2');
-    assert(token.balance_of(contract_address_const::<0x4>()) == amount_per_recipient, 'Wrong balance recipient 3');
+    assert(
+        token.balance_of(contract_address_const::<0x2>()) == amount_per_recipient,
+        'Wrong balance recipient 1'
+    );
+    assert(
+        token.balance_of(contract_address_const::<0x3>()) == amount_per_recipient,
+        'Wrong balance recipient 2'
+    );
+    assert(
+        token.balance_of(contract_address_const::<0x4>()) == amount_per_recipient,
+        'Wrong balance recipient 3'
+    );
 }
 
 #[test]
@@ -67,7 +71,7 @@ fn test_successful_distribution() {
 fn test_empty_recipients() {
     let (token_address, sender, distributor) = setup();
     let recipients = array![];
-    
+
     start_cheat_caller_address(distributor.contract_address, sender);
     distributor.distribute(100_u256, recipients, token_address);
     stop_cheat_caller_address(sender);
@@ -78,12 +82,11 @@ fn test_empty_recipients() {
 fn test_zero_amount() {
     let (token_address, sender, distributor) = setup();
     let recipients = array![contract_address_const::<0x2>()];
-    
+
     start_cheat_caller_address(distributor.contract_address, sender);
     distributor.distribute(0_u256, recipients, token_address);
     stop_cheat_caller_address(sender);
 }
-
 // #[test]
 // #[should_panic(expected: ('Insufficient allowance',))]
 // fn test_insufficient_allowance() {
@@ -92,7 +95,7 @@ fn test_zero_amount() {
 //         contract_address_const::<0x2>(),
 //         contract_address_const::<0x3>()
 //     ];
-    
+
 //     // Approve less than required amount
 //     start_cheat_caller_address(token_address, sender);
 //     token.approve(distributor.contract_address, 50_u256);
@@ -102,3 +105,4 @@ fn test_zero_amount() {
 //     distributor.distribute(100_u256, recipients, token_address);
 //     stop_cheat_caller_address(sender);
 // }
+
