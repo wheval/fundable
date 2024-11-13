@@ -2,7 +2,7 @@ use core::traits::Into;
 use starknet::{ContractAddress, contract_address_const};
 use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
-    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global
+    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global, spy_events
 };
 use fundable::distribute::{IDistributorDispatcher, IDistributorDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
@@ -85,24 +85,165 @@ fn test_zero_amount() {
 
     start_cheat_caller_address(distributor.contract_address, sender);
     distributor.distribute(0_u256, recipients, token_address);
-    stop_cheat_caller_address(sender);
+    stop_cheat_caller_address(distributor.contract_address);
 }
-// #[test]
-// #[should_panic(expected: ('Insufficient allowance',))]
-// fn test_insufficient_allowance() {
-//     let (token_address, sender, distributor) = setup();
-//     let recipients = array![
-//         contract_address_const::<0x2>(),
-//         contract_address_const::<0x3>()
-//     ];
 
-//     // Approve less than required amount
-//     start_cheat_caller_address(token_address, sender);
-//     token.approve(distributor.contract_address, 50_u256);
-//     stop_cheat_caller_address(sender);
-//     start_cheat_caller_address(distributor.contract_address, sender);
-//     distributor.distribute(100_u256, recipients, token_address);
-//     stop_cheat_caller_address(sender);
-// }
+#[test]
+fn test_weighted_distribution() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create recipients array
+    let recipients = array![
+        contract_address_const::<0x2>(),
+        contract_address_const::<0x3>(),
+        contract_address_const::<0x4>()
+    ];
+
+    // Create amounts array with different values for each recipient
+    let amounts = array![
+        100_u256,  // First recipient gets 100 tokens
+        200_u256,  // Second recipient gets 200 tokens
+        300_u256   // Third recipient gets 300 tokens
+    ];
+
+    let total_amount = 600_u256; // Sum of all amounts
+
+    let sender_balance_before = token.balance_of(sender);
+    println!("Sender balance before: {}", sender_balance_before);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, total_amount);
+    println!(
+        "Approved tokens for distributor: {}", token.allowance(sender, distributor.contract_address)
+    );
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens with weighted amounts
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute_weighted(amounts, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    // Assert balances for each recipient
+    assert(
+        token.balance_of(contract_address_const::<0x2>()) == 100_u256,
+        'Wrong balance recipient 1'
+    );
+    assert(
+        token.balance_of(contract_address_const::<0x3>()) == 200_u256,
+        'Wrong balance recipient 2'
+    );
+    assert(
+        token.balance_of(contract_address_const::<0x4>()) == 300_u256,
+        'Wrong balance recipient 3'
+    );
+}
+
+#[test]
+#[should_panic(expected: ('Arrays length mismatch',))]
+fn test_weighted_distribution_mismatched_arrays() {
+    let (token_address, sender, distributor) = setup();
+    
+    // Create unequal length arrays
+    let recipients = array![
+        contract_address_const::<0x2>(),
+        contract_address_const::<0x3>()
+    ];
+    let amounts = array![100_u256];
+
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute_weighted(amounts, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+}
+
+#[test]
+#[should_panic(expected: ('Amount must be greater than 0',))]
+fn test_weighted_distribution_zero_amount() {
+    let (token_address, sender, distributor) = setup();
+    
+    let recipients = array![contract_address_const::<0x2>()];
+    let amounts = array![0_u256];
+
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute_weighted(amounts, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+}
+
+#[test]
+fn test_weighted_distribution_events() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create test data
+    let recipients = array![
+        contract_address_const::<0x2>(),
+        contract_address_const::<0x3>()
+    ];
+    let amounts = array![100_u256, 200_u256];
+    let total_amount = 300_u256;
+
+    // Spy on events
+    let mut spy = spy_events(distributor.contract_address);
+
+    // Setup and execute distribution
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, total_amount);
+    stop_cheat_caller_address(token_address);
+
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute_weighted(amounts, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    // Get and assert events
+    let mut events = spy.get_events().unwrap();
+    assert(events.len() == 2, 'Wrong number of events');
+
+    // Assert first distribution event
+    let event1 = events.pop_front().unwrap();
+    assert!(
+        event1 ==
+        WeightedDistribution { 
+            recipient: contract_address_const::<0x2>(), 
+            amount: 100_u256 
+        },
+        'Wrong first distribution event'
+    );
+
+    // Assert second distribution event
+    let event2 = events.pop_front().unwrap();
+    assert_eq!(
+        event2,
+        WeightedDistribution { 
+            recipient: contract_address_const::<0x3>(), 
+            amount: 200_u256 
+        },
+        'Wrong second distribution event'
+    );
+}
+
+#[test]
+fn test_weighted_distribution_zero_total_supply() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create test data with zero total supply
+    let recipients = array![contract_address_const::<0x2>()];
+    let amounts = array![0_u256];
+
+    // Spy on events
+    let mut spy = spy_events(distributor.contract_address);
+
+    // Should not emit any events since it will fail validation
+    start_cheat_caller_address(distributor.contract_address, sender);
+    let result = try_distribute_weighted(distributor, amounts, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    assert(result.is_err(), 'Should fail with zero amount');
+    
+    // Verify no events were emitted
+    let events = spy.get_events().unwrap();
+    assert(events.is_empty(), 'Should not emit events');
+}
 
 

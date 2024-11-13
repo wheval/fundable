@@ -11,6 +11,14 @@ pub trait IDistributor<TContractState> {
         token: ContractAddress
     );
 
+    /// Distributes different amounts of tokens to multiple recipients
+    fn distribute_weighted(
+        ref self: TContractState,
+        amounts: Array<u256>,
+        recipients: Array<ContractAddress>,
+        token: ContractAddress
+    );
+
     /// Gets the current balance of the contract
     fn get_balance(self: @TContractState) -> felt252;
 }
@@ -41,6 +49,7 @@ mod Distributor {
     #[derive(Drop, starknet::Event)]
     enum Event {
         Distribution: Distribution,
+        WeightedDistribution: WeightedDistribution,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -48,6 +57,12 @@ mod Distributor {
         token: ContractAddress,
         amount: u256,
         recipients_count: u32,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct WeightedDistribution {
+        recipient: ContractAddress,
+        amount: u256,
     }
 
     #[abi(embed_v0)]
@@ -88,6 +103,50 @@ mod Distributor {
                         Distribution { token, amount, recipients_count: recipients_list.len() }
                     )
                 );
+        }
+
+        fn distribute_weighted(
+            ref self: ContractState,
+            amounts: Array<u256>,
+            recipients: Array<ContractAddress>,
+            token: ContractAddress,
+        ) {
+            // Validate inputs
+            assert(!recipients.is_empty(), 'Recipients array is empty');
+            assert(amounts.len() == recipients.len(), 'Arrays length mismatch');
+
+            let caller = get_caller_address();
+            let token_dispatcher = IERC20Dispatcher { contract_address: token };
+            let mut total_amount: u256 = 0;
+
+            // Calculate total amount needed
+            let mut i = 0;
+            loop {
+                if i >= amounts.len() {
+                    break;
+                }
+                let amount = *amounts.at(i);
+                assert(amount > 0, 'Amount must be greater than 0');
+                total_amount += amount;
+                i += 1;
+            };
+
+            // Transfer tokens from sender to recipients
+            i = 0;
+            loop {
+                if i >= recipients.len() {
+                    break;
+                }
+                let recipient = *recipients.at(i);
+                let amount = *amounts.at(i);
+                
+                token_dispatcher.transfer_from(caller, recipient, amount);
+                
+                // Emit event for each distribution
+                self.emit(WeightedDistribution { recipient, amount });
+                
+                i += 1;
+            };
         }
 
         fn get_balance(self: @ContractState) -> felt252 {
