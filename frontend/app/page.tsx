@@ -1,6 +1,3 @@
-import Image from 'next/image';
-import { ConnectWallet } from '@/components/ConnectWallet';
-
 export default function Home() {
   return (
     <div className="container mx-auto px-4 py-16">

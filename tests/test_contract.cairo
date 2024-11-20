@@ -2,7 +2,8 @@ use core::traits::Into;
 use starknet::{ContractAddress, contract_address_const};
 use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
-    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global, spy_events
+    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global, spy_events, SpyOn, EventSpy, EventFetcher, 
+    event_name_hash, EventAssertions, EventSpyTrait, EventSpyAssertionsTrait, Event
 };
 use fundable::distribute::{IDistributorDispatcher, IDistributorDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
@@ -172,6 +173,7 @@ fn test_weighted_distribution_zero_amount() {
 
 #[test]
 fn test_weighted_distribution_events() {
+    // Setup
     let (token_address, sender, distributor) = setup();
     let token = IERC20Dispatcher { contract_address: token_address };
 
@@ -183,8 +185,8 @@ fn test_weighted_distribution_events() {
     let amounts = array![100_u256, 200_u256];
     let total_amount = 300_u256;
 
-    // Spy on events
-    let mut spy = spy_events(distributor.contract_address);
+    // Start spying on events
+    let mut spy = spy_events(SpyOn::One(distributor.contract_address));
 
     // Setup and execute distribution
     start_cheat_caller_address(token_address, sender);
@@ -195,31 +197,81 @@ fn test_weighted_distribution_events() {
     distributor.distribute_weighted(amounts, recipients, token_address);
     stop_cheat_caller_address(distributor.contract_address);
 
-    // Get and assert events
-    let mut events = spy.get_events().unwrap();
-    assert(events.len() == 2, 'Wrong number of events');
+    // Assert events using assert_emitted
+    spy.assert_emitted(@array![
+        (
+            distributor.contract_address,
+            WeightedDistribution { 
+                recipient: contract_address_const::<0x2>(), 
+                amount: 100_u256 
+            }
+        ),
+        (
+            distributor.contract_address,
+            WeightedDistribution { 
+                recipient: contract_address_const::<0x3>(), 
+                amount: 200_u256 
+            }
+        )
+    ]);
+}
 
-    // Assert first distribution event
-    let event1 = events.pop_front().unwrap();
-    assert!(
-        event1 ==
-        WeightedDistribution { 
-            recipient: contract_address_const::<0x2>(), 
-            amount: 100_u256 
-        },
-        'Wrong first distribution event'
-    );
+#[test]
+fn test_weighted_distribution_manual_event_check() {
+    // Setup
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
 
-    // Assert second distribution event
-    let event2 = events.pop_front().unwrap();
-    assert_eq!(
-        event2,
-        WeightedDistribution { 
-            recipient: contract_address_const::<0x3>(), 
-            amount: 200_u256 
-        },
-        'Wrong second distribution event'
-    );
+    // Create test data
+    let recipients = array![contract_address_const::<0x2>()];
+    let amounts = array![100_u256];
+
+    // Start spying on events
+    let mut spy = spy_events(SpyOn::One(distributor.contract_address));
+
+    // Setup and execute distribution
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, 100_u256);
+    stop_cheat_caller_address(token_address);
+
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute_weighted(amounts, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    // Get and manually check events
+    let events = spy.get_events().unwrap();
+    assert(events.len() == 1, 'Wrong number of events');
+
+    let (emitter, event) = events.at(0);
+    assert(emitter == distributor.contract_address, 'Wrong event emitter');
+    assert(event.keys.at(0) == selector!("WeightedDistribution"), 'Wrong event name');
+    assert(event.data.at(0) == contract_address_const::<0x2>(), 'Wrong recipient');
+    assert(event.data.at(1) == 100_u256, 'Wrong amount');
+}
+
+#[test]
+fn test_no_events_on_invalid_input() {
+    // Setup
+    let (token_address, sender, distributor) = setup();
+
+    // Create invalid test data (empty arrays)
+    let recipients = array![];
+    let amounts = array![];
+
+    // Start spying on events
+    let mut spy = spy_events(SpyOn::One(distributor.contract_address));
+
+    // Attempt distribution (should fail)
+    start_cheat_caller_address(distributor.contract_address, sender);
+    match distributor.distribute_weighted(amounts, recipients, token_address) {
+        Result::Ok(_) => panic_with_felt252('Should fail with empty arrays'),
+        Result::Err(_) => (),
+    };
+    stop_cheat_caller_address(distributor.contract_address);
+
+    // Verify no events were emitted
+    let events = spy.get_events().unwrap();
+    assert(events.is_empty(), 'Should not emit events');
 }
 
 #[test]

@@ -5,71 +5,39 @@ import { useAccount, useContract, useTransactionReceipt } from '@starknet-react/
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
 import { ConnectWallet } from '@/components/ConnectWallet';
-import { Contract, uint256 } from 'starknet';
+import { Call, Contract, uint256 } from 'starknet';
 import { validateDistribution } from '@/utils/validation';
 import { toast } from 'react-hot-toast';
-import { parseUnits } from 'ethers';
+import { parseEther, parseUnits } from 'ethers';
+import { Provider, RpcProvider } from 'starknet';
 
-// ERC20 ABI - we only need the transfer function
-const erc20ABI = [
-  {
-    members: [
-      {
-        name: "low",
-        offset: 0,
-        type: "felt"
-      },
-      {
-        name: "high",
-        offset: 1,
-        type: "felt"
-      }
-    ],
-    name: "Uint256",
-    size: 2,
-    type: "struct"
-  },
-  {
-    inputs: [
-      {
-        name: "recipient",
-        type: "felt"
-      },
-      {
-        name: "amount",
-        type: "Uint256"
-      }
-    ],
-    name: "transfer",
-    outputs: [
-      {
-        name: "success",
-        type: "felt"
-      }
-    ],
-    type: "function",
-    state_mutability: "external"
-  }
-] as const;
 
 interface Distribution {
   address: string;
   amount: string;
 }
 
+// Provider configuration
+const provider = new RpcProvider({
+  nodeUrl: process.env.NEXT_PUBLIC_RPC_URL || 'https://starknet-sepolia.public.blastapi.io/rpc/v0_7',
+});
+
 // Replace with your token contract address
-const TOKEN_ADDRESS = '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d'; // Example: ETH token on testnet
+const CONTRACT_ADDRESS = '0x288a25635f7c57607b4e017a3439f9018441945246fb5ca3424d8148dd580cc';
+const TOKEN_ADDRESS = '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d'
 
 export default function DistributePage() {
   const { address, status, account } = useAccount();
   const [distributions, setDistributions] = useState<Distribution[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentTxHash, setCurrentTxHash] = useState<string | undefined>();
+  const [distributionType, setDistributionType] = useState<'equal' | 'weighted'>('equal');
   
-  const { contract } = useContract({
-    address: TOKEN_ADDRESS,
-    abi: erc20ABI,
-  });
+  // const { contract } = useContract({
+  //   address: CONTRACT_ADDRESS,
+  //   abi: abi,
+  //   provider,
+  // });
 
   // Add transaction receipt hook
   const { data: receipt, isLoading: isWaitingForTx, status: receiptStatus, error: receiptError } = useTransactionReceipt({
@@ -118,20 +86,43 @@ export default function DistributePage() {
     setDistributions(distributions.filter((_, i) => i !== index));
   };
 
+  const waitForReceipt = async (txHash: string): Promise<'success' | 'error'> => {
+    return new Promise((resolve) => {
+      const checkReceipt = setInterval(async () => {
+        const receipt = await account?.getTransactionReceipt(txHash);
+        if (receipt) {
+          clearInterval(checkReceipt);
+          // Status 'ACCEPTED_ON_L2' means success
+          resolve(receipt.statusReceipt === "success" ? 'success' : 'error');
+        }
+      }, 3000); // Check every 3 seconds
+    });
+  };
+
   const handleDistribute = async () => {
     if (status !== 'connected' || !address || !account) {
       toast.error('Please connect your wallet first');
       return;
     }
 
-    if (!contract) {
-      toast.error('Contract not initialized');
-      return;
-    }
+    // if (!contract) {
+    //   toast.error('Contract not initialized');
+    //   return;
+    // }
 
     if (distributions.length === 0) {
       toast.error('No distributions added');
       return;
+    }
+
+    // Validation based on distribution type
+    if (distributionType === 'equal') {
+      const firstAmount = distributions[0].amount;
+      const hasInvalidAmount = distributions.some(dist => dist.amount !== firstAmount);
+      if (hasInvalidAmount) {
+        toast.error('All distributions must have the same amount for equal distribution');
+        return;
+      }
     }
 
     // Check if there are any distributions
@@ -158,95 +149,87 @@ export default function DistributePage() {
     }
 
     setIsLoading(true);
-    let successCount = 0;
-    let failureCount = 0;
 
     try {
-      toast.loading(
-        `Processing ${distributions.length} distributions...`, 
-        { duration: Infinity }
-      );
+      toast.loading('Processing distributions...', { duration: Infinity });
 
-      for (const [index, dist] of distributions.entries()) {
-        try {
-          const amount = parseUnits(dist.amount, 18);
-          const amountUint256 = uint256.bnToUint256(amount);
+      const recipients = distributions.map(dist => dist.address);
 
-          
-          const progressToast = toast.loading(
-            `Processing ${index + 1}/${distributions.length}: ${dist.address.slice(0, 6)}...${dist.address.slice(-4)}`,
-            { duration: Infinity }
-          );
-
-          // Create contract with signer
-          const contractWithSigner = new Contract(
-            erc20ABI,
-            contract.address,
-            account
-          );
-
-          // Execute transfer
-          const tx = await contractWithSigner.transfer(
-            dist.address,
-            amountUint256
-          );
-
-          // Set current transaction hash for monitoring
-          setCurrentTxHash(tx.transaction_hash);
-
-          // Wait for transaction receipt using the hook
-
-          if (receiptStatus === 'success') {
-            successCount++;
-            toast.success(
-              `Transfer confirmed for ${dist.address.slice(0, 6)}...${dist.address.slice(-4)}`
-            );
-          } else if (receiptStatus === 'pending') {
-            // Wait for the transaction to be finalized
-            toast.loading(
-              `Waiting for transaction to be finalized...`,
-              { duration: Infinity }
-            );
-          } else if (receiptStatus === 'error') {
-            failureCount++;
-            toast.error(
-              `Transfer reverted for ${dist.address.slice(0, 6)}...${dist.address.slice(-4)}${
-                receiptError ? `: ${receiptError}` : ''
-              }`
-            );
-          }
-
-          toast.dismiss(progressToast);
-          setCurrentTxHash(undefined); // Reset transaction hash
-
-        } catch (error) {
-          failureCount++;
-          console.error('Error processing distribution to', dist.address, ':', error);
-          toast.error(
-            `Failed to transfer to ${dist.address.slice(0, 6)}...${dist.address.slice(-4)}: ${
-              error instanceof Error ? error.message : 'Unknown error'
-            }`
-          );
+      let tx;
+      console.log(distributionType);
+      console.log(account);
+      if (distributionType === 'equal') {
+        const amount = parseUnits(distributions[0].amount, 18);
+        const low = amount & BigInt('0xffffffffffffffffffffffffffffffff');
+        const high = amount >> BigInt(128);
+        const calls: Call[] = [{
+          entrypoint: "approve",
+          contractAddress: TOKEN_ADDRESS,
+          calldata: [CONTRACT_ADDRESS, low.toString(), high.toString()]
+        },
+        {
+          entrypoint: 'distribute',
+          contractAddress: CONTRACT_ADDRESS,
+          calldata: [
+            low.toString(),
+            high.toString(),
+            recipients.length.toString(),
+            ...recipients,
+            TOKEN_ADDRESS
+          ]
         }
+      ];
+        console.log(calls);
+        const result = await account.execute(calls);
+        tx = result.transaction_hash;
+      } else {
+        const amounts = distributions.map(dist => parseUnits(dist.amount, 18));
+        const totalAmount = amounts.reduce((sum, amount) => sum + BigInt(amount), BigInt(0));
+        const low = totalAmount & BigInt('0xffffffffffffffffffffffffffffffff');
+        const high = totalAmount >> BigInt(128);
+
+          const calls: Call[] = [{
+            entrypoint: "approve",
+            contractAddress: TOKEN_ADDRESS,
+            calldata: [CONTRACT_ADDRESS, low.toString(), high.toString()]
+          },
+          {
+            entrypoint: 'distribute_weighted',
+            contractAddress: CONTRACT_ADDRESS,
+            calldata: [
+              low.toString(),
+              high.toString(),
+              amounts.length.toString(),
+              ...amounts,
+              recipients.length.toString(),
+              ...recipients,
+              TOKEN_ADDRESS
+            ]
+          }];
+          const result = await account.execute(calls);
+        tx = result.transaction_hash;
       }
 
-      // Show final summary
-      if (successCount > 0) {
-        toast.success(`Successfully processed ${successCount} distributions`);
-      }
-      if (failureCount > 0) {
-        toast.error(`Failed to process ${failureCount} distributions`);
+      // Set current transaction hash for monitoring
+      setCurrentTxHash(tx);
+
+      // Wait for receipt
+      const receiptStatus = await account.waitForTransaction(tx);
+
+      if (receiptStatus.statusReceipt === 'success') {
+        toast.dismiss();
+        toast.success(`Successfully distributed tokens to ${recipients.length} addresses`, { duration: 10000 });
+        setDistributions([]); // Clear the form on success
+      } else {
+        toast.error('Distribution failed');
       }
 
     } catch (error) {
       console.error('Distribution process failed:', error);
-      toast.error('Distribution process failed');
+      toast.error(`Distribution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
       setCurrentTxHash(undefined);
-      if (failureCount === 0 && successCount > 0) {
-        setDistributions([]);
-      }
     }
   };
 
@@ -270,6 +253,33 @@ export default function DistributePage() {
   return (
     <div className="container mx-auto px-4 py-16">
       <h1 className="text-3xl font-bold mb-8">Token Distribution</h1>
+
+      {/* Distribution Type Toggle */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">Distribution Type</h2>
+        <div className="flex gap-4">
+          <button
+            onClick={() => setDistributionType('equal')}
+            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+              distributionType === 'equal'
+                ? 'bg-starknet-cyan text-starknet-navy'
+                : 'bg-starknet-purple bg-opacity-20 text-starknet-cyan'
+            }`}
+          >
+            Equal Distribution
+          </button>
+          <button
+            onClick={() => setDistributionType('weighted')}
+            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+              distributionType === 'weighted'
+                ? 'bg-starknet-cyan text-starknet-navy'
+                : 'bg-starknet-purple bg-opacity-20 text-starknet-cyan'
+            }`}
+          >
+            Weighted Distribution
+          </button>
+        </div>
+      </div>
 
       {/* CSV Upload Section */}
       <div

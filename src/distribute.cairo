@@ -20,7 +20,7 @@ pub trait IDistributor<TContractState> {
     );
 
     /// Gets the current balance of the contract
-    fn get_balance(self: @TContractState) -> felt252;
+    fn get_balance(self: @TContractState) -> u256;
 }
 
 /// Error messages for the Distributor contract
@@ -35,14 +35,29 @@ pub mod Errors {
 #[starknet::contract]
 mod Distributor {
     use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::upgrades::UpgradeableComponent;
+    use openzeppelin::upgrades::interface::IUpgradeable;
+    use openzeppelin::access::ownable::OwnableComponent;
     use starknet::ContractAddress;
-    use starknet::{get_caller_address, get_contract_address};
+    use starknet::{get_caller_address, get_contract_address, ClassHash};
     use core::num::traits::Zero;
     use super::Errors;
 
+    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
+    component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
+
+    #[abi(embed_v0)]
+    impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
+    impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
+    impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
+
     #[storage]
     struct Storage {
-        balance: felt252,
+        balance: u256,
+        #[substorage(v0)]
+        ownable: OwnableComponent::Storage,
+        #[substorage(v0)]
+        upgradeable: UpgradeableComponent::Storage,
     }
 
     #[event]
@@ -50,10 +65,16 @@ mod Distributor {
     enum Event {
         Distribution: Distribution,
         WeightedDistribution: WeightedDistribution,
+        #[flat]
+        OwnableEvent: OwnableComponent::Event,
+        #[flat]
+        UpgradeableEvent: UpgradeableComponent::Event,
     }
 
     #[derive(Drop, starknet::Event)]
     struct Distribution {
+        #[key]
+        caller: ContractAddress,
         token: ContractAddress,
         amount: u256,
         recipients_count: u32,
@@ -91,18 +112,23 @@ mod Distributor {
 
             let recipients_list = recipients.span();
 
-            // Distribute tokens
+            // Distribute tokens and emit event for each transfer
             for recipient in recipients {
                 token_dispatcher.transfer_from(caller, recipient, amount);
+                self.emit(WeightedDistribution { recipient, amount });
             };
 
-            // Emit event
-            self
-                .emit(
-                    Event::Distribution(
-                        Distribution { token, amount, recipients_count: recipients_list.len() }
-                    )
-                );
+            // Emit summary event
+            self.emit(
+                Event::Distribution(
+                    Distribution { 
+                        caller,
+                        token, 
+                        amount, 
+                        recipients_count: recipients_list.len() 
+                    }
+                )
+            );
         }
 
         fn distribute_weighted(
@@ -147,10 +173,30 @@ mod Distributor {
                 
                 i += 1;
             };
+
+            // Add summary event at the end
+            self.emit(
+                Event::Distribution(
+                    Distribution { 
+                        caller,
+                        token, 
+                        amount: total_amount, 
+                        recipients_count: recipients.len() 
+                    }
+                )
+            );
         }
 
-        fn get_balance(self: @ContractState) -> felt252 {
+        fn get_balance(self: @ContractState) -> u256 {
             self.balance.read()
+        }
+    }
+
+    #[abi(embed_v0)]
+    impl UpgradeableImpl of IUpgradeable<ContractState> {
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            self.ownable.assert_only_owner();
+            self.upgradeable.upgrade(new_class_hash);
         }
     }
 }

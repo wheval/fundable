@@ -17,8 +17,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Starknet dApp",
-  description: "A decentralized application built on Starknet",
+  title: "Fundable",
+  description: "A decentralized funding application built on Starknet",
   icons: {
     icon: '/favicon.ico',
   },
