@@ -4,7 +4,7 @@ use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
     stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global
 };
-use fundable::distribute::{IDistributorDispatcher, IDistributorDispatcherTrait};
+use fundable::interfaces::IDistributor::{IDistributorDispatcher, IDistributorDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
 fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
