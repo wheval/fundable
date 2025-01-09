@@ -102,9 +102,9 @@ fn test_weighted_distribution() {
 
     // Create amounts array with different values for each recipient
     let amounts = array![
-        100_u256,  // First recipient gets 100 tokens
-        200_u256,  // Second recipient gets 200 tokens
-        300_u256   // Third recipient gets 300 tokens
+        100_u256, // First recipient gets 100 tokens
+        200_u256, // Second recipient gets 200 tokens
+        300_u256 // Third recipient gets 300 tokens
     ];
 
     let total_amount = 600_u256; // Sum of all amounts
@@ -127,16 +127,13 @@ fn test_weighted_distribution() {
 
     // Assert balances for each recipient
     assert(
-        token.balance_of(contract_address_const::<0x2>()) == 100_u256,
-        'Wrong balance recipient 1'
+        token.balance_of(contract_address_const::<0x2>()) == 100_u256, 'Wrong balance recipient 1'
     );
     assert(
-        token.balance_of(contract_address_const::<0x3>()) == 200_u256,
-        'Wrong balance recipient 2'
+        token.balance_of(contract_address_const::<0x3>()) == 200_u256, 'Wrong balance recipient 2'
     );
     assert(
-        token.balance_of(contract_address_const::<0x4>()) == 300_u256,
-        'Wrong balance recipient 3'
+        token.balance_of(contract_address_const::<0x4>()) == 300_u256, 'Wrong balance recipient 3'
     );
 }
 
@@ -144,12 +141,9 @@ fn test_weighted_distribution() {
 #[should_panic(expected: ('Arrays length mismatch',))]
 fn test_weighted_distribution_mismatched_arrays() {
     let (token_address, sender, distributor) = setup();
-    
+
     // Create unequal length arrays
-    let recipients = array![
-        contract_address_const::<0x2>(),
-        contract_address_const::<0x3>()
-    ];
+    let recipients = array![contract_address_const::<0x2>(), contract_address_const::<0x3>()];
     let amounts = array![100_u256];
 
     start_cheat_caller_address(distributor.contract_address, sender);
@@ -161,7 +155,7 @@ fn test_weighted_distribution_mismatched_arrays() {
 #[should_panic(expected: ('Amount must be greater than 0',))]
 fn test_weighted_distribution_zero_amount() {
     let (token_address, sender, distributor) = setup();
-    
+
     let recipients = array![contract_address_const::<0x2>()];
     let amounts = array![0_u256];
 
@@ -169,7 +163,6 @@ fn test_weighted_distribution_zero_amount() {
     distributor.distribute_weighted(amounts, recipients, token_address);
     stop_cheat_caller_address(distributor.contract_address);
 }
-
 // #[test]
 // fn test_weighted_distribution_events() {
 //     // Setup
@@ -200,16 +193,16 @@ fn test_weighted_distribution_zero_amount() {
 //     spy.assert_emitted(@array![
 //         (
 //             distributor.contract_address,
-//             WeightedDistribution { 
-//                 recipient: contract_address_const::<0x2>(), 
-//                 amount: 100_u256 
+//             WeightedDistribution {
+//                 recipient: contract_address_const::<0x2>(),
+//                 amount: 100_u256
 //             }
 //         ),
 //         (
 //             distributor.contract_address,
-//             WeightedDistribution { 
-//                 recipient: contract_address_const::<0x3>(), 
-//                 amount: 200_u256 
+//             WeightedDistribution {
+//                 recipient: contract_address_const::<0x3>(),
+//                 amount: 200_u256
 //             }
 //         )
 //     ]);
@@ -291,7 +284,7 @@ fn test_weighted_distribution_zero_amount() {
 //     stop_cheat_caller_address(distributor.contract_address);
 
 //     assert(result.is_err(), 'Should fail with zero amount');
-    
+
 //     // Verify no events were emitted
 //     let events = spy.get_events().unwrap();
 //     assert(events.is_empty(), 'Should not emit events');
