@@ -1,36 +1,3 @@
-use starknet::ContractAddress;
-
-/// Interface for the distribution contract
-#[starknet::interface]
-pub trait IDistributor<TContractState> {
-    /// Distributes equal amounts of tokens to multiple recipients
-    fn distribute(
-        ref self: TContractState,
-        amount: u256,
-        recipients: Array<ContractAddress>,
-        token: ContractAddress
-    );
-
-    /// Distributes different amounts of tokens to multiple recipients
-    fn distribute_weighted(
-        ref self: TContractState,
-        amounts: Array<u256>,
-        recipients: Array<ContractAddress>,
-        token: ContractAddress
-    );
-
-    /// Gets the current balance of the contract
-    fn get_balance(self: @TContractState) -> u256;
-}
-
-/// Error messages for the Distributor contract
-pub mod Errors {
-    pub const EMPTY_RECIPIENTS: felt252 = 'Recipients array is empty';
-    pub const ZERO_AMOUNT: felt252 = 'Amount must be greater than 0';
-    pub const INSUFFICIENT_ALLOWANCE: felt252 = 'Insufficient allowance';
-    pub const INVALID_TOKEN: felt252 = 'Invalid token address';
-}
-
 /// Main contract implementation
 #[starknet::contract]
 mod Distributor {
@@ -41,8 +8,11 @@ mod Distributor {
     use starknet::ContractAddress;
     use starknet::{get_caller_address, get_contract_address, ClassHash};
     use core::num::traits::Zero;
-    use super::Errors;
-
+    //  use super::Errors;
+    use fundable::base::errors::Errors::{
+        EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN
+    };
+    use fundable::interfaces::IDistributor::IDistributor;
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
@@ -87,17 +57,26 @@ mod Distributor {
     }
 
     #[abi(embed_v0)]
-    impl DistributorImpl of super::IDistributor<ContractState> {
+    impl DistributorImpl of IDistributor<ContractState> {
         fn distribute(
             ref self: ContractState,
             amount: u256,
             recipients: Array<ContractAddress>,
             token: ContractAddress,
         ) {
+            // QUESTIONS
+            // - how the user approve this contract to spend his token
+            // - checking if the approve the contract to spend his token is done
+            // follow up QUESTION
+            // - does this mean everytime a user want to distribute, we have request for approval
+            // for max amount
+            // - Yes, the user approves the max amount of token to be spent by the contract by the 
+            // total amount he wants to distribute.
+
             // Validate inputs
-            assert(!recipients.is_empty(), Errors::EMPTY_RECIPIENTS);
-            assert(amount > 0, Errors::ZERO_AMOUNT);
-            assert(!token.is_zero(), Errors::INVALID_TOKEN);
+            assert(!recipients.is_empty(), EMPTY_RECIPIENTS);
+            assert(amount > 0, ZERO_AMOUNT);
+            assert(!token.is_zero(), INVALID_TOKEN);
 
             // Create ERC20 dispatcher to interact with the token contract
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
@@ -108,7 +87,7 @@ mod Distributor {
             // Check allowance
             let total_amount = amount * recipients.len().into();
             let allowance = token_dispatcher.allowance(caller, get_contract_address());
-            assert(allowance >= total_amount, Errors::INSUFFICIENT_ALLOWANCE);
+            assert(allowance >= total_amount, INSUFFICIENT_ALLOWANCE);
 
             let recipients_list = recipients.span();
 
@@ -119,16 +98,14 @@ mod Distributor {
             };
 
             // Emit summary event
-            self.emit(
-                Event::Distribution(
-                    Distribution { 
-                        caller,
-                        token, 
-                        amount, 
-                        recipients_count: recipients_list.len() 
-                    }
-                )
-            );
+            self
+                .emit(
+                    Event::Distribution(
+                        Distribution {
+                            caller, token, amount, recipients_count: recipients_list.len()
+                        }
+                    )
+                );
         }
 
         fn distribute_weighted(
@@ -165,26 +142,24 @@ mod Distributor {
                 }
                 let recipient = *recipients.at(i);
                 let amount = *amounts.at(i);
-                
+
                 token_dispatcher.transfer_from(caller, recipient, amount);
-                
+
                 // Emit event for each distribution
                 self.emit(WeightedDistribution { recipient, amount });
-                
+
                 i += 1;
             };
 
             // Add summary event at the end
-            self.emit(
-                Event::Distribution(
-                    Distribution { 
-                        caller,
-                        token, 
-                        amount: total_amount, 
-                        recipients_count: recipients.len() 
-                    }
-                )
-            );
+            self
+                .emit(
+                    Event::Distribution(
+                        Distribution {
+                            caller, token, amount: total_amount, recipients_count: recipients.len()
+                        }
+                    )
+                );
         }
 
         fn get_balance(self: @ContractState) -> u256 {
