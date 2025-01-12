@@ -34,9 +34,9 @@ pub struct WeightedDistribution {
 /// @notice Enum representing the possible states of a stream
 #[derive(Drop, Serde, starknet::Store)]
 pub enum StreamStatus {
-    Active,    // Stream is actively streaming tokens
-    Canceled,  // Stream has been canceled by the sender
+    Active, // Stream is actively streaming tokens
+    Canceled, // Stream has been canceled by the sender
     Completed, // Stream has completed its full duration
-    Paused,    // Stream is temporarily paused
-    Voided     // Stream has been permanently voided
+    Paused, // Stream is temporarily paused
+    Voided // Stream has been permanently voided
 }

@@ -28,7 +28,9 @@ pub trait IPaymentStream<TContractState> {
     /// @param amount The amount to withdraw
     /// @param to The address receiving the withdrawn tokens
     /// @return A tuple of (withdrawn_amount, protocol_fee_amount)
-    fn withdraw(ref self: TContractState, stream_id: u256, amount: u256, to: ContractAddress) -> (u128, u128);
+    fn withdraw(
+        ref self: TContractState, stream_id: u256, amount: u256, to: ContractAddress
+    ) -> (u128, u128);
 
     /// @notice Withdraws the entire withdrawable amount minus the protocol fee
     /// @param stream_id The ID of the stream to withdraw from
@@ -52,7 +54,7 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Voids a stream, making it permanently inactive
     /// @param stream_id The ID of the stream to void
     fn void(ref self: TContractState, stream_id: u256);
-    
+
     /// @notice Returns the stream data for the given ID
     /// @param stream_id The stream ID for the query
     /// @return The Stream struct containing all stream data

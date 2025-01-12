@@ -1,8 +1,6 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{
-        get_block_timestamp, get_caller_address, contract_address_const, storage::Map,
-    };
+    use starknet::{get_block_timestamp, get_caller_address, contract_address_const, storage::Map,};
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
@@ -45,7 +43,7 @@ mod PaymentStream {
         protocol_fee: u128
     }
 
-    #[derive(Drop, starknet::Event)] 
+    #[derive(Drop, starknet::Event)]
     struct StreamCanceled {
         #[key]
         stream_id: u256
@@ -134,31 +132,27 @@ mod PaymentStream {
 
             self.streams.write(stream_id, stream);
 
-            self.emit(Event::StreamCreated(StreamCreated {
-                stream_id,
-                sender: stream.sender,
-                recipient,
-                total_amount,
-                token
-            }));
+            self
+                .emit(
+                    Event::StreamCreated(
+                        StreamCreated {
+                            stream_id, sender: stream.sender, recipient, total_amount, token
+                        }
+                    )
+                );
 
             stream_id
         }
 
         fn withdraw(
-            ref self: ContractState, 
-            stream_id: u256, 
-            amount: u256, 
-            to: ContractAddress
+            ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress
         ) -> (u128, u128) {
             // Return dummy values for (withdrawn_amount, protocol_fee_amount)
             (0_u128, 0_u128)
         }
 
         fn withdraw_max(
-            ref self: ContractState, 
-            stream_id: u256, 
-            to: ContractAddress
+            ref self: ContractState, stream_id: u256, to: ContractAddress
         ) -> (u128, u128) {
             // Return dummy values for (withdrawn_amount, protocol_fee_amount)
             (0_u128, 0_u128)

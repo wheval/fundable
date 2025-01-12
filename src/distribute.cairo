@@ -56,7 +56,7 @@ mod Distributor {
             // follow up QUESTION
             // - does this mean everytime a user want to distribute, we have request for approval
             // for max amount
-            // - Yes, the user approves the max amount of token to be spent by the contract by the 
+            // - Yes, the user approves the max amount of token to be spent by the contract by the
             // total amount he wants to distribute.
 
             // Validate inputs
