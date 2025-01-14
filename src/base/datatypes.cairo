@@ -1,7 +1,8 @@
 use starknet::ContractAddress;
+use core::serde::Serde;
 
 /// @notice Struct containing all data for a single stream
-#[derive(Drop, Serde, starknet::Store)]
+#[derive(Drop, Serde, starknet::Store, Clone)]
 pub struct Stream {
     pub sender: ContractAddress,
     pub recipient: ContractAddress,
@@ -36,7 +37,7 @@ pub struct WeightedDistribution {
 pub enum StreamStatus {
     Active, // Stream is actively streaming tokens
     Canceled, // Stream has been canceled by the sender
-    Completed, // Stream has completed its full duration
+    Completed, // Stream has completed its full duration smart 
     Paused, // Stream is temporarily paused
     Voided // Stream has been permanently voided
 }
