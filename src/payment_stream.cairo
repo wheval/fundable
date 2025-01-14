@@ -157,24 +157,20 @@ mod PaymentStream {
             (0_u128, 0_u128)
         }
 
-        fn cancel(ref self: ContractState, stream_id: u256) {
-            // Empty implementation
-            // todo!()
+        fn cancel(ref self: ContractState, stream_id: u256) {// Empty implementation
+        // todo!()
         }
 
-        fn pause(ref self: ContractState, stream_id: u256) {
-            // Empty implementation
-            // todo!()
+        fn pause(ref self: ContractState, stream_id: u256) {// Empty implementation
+        // todo!()
         }
 
-        fn restart(ref self: ContractState, stream_id: u256, rate_per_second: u256) {
-            // Empty implementation
-           //  todo!()
+        fn restart(ref self: ContractState, stream_id: u256, rate_per_second: u256) {// Empty implementation
+        //  todo!()
         }
 
-        fn void(ref self: ContractState, stream_id: u256) {
-            // Empty implementation
-           //  todo!()
+        fn void(ref self: ContractState, stream_id: u256) {// Empty implementation
+        //  todo!()
         }
 
         fn get_stream(self: @ContractState, stream_id: u256) -> Stream {
@@ -190,7 +186,7 @@ mod PaymentStream {
                 // total_pause_duration: 0_u64,
                 withdrawn_amount: 0_u256,
                 cancelable: false,
-               //  depleted: false,
+                //  depleted: false,
                 status: StreamStatus::Active,
                 rate_per_second: 0,
                 last_update_time: 0,
