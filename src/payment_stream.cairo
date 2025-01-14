@@ -157,19 +157,21 @@ mod PaymentStream {
             (0_u128, 0_u128)
         }
 
-        fn cancel(ref self: ContractState, stream_id: u256) {// Empty implementation
+        fn cancel(ref self: ContractState, stream_id: u256) { // Empty implementation
         // todo!()
         }
 
-        fn pause(ref self: ContractState, stream_id: u256) {// Empty implementation
+        fn pause(ref self: ContractState, stream_id: u256) { // Empty implementation
         // todo!()
         }
 
-        fn restart(ref self: ContractState, stream_id: u256, rate_per_second: u256) {// Empty implementation
+        fn restart(
+            ref self: ContractState, stream_id: u256, rate_per_second: u256
+        ) { // Empty implementation
         //  todo!()
         }
 
-        fn void(ref self: ContractState, stream_id: u256) {// Empty implementation
+        fn void(ref self: ContractState, stream_id: u256) { // Empty implementation
         //  todo!()
         }
 
