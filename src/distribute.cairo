@@ -8,7 +8,7 @@ mod Distributor {
     use starknet::ContractAddress;
     use starknet::{get_caller_address, get_contract_address, ClassHash};
     use core::num::traits::Zero;
-    use crate::base::datatypes::{Distribution, WeightedDistribution};
+    use crate::base::types::{Distribution, WeightedDistribution};
     //  use super::Errors;
     use crate::base::errors::Errors::{
         EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN

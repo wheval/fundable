@@ -4,7 +4,7 @@ mod PaymentStream {
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
-    use crate::base::datatypes::{Stream, StreamStatus};
+    use crate::base::types::{Stream, StreamStatus};
     use fundable::interfaces::IPaymentStream::IPaymentStream;
 
     #[storage]
@@ -184,11 +184,8 @@ mod PaymentStream {
                 total_amount: 0_u256,
                 start_time: 0_u64,
                 end_time: 0_u64,
-                // last_pause_time: 0_u64,
-                // total_pause_duration: 0_u64,
                 withdrawn_amount: 0_u256,
                 cancelable: false,
-                //  depleted: false,
                 status: StreamStatus::Active,
                 rate_per_second: 0,
                 last_update_time: 0,

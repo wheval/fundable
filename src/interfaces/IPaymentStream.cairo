@@ -1,5 +1,5 @@
 use starknet::ContractAddress;
-use crate::base::datatypes::Stream;
+use crate::base::types::Stream;
 
 /// @title IPaymentStream
 /// @notice Creates and manages payment streams with linear streaming functions.

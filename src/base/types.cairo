@@ -1,8 +1,9 @@
 use starknet::ContractAddress;
 use core::serde::Serde;
+use core::option::OptionTrait;
 
 /// @notice Struct containing all data for a single stream
-#[derive(Drop, Serde, starknet::Store, Clone)]
+#[derive(Drop, Serde, starknet::Store)]
 pub struct Stream {
     pub sender: ContractAddress,
     pub recipient: ContractAddress,
