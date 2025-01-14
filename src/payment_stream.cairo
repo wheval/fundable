@@ -4,8 +4,8 @@ mod PaymentStream {
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
-    use crate::base::datatypes::Stream;
-    use fundable::interfaces::IPaymentStream;
+    use crate::base::datatypes::{Stream, StreamStatus};
+    use fundable::interfaces::IPaymentStream::IPaymentStream;
 
     #[storage]
     struct Storage {
@@ -122,12 +122,11 @@ mod PaymentStream {
                 total_amount,
                 start_time,
                 end_time,
-                last_pause_time: 0,
-                total_pause_duration: 0,
                 withdrawn_amount: 0,
                 cancelable,
-                depleted: false,
-                status: 1_u8, // Active
+                status: StreamStatus::Active,
+                rate_per_second: 0,
+                last_update_time: 0,
             };
 
             self.streams.write(stream_id, stream);
@@ -136,7 +135,7 @@ mod PaymentStream {
                 .emit(
                     Event::StreamCreated(
                         StreamCreated {
-                            stream_id, sender: stream.sender, recipient, total_amount, token
+                            stream_id, sender: get_caller_address(), recipient, total_amount, token
                         }
                     )
                 );
@@ -160,22 +159,22 @@ mod PaymentStream {
 
         fn cancel(ref self: ContractState, stream_id: u256) {
             // Empty implementation
-            todo!()
+            // todo!()
         }
 
         fn pause(ref self: ContractState, stream_id: u256) {
             // Empty implementation
-            todo!()
+            // todo!()
         }
 
         fn restart(ref self: ContractState, stream_id: u256, rate_per_second: u256) {
             // Empty implementation
-            todo!()
+           //  todo!()
         }
 
         fn void(ref self: ContractState, stream_id: u256) {
             // Empty implementation
-            todo!()
+           //  todo!()
         }
 
         fn get_stream(self: @ContractState, stream_id: u256) -> Stream {
@@ -187,12 +186,14 @@ mod PaymentStream {
                 total_amount: 0_u256,
                 start_time: 0_u64,
                 end_time: 0_u64,
-                last_pause_time: 0_u64,
-                total_pause_duration: 0_u64,
+                // last_pause_time: 0_u64,
+                // total_pause_duration: 0_u64,
                 withdrawn_amount: 0_u256,
                 cancelable: false,
-                depleted: false,
-                status: 0_u8,
+               //  depleted: false,
+                status: StreamStatus::Active,
+                rate_per_second: 0,
+                last_update_time: 0,
             }
         }
 
@@ -201,27 +202,27 @@ mod PaymentStream {
             0_u256
         }
 
-        fn is_stream_active(self: @ContractState, _stream_id: u256) -> bool {
+        fn is_stream_active(self: @ContractState, stream_id: u256) -> bool {
             // Return dummy status
             false
         }
 
-        fn get_depletion_time(self: @ContractState, _stream_id: u256) -> u64 {
+        fn get_depletion_time(self: @ContractState, stream_id: u256) -> u64 {
             // Return dummy timestamp
             0_u64
         }
 
-        fn get_total_debt(self: @ContractState, _stream_id: u256) -> u256 {
+        fn get_total_debt(self: @ContractState, stream_id: u256) -> u256 {
             // Return dummy amount
             0_u256
         }
 
-        fn get_uncovered_debt(self: @ContractState, _stream_id: u256) -> u256 {
+        fn get_uncovered_debt(self: @ContractState, stream_id: u256) -> u256 {
             // Return dummy amount
             0_u256
         }
 
-        fn get_covered_debt(self: @ContractState, _stream_id: u256) -> u256 {
+        fn get_covered_debt(self: @ContractState, stream_id: u256) -> u256 {
             // Return dummy amount
             0_u256
         }
