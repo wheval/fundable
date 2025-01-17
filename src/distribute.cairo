@@ -8,8 +8,9 @@ mod Distributor {
     use starknet::ContractAddress;
     use starknet::{get_caller_address, get_contract_address, ClassHash};
     use core::num::traits::Zero;
+    use crate::base::types::{Distribution, WeightedDistribution};
     //  use super::Errors;
-    use fundable::base::errors::Errors::{
+    use crate::base::errors::Errors::{
         EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN
     };
     use fundable::interfaces::IDistributor::IDistributor;
@@ -41,21 +42,6 @@ mod Distributor {
         UpgradeableEvent: UpgradeableComponent::Event,
     }
 
-    #[derive(Drop, starknet::Event)]
-    struct Distribution {
-        #[key]
-        caller: ContractAddress,
-        token: ContractAddress,
-        amount: u256,
-        recipients_count: u32,
-    }
-
-    #[derive(Drop, starknet::Event)]
-    struct WeightedDistribution {
-        recipient: ContractAddress,
-        amount: u256,
-    }
-
     #[abi(embed_v0)]
     impl DistributorImpl of IDistributor<ContractState> {
         fn distribute(
@@ -70,7 +56,7 @@ mod Distributor {
             // follow up QUESTION
             // - does this mean everytime a user want to distribute, we have request for approval
             // for max amount
-            // - Yes, the user approves the max amount of token to be spent by the contract by the 
+            // - Yes, the user approves the max amount of token to be spent by the contract by the
             // total amount he wants to distribute.
 
             // Validate inputs
