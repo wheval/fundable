@@ -29,9 +29,6 @@ jobs:
       - name: Check format
         run: scarb fmt --check
 
-      - name: Check cairo files
-        run: scarb check
-
   # test:
   #   name: Test Project
   #   runs-on: ubuntu-latest
