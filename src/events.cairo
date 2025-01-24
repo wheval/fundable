@@ -3,7 +3,6 @@ use starknet::ContractAddress;
 /// @title PaymentStream Events
 /// @notice Contains all events emitted by the PaymentStream contract for tracking stream lifecycle
 /// @dev All events use stream_id as an indexed key parameter for efficient filtering
-
 #[event]
 #[derive(Drop, starknet::Event)]
 enum Event {
@@ -89,4 +88,4 @@ struct StreamVoided {
     #[key]
     stream_id: u256,
     void_reason: u8,
-} 
+}
