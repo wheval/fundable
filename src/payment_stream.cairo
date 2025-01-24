@@ -11,6 +11,17 @@ mod PaymentStream {
     struct Storage {
         next_stream_id: u256,
         streams: Map<u256, Stream>,
+        total_active_streams: u256,
+        total_distributed: Map<ContractAddress, u256>,  
+        stream_metrics: Map<u256, StreamMetrics>,
+    }
+
+    #[derive(Copy, Drop, Serde, starknet::Store)]
+    struct StreamMetrics {
+        last_activity: u64,
+        total_withdrawn: u256,
+        withdrawal_count: u32,
+        pause_count: u32
     }
 
     #[event]

@@ -1,5 +1,6 @@
 use starknet::ContractAddress;
 use crate::base::types::Stream;
+use super::payment_stream::StreamMetrics;
 
 /// @title IPaymentStream
 /// @notice Creates and manages payment streams with linear streaming functions.
@@ -94,5 +95,23 @@ pub trait IPaymentStream<TContractState> {
     /// @param stream_id The stream ID for the query
     /// @return The refundable amount
     fn get_refundable_amount(self: @TContractState, stream_id: u256) -> u256;
+
+    /// @notice Returns the total number of currently active streams
+    /// @return The count of active streams in the protocol
+    fn get_active_streams_count(self: @TContractState) -> u256;
+
+    /// @notice Returns the total amount distributed for a specific token
+    /// @param token The contract address of the token to query
+    /// @return Total amount distributed for the specified token
+    fn get_token_distribution(self: @TContractState, token: ContractAddress) -> u256;
+
+    /// @notice Retrieves the analytics metrics for a specific stream
+    /// @param stream_id The unique identifier of the stream
+    /// @return StreamMetrics containing detailed stream analytics
+    fn get_stream_metrics(self: @TContractState, stream_id: u256) -> StreamMetrics;
+
+    /// @notice Retrieves overall protocol-level streaming metrics
+    /// @return ProtocolMetrics containing comprehensive protocol analytics
+    fn get_protocol_metrics(self: @TContractState) -> ProtocolMetrics;
 }
 
