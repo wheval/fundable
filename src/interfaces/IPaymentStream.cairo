@@ -38,6 +38,34 @@ pub trait IPaymentStream<TContractState> {
     /// @return A tuple of (withdrawn_amount, protocol_fee_amount)
     fn withdraw_max(ref self: TContractState, stream_id: u256, to: ContractAddress) -> (u128, u128);
 
+    /// @notice withdraws protocol fee to the provided recipient
+    /// @param amount Amount of fee to be withdrawn from fee holder
+    /// @param recipient Receiver of the token withdrawn
+    fn withdraw_protocol_fee(
+        ref self: TContractState, recipient: ContractAddress, amount: u256, token: ContractAddress
+    );
+
+    /// @notice withdraws total accumulated protocol fee to the provided recipient
+    /// @param recipient Receiver of the token withdrawn
+    fn withdraw_max_protocol_fee(
+        ref self: TContractState, recipient: ContractAddress, token: ContractAddress
+    );
+
+    /// @notice updates the percentage fee for the protocol
+    /// @param new_percentage The new percentage fee to be collected
+    fn update_percentage_protocol_fee(ref self: TContractState, new_percentage: u16);
+
+    /// @notice updates the fee collector address
+    /// @param new_fee_collector The new contract address to hold fees collected
+    fn update_fee_collector(ref self: TContractState, new_fee_collector: ContractAddress);
+
+    /// @notice updates the protocol owner address
+    /// @param new_protocol_owner The new protocol owner's address
+    fn update_protocol_owner(ref self: TContractState, new_protocol_owner: ContractAddress);
+
+    /// @notice returns the fee collector address
+    fn get_fee_collector(self: @TContractState) -> ContractAddress;
+
     /// @notice Cancels the stream
     /// @param stream_id The ID of the stream to cancel
     fn cancel(ref self: TContractState, stream_id: u256);

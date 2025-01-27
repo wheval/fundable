@@ -4,8 +4,11 @@ use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
     stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global
 };
+// use fundable::payment_stream::PaymentStream;
 use fundable::interfaces::IDistributor::{IDistributorDispatcher, IDistributorDispatcherTrait};
+use fundable::interfaces::IPaymentStream::{ IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait };
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+
 
 fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
@@ -19,6 +22,20 @@ fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
     let (distributor_address, _) = distributor_class.deploy(@array![]).unwrap();
 
     (erc20_address, sender, IDistributorDispatcher { contract_address: distributor_address })
+}
+
+fn payment_stream_setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher ) {
+    let sender: ContractAddress = contract_address_const::<'sender'>();
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    // Deploy mock ERC20
+    let erc20_class = declare("MockUsdc").unwrap().contract_class();
+    let mut calldata = array![sender.into(), sender.into(),];
+    let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
+
+    let payment_stream_class = declare("PaymentStream").unwrap().contract_class();
+    let mut calldata = array![protocol_owner.into()];
+    let (payment_stream_address, _) = payment_stream_class.deploy(@calldata).unwrap();
+    (erc20_address, sender, IPaymentStreamDispatcher { contract_address: payment_stream_address })
 }
 
 #[test]
@@ -163,6 +180,7 @@ fn test_weighted_distribution_zero_amount() {
     distributor.distribute_weighted(amounts, recipients, token_address);
     stop_cheat_caller_address(distributor.contract_address);
 }
+
 // #[test]
 // fn test_weighted_distribution_events() {
 //     // Setup
@@ -291,3 +309,25 @@ fn test_weighted_distribution_zero_amount() {
 // }
 
 
+#[test]
+fn test_update_fee_collector() {
+    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+
+    let (token_address, sender, payment_stream ) = payment_stream_setup();
+
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_fee_collector(new_fee_collector);
+
+    let fee_collector = payment_stream.get_fee_collector();
+    assert(fee_collector == new_fee_collector, 'wrong fee collector');
+}
+
+#[test]
+fn test_update_percentage_protocol_fee() {
+    let (token_address, sender, payment_stream ) = payment_stream_setup();
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_percentage_protocol_fee(300);
+}
