@@ -40,7 +40,7 @@ fn test_successful_create_stream() {
 }
 
 #[test]
-#[should_panic(expected: 'End time before start time')]
+#[should_panic(expected: 'Error: End time < start time.')]
 fn test_invalid_end_time() {
     let (token_address, _sender, payment_stream) = setup();
     let recipient = contract_address_const::<0x2>();
@@ -54,7 +54,7 @@ fn test_invalid_end_time() {
 }
 
 #[test]
-#[should_panic(expected: 'Invalid recipient')]
+#[should_panic(expected: 'Error: Invalid recipient.')]
 fn test_zero_recipient_address() {
     let (token_address, _sender, payment_stream) = setup();
     let recipient = contract_address_const::<0x0>(); // Invalid zero address
@@ -68,7 +68,7 @@ fn test_zero_recipient_address() {
 }
 
 #[test]
-#[should_panic(expected: 'Invalid token address')]
+#[should_panic(expected: 'Error: Invalid token address.')]
 fn test_zero_token_address() {
     let (_token_address, _sender, payment_stream) = setup();
     let recipient = contract_address_const::<0x2>();
@@ -89,7 +89,7 @@ fn test_zero_token_address() {
 }
 
 #[test]
-#[should_panic(expected: 'Amount must be > 0')]
+#[should_panic(expected: 'Error: Amount must be > 0.')]
 fn test_zero_total_amount() {
     let (token_address, _sender, payment_stream) = setup();
     let recipient = contract_address_const::<0x2>();
