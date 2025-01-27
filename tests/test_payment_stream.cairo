@@ -33,8 +33,10 @@ fn test_successful_create_stream() {
 
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
 
-    assert!(stream_id > 0_u256, "Stream creation failed");
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
 }
 
 #[test]
