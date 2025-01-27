@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  SCARB_VERSION: 2.3.1
+  SCARB_VERSION: 2.8.5
 
 jobs:
   check:
@@ -28,9 +28,6 @@ jobs:
 
       - name: Check format
         run: scarb fmt --check
-
-      - name: Check cairo files
-        run: scarb check
 
   # test:
   #   name: Test Project

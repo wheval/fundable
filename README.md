@@ -10,6 +10,7 @@ A decentralized finance protocol built on StarkNet that combines token distribut
 Fundable Protocol provides two main functionalities:
 
 1. **Token Distribution**: Efficiently distribute tokens to multiple recipients in either:
+
    - Equal amounts across all recipients
    - Custom weighted amounts per recipient
 
@@ -24,12 +25,14 @@ Fundable Protocol provides two main functionalities:
 The protocol consists of two main components:
 
 ### Distributor Contract
+
 - Handles bulk token distributions
 - Manages token allowances and transfers
 - Emits distribution events
 - Supports both equal and weighted distributions
 
 ### PaymentStream Contract
+
 - Manages stream creation and lifecycle
 - Handles withdrawals and stream modifications
 - Tracks stream states and balances
@@ -46,12 +49,14 @@ The protocol consists of two main components:
 ### Setup
 
 1. Clone the repository
+
 ```bash
 git clone https://github.com/fundable-protocol/fundable.git
 cd fundable
 ```
 
 2. Install dependencies
+
 ```bash
 scarb build
 ```
@@ -59,11 +64,13 @@ scarb build
 ## 🧪 Testing
 
 Run the test suite:
+
 ```bash
 snforge test
 ```
 
 For verbose output:
+
 ```bash
 scarb test -v
 ```
@@ -154,8 +161,104 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Telegram: [Join our channel](https://t.me/fundable_finance)
 - Twitter: [@fundable](https://twitter.com/fundable_)
 
+## 📊 Event Tracking Guide
 
+The PaymentStream contract emits the following events to track stream lifecycle and operations:
 
+### Events Overview
 
+#### StreamCreated
 
+Emitted when a new payment stream is created via `create_stream()`.
 
+```cairo
+Event::StreamCreated(
+    StreamCreated {
+        stream_id,      // Unique stream identifier
+        sender,         // Stream creator address
+        recipient,      // Payment recipient address
+        total_amount,   // Total tokens to be streamed
+        token          // ERC20 token address
+    }
+)
+```
+
+#### StreamWithdrawn
+
+Emitted when tokens are withdrawn via `withdraw()` or `withdraw_max()`.
+
+```cairo
+Event::StreamWithdrawn(
+    StreamWithdrawn {
+        stream_id,      // Stream identifier
+        recipient,      // Address receiving the withdrawal
+        amount,         // Amount withdrawn
+        protocol_fee    // Fee charged by protocol
+    }
+)
+```
+
+#### StreamCanceled
+
+Emitted when a stream is canceled by an authorized user via `cancel()`.
+
+```cairo
+Event::StreamCanceled(
+    StreamCanceled {
+        stream_id,          // Stream identifier
+        remaining_balance   // Tokens returned to sender
+    }
+)
+```
+
+#### StreamPaused
+
+Emitted when a stream is paused via `pause_stream()`.
+
+```cairo
+Event::StreamPaused(
+    StreamPaused {
+        stream_id,    // Stream identifier
+        paused_at     // Timestamp of pause
+    }
+)
+```
+
+#### StreamRestarted
+
+Emitted when a paused stream is restarted via `restart_stream()`.
+
+```cairo
+Event::StreamRestarted(
+    StreamRestarted {
+        stream_id,      // Stream identifier
+        restarted_at    // Timestamp of restart
+    }
+)
+```
+
+#### StreamVoided
+
+Emitted when a stream is permanently voided via `void_stream()`.
+
+```cairo
+Event::StreamVoided(
+    StreamVoided {
+        stream_id,     // Stream identifier
+        void_reason    // Reason code for voiding
+    }
+)
+```
+
+### Event Parameter Types
+
+- `stream_id`: `u256` - Unique identifier for each stream
+- `sender`: `ContractAddress` - Starknet address of stream creator
+- `recipient`: `ContractAddress` - Starknet address of payment recipient
+- `total_amount`: `u256` - Amount of tokens in stream
+- `token`: `ContractAddress` - ERC20 token contract address
+- `amount`: `u256` - Amount of tokens in transaction
+- `protocol_fee`: `u128` - Protocol fee amount
+- `remaining_balance`: `u256` - Remaining tokens in stream
+- `paused_at`/`restarted_at`: `u64` - Unix timestamp
+- `void_reason`: `u8` - Numeric code indicating void reason

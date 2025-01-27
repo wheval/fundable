@@ -50,15 +50,6 @@ mod Distributor {
             recipients: Array<ContractAddress>,
             token: ContractAddress,
         ) {
-            // QUESTIONS
-            // - how the user approve this contract to spend his token
-            // - checking if the approve the contract to spend his token is done
-            // follow up QUESTION
-            // - does this mean everytime a user want to distribute, we have request for approval
-            // for max amount
-            // - Yes, the user approves the max amount of token to be spent by the contract by the
-            // total amount he wants to distribute.
-
             // Validate inputs
             assert(!recipients.is_empty(), EMPTY_RECIPIENTS);
             assert(amount > 0, ZERO_AMOUNT);

@@ -95,4 +95,3 @@ pub trait IPaymentStream<TContractState> {
     /// @return The refundable amount
     fn get_refundable_amount(self: @TContractState, stream_id: u256) -> u256;
 }
-
