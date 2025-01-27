@@ -2,7 +2,7 @@ use core::traits::Into;
 use starknet::{ContractAddress, contract_address_const};
 use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
-    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global
+    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global,
 };
 use fundable::interfaces::IDistributor::{IDistributorDispatcher, IDistributorDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
@@ -11,7 +11,7 @@ fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
     let erc20_class = declare("MockUsdc").unwrap().contract_class();
-    let mut calldata = array![sender.into(), sender.into(),];
+    let mut calldata = array![sender.into(), sender.into()];
     let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
 
     // Deploy distributor contract
@@ -30,7 +30,7 @@ fn test_successful_distribution() {
     let mut recipients = array![
         contract_address_const::<0x2>(),
         contract_address_const::<0x3>(),
-        contract_address_const::<0x4>()
+        contract_address_const::<0x4>(),
     ];
 
     let amount_per_recipient = 100_u256;
@@ -42,7 +42,8 @@ fn test_successful_distribution() {
     start_cheat_caller_address(token_address, sender);
     token.approve(distributor.contract_address, amount_per_recipient * 3 + amount_per_recipient);
     println!(
-        "Approved tokens for distributor: {}", token.allowance(sender, distributor.contract_address)
+        "Approved tokens for distributor: {}",
+        token.allowance(sender, distributor.contract_address),
     );
     stop_cheat_caller_address(token_address);
 
@@ -54,20 +55,20 @@ fn test_successful_distribution() {
     // Assert balances
     assert(
         token.balance_of(contract_address_const::<0x2>()) == amount_per_recipient,
-        'Wrong balance recipient 1'
+        'Wrong balance recipient 1',
     );
     assert(
         token.balance_of(contract_address_const::<0x3>()) == amount_per_recipient,
-        'Wrong balance recipient 2'
+        'Wrong balance recipient 2',
     );
     assert(
         token.balance_of(contract_address_const::<0x4>()) == amount_per_recipient,
-        'Wrong balance recipient 3'
+        'Wrong balance recipient 3',
     );
 }
 
 #[test]
-#[should_panic(expected: ('Recipients array is empty',))]
+#[should_panic(expected: ('Error: Recipients array empty.',))]
 fn test_empty_recipients() {
     let (token_address, sender, distributor) = setup();
     let recipients = array![];
@@ -78,7 +79,7 @@ fn test_empty_recipients() {
 }
 
 #[test]
-#[should_panic(expected: ('Amount must be greater than 0',))]
+#[should_panic(expected: ('Error: Amount must be > 0.',))]
 fn test_zero_amount() {
     let (token_address, sender, distributor) = setup();
     let recipients = array![contract_address_const::<0x2>()];
@@ -97,7 +98,7 @@ fn test_weighted_distribution() {
     let recipients = array![
         contract_address_const::<0x2>(),
         contract_address_const::<0x3>(),
-        contract_address_const::<0x4>()
+        contract_address_const::<0x4>(),
     ];
 
     // Create amounts array with different values for each recipient
@@ -116,7 +117,8 @@ fn test_weighted_distribution() {
     start_cheat_caller_address(token_address, sender);
     token.approve(distributor.contract_address, total_amount);
     println!(
-        "Approved tokens for distributor: {}", token.allowance(sender, distributor.contract_address)
+        "Approved tokens for distributor: {}",
+        token.allowance(sender, distributor.contract_address),
     );
     stop_cheat_caller_address(token_address);
 
@@ -127,18 +129,18 @@ fn test_weighted_distribution() {
 
     // Assert balances for each recipient
     assert(
-        token.balance_of(contract_address_const::<0x2>()) == 100_u256, 'Wrong balance recipient 1'
+        token.balance_of(contract_address_const::<0x2>()) == 100_u256, 'Wrong balance recipient 1',
     );
     assert(
-        token.balance_of(contract_address_const::<0x3>()) == 200_u256, 'Wrong balance recipient 2'
+        token.balance_of(contract_address_const::<0x3>()) == 200_u256, 'Wrong balance recipient 2',
     );
     assert(
-        token.balance_of(contract_address_const::<0x4>()) == 300_u256, 'Wrong balance recipient 3'
+        token.balance_of(contract_address_const::<0x4>()) == 300_u256, 'Wrong balance recipient 3',
     );
 }
 
 #[test]
-#[should_panic(expected: ('Arrays length mismatch',))]
+#[should_panic(expected: 'Error: Arrays length mismatch.')]
 fn test_weighted_distribution_mismatched_arrays() {
     let (token_address, sender, distributor) = setup();
 
@@ -152,7 +154,7 @@ fn test_weighted_distribution_mismatched_arrays() {
 }
 
 #[test]
-#[should_panic(expected: ('Amount must be greater than 0',))]
+#[should_panic(expected: ('Error: Amount must be > 0.',))]
 fn test_weighted_distribution_zero_amount() {
     let (token_address, sender, distributor) = setup();
 
