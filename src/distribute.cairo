@@ -11,7 +11,7 @@ mod Distributor {
     use crate::base::types::{Distribution, WeightedDistribution};
     //  use super::Errors;
     use crate::base::errors::Errors::{
-        EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN
+        EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN, ARRAY_LEN_MISMATCH,
     };
     use fundable::interfaces::IDistributor::IDistributor;
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
@@ -88,9 +88,9 @@ mod Distributor {
                 .emit(
                     Event::Distribution(
                         Distribution {
-                            caller, token, amount, recipients_count: recipients_list.len()
-                        }
-                    )
+                            caller, token, amount, recipients_count: recipients_list.len(),
+                        },
+                    ),
                 );
         }
 
@@ -101,8 +101,8 @@ mod Distributor {
             token: ContractAddress,
         ) {
             // Validate inputs
-            assert(!recipients.is_empty(), 'Recipients array is empty');
-            assert(amounts.len() == recipients.len(), 'Arrays length mismatch');
+            assert(!recipients.is_empty(), EMPTY_RECIPIENTS);
+            assert(amounts.len() == recipients.len(), ARRAY_LEN_MISMATCH);
 
             let caller = get_caller_address();
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
@@ -115,7 +115,7 @@ mod Distributor {
                     break;
                 }
                 let amount = *amounts.at(i);
-                assert(amount > 0, 'Amount must be greater than 0');
+                assert(amount > 0, ZERO_AMOUNT);
                 total_amount += amount;
                 i += 1;
             };
@@ -142,9 +142,9 @@ mod Distributor {
                 .emit(
                     Event::Distribution(
                         Distribution {
-                            caller, token, amount: total_amount, recipients_count: recipients.len()
-                        }
-                    )
+                            caller, token, amount: total_amount, recipients_count: recipients.len(),
+                        },
+                    ),
                 );
         }
 
