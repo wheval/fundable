@@ -1,11 +1,15 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{get_block_timestamp, get_caller_address, contract_address_const, storage::Map,};
+    use starknet::{get_block_timestamp, get_caller_address, contract_address_const, storage::Map};
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
     use crate::base::types::{Stream, StreamStatus};
     use fundable::interfaces::IPaymentStream::IPaymentStream;
+    use crate::base::errors::Errors::{
+        ZERO_AMOUNT, INVALID_TOKEN, UNEXISTING_STREAM, WRONG_RECIPIENT, WRONG_SENDER,
+        INVALID_RECIPIENT, END_BEFORE_START,
+    };
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::token::erc20::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
@@ -75,7 +79,7 @@ mod PaymentStream {
         sender: ContractAddress,
         recipient: ContractAddress,
         total_amount: u256,
-        token: ContractAddress
+        token: ContractAddress,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -84,27 +88,27 @@ mod PaymentStream {
         stream_id: u256,
         recipient: ContractAddress,
         amount: u256,
-        protocol_fee: u128
+        protocol_fee: u128,
     }
 
     #[derive(Drop, starknet::Event)]
     struct StreamCanceled {
         #[key]
-        stream_id: u256
+        stream_id: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct StreamPaused {
         #[key]
         stream_id: u256,
-        pause_time: u64
+        pause_time: u64,
     }
 
     #[derive(Drop, starknet::Event)]
     struct StreamRestarted {
         #[key]
         stream_id: u256,
-        rate_per_second: u256
+        rate_per_second: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -124,17 +128,17 @@ mod PaymentStream {
     impl InternalImpl of InternalTrait {
         fn assert_stream_exists(self: @ContractState, stream_id: u256) {
             let stream = self.streams.read(stream_id);
-            assert(!stream.sender.is_zero(), 'Stream does not exist');
+            assert(!stream.sender.is_zero(), UNEXISTING_STREAM);
         }
 
         fn assert_is_recipient(self: @ContractState, stream_id: u256) {
             let stream = self.streams.read(stream_id);
-            assert(get_caller_address() == stream.recipient, 'Not stream recipient');
+            assert(get_caller_address() == stream.recipient, WRONG_RECIPIENT);
         }
 
         fn assert_is_sender(self: @ContractState, stream_id: u256) {
             let stream = self.streams.read(stream_id);
-            assert(get_caller_address() == stream.sender, 'Not stream sender');
+            assert(get_caller_address() == stream.sender, WRONG_SENDER);
         }
 
         fn calculate_stream_rate(total_amount: u256, duration: u64) -> u256 {
@@ -205,9 +209,9 @@ mod PaymentStream {
                 .emit(
                     Event::StreamCreated(
                         StreamCreated {
-                            stream_id, sender: get_caller_address(), recipient, total_amount, token
-                        }
-                    )
+                            stream_id, sender: get_caller_address(), recipient, total_amount, token,
+                        },
+                    ),
                 );
 
             stream_id
@@ -215,7 +219,7 @@ mod PaymentStream {
 
 
         fn withdraw(
-            ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress
+            ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
         ) -> (u128, u128) {
             // Return dummy values for (withdrawn_amount, protocol_fee_amount)
             // let stream = self.streams.read(stream_id);
@@ -231,7 +235,7 @@ mod PaymentStream {
         }
 
         fn withdraw_max(
-            ref self: ContractState, stream_id: u256, to: ContractAddress
+            ref self: ContractState, stream_id: u256, to: ContractAddress,
         ) -> (u128, u128) {
             // Return dummy values for (withdrawn_amount, protocol_fee_amount)
             (0_u128, 0_u128)
@@ -323,7 +327,7 @@ mod PaymentStream {
         }
 
         fn restart(
-            ref self: ContractState, stream_id: u256, rate_per_second: u256
+            ref self: ContractState, stream_id: u256, rate_per_second: u256,
         ) { // Empty implementation
         //  todo!()
         }
