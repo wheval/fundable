@@ -1,10 +1,10 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{get_block_timestamp, get_caller_address, contract_address_const, storage::Map,};
+    use starknet::{get_block_timestamp, get_caller_address, contract_address_const, storage::Map};
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
-    use crate::base::types::{Stream, StreamStatus};
+    use crate::base::types::{Stream, StreamStatus, StreamMetrics, ProtocolMetrics};
     use fundable::interfaces::IPaymentStream::IPaymentStream;
 
     #[storage]
@@ -12,17 +12,11 @@ mod PaymentStream {
         next_stream_id: u256,
         streams: Map<u256, Stream>,
         total_active_streams: u256,
-        total_distributed: Map<ContractAddress, u256>,  
+        total_distributed: Map<ContractAddress, u256>,
         stream_metrics: Map<u256, StreamMetrics>,
+        protocol_metrics: ProtocolMetrics,
     }
 
-    #[derive(Copy, Drop, Serde, starknet::Store)]
-    struct StreamMetrics {
-        last_activity: u64,
-        total_withdrawn: u256,
-        withdrawal_count: u32,
-        pause_count: u32
-    }
 
     #[event]
     #[derive(Drop, starknet::Event)]
@@ -32,7 +26,7 @@ mod PaymentStream {
         StreamCanceled: StreamCanceled,
         StreamPaused: StreamPaused,
         StreamRestarted: StreamRestarted,
-        StreamVoided: StreamVoided
+        StreamVoided: StreamVoided,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -42,7 +36,7 @@ mod PaymentStream {
         sender: ContractAddress,
         recipient: ContractAddress,
         total_amount: u256,
-        token: ContractAddress
+        token: ContractAddress,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -51,33 +45,33 @@ mod PaymentStream {
         stream_id: u256,
         recipient: ContractAddress,
         amount: u256,
-        protocol_fee: u128
+        protocol_fee: u128,
     }
 
     #[derive(Drop, starknet::Event)]
     struct StreamCanceled {
         #[key]
-        stream_id: u256
+        stream_id: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct StreamPaused {
         #[key]
         stream_id: u256,
-        pause_time: u64
+        pause_time: u64,
     }
 
     #[derive(Drop, starknet::Event)]
     struct StreamRestarted {
         #[key]
         stream_id: u256,
-        rate_per_second: u256
+        rate_per_second: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct StreamVoided {
         #[key]
-        stream_id: u256
+        stream_id: u256,
     }
 
     #[generate_trait]
@@ -142,27 +136,39 @@ mod PaymentStream {
 
             self.streams.write(stream_id, stream);
 
+            let protocol_metrics = self.protocol_metrics.read();
+            self
+                .protocol_metrics
+                .write(
+                    ProtocolMetrics {
+                        total_active_streams: protocol_metrics.total_active_streams + 1,
+                        total_tokens_distributed: protocol_metrics.total_tokens_distributed
+                            + total_amount,
+                        total_streams_created: protocol_metrics.total_streams_created + 1,
+                    },
+                );
+
             self
                 .emit(
                     Event::StreamCreated(
                         StreamCreated {
-                            stream_id, sender: get_caller_address(), recipient, total_amount, token
-                        }
-                    )
+                            stream_id, sender: get_caller_address(), recipient, total_amount, token,
+                        },
+                    ),
                 );
 
             stream_id
         }
 
         fn withdraw(
-            ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress
+            ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
         ) -> (u128, u128) {
             // Return dummy values for (withdrawn_amount, protocol_fee_amount)
             (0_u128, 0_u128)
         }
 
         fn withdraw_max(
-            ref self: ContractState, stream_id: u256, to: ContractAddress
+            ref self: ContractState, stream_id: u256, to: ContractAddress,
         ) -> (u128, u128) {
             // Return dummy values for (withdrawn_amount, protocol_fee_amount)
             (0_u128, 0_u128)
@@ -177,7 +183,7 @@ mod PaymentStream {
         }
 
         fn restart(
-            ref self: ContractState, stream_id: u256, rate_per_second: u256
+            ref self: ContractState, stream_id: u256, rate_per_second: u256,
         ) { // Empty implementation
         //  todo!()
         }
@@ -236,6 +242,22 @@ mod PaymentStream {
         fn get_refundable_amount(self: @ContractState, stream_id: u256) -> u256 {
             // Return dummy amount
             0_u256
+        }
+
+        fn get_active_streams_count(self: @ContractState) -> u256 {
+            self.total_active_streams.read()
+        }
+
+        fn get_token_distribution(self: @ContractState, token: ContractAddress) -> u256 {
+            self.total_distributed.read(token)
+        }
+
+        fn get_stream_metrics(self: @ContractState, stream_id: u256) -> StreamMetrics {
+            self.stream_metrics.read(stream_id)
+        }
+
+        fn get_protocol_metrics(self: @ContractState) -> ProtocolMetrics {
+            self.protocol_metrics.read()
         }
     }
 }

@@ -1,6 +1,5 @@
 use starknet::ContractAddress;
-use crate::base::types::Stream;
-use super::payment_stream::StreamMetrics;
+use crate::base::types::{Stream, StreamMetrics, ProtocolMetrics};
 
 /// @title IPaymentStream
 /// @notice Creates and manages payment streams with linear streaming functions.
@@ -30,7 +29,7 @@ pub trait IPaymentStream<TContractState> {
     /// @param to The address receiving the withdrawn tokens
     /// @return A tuple of (withdrawn_amount, protocol_fee_amount)
     fn withdraw(
-        ref self: TContractState, stream_id: u256, amount: u256, to: ContractAddress
+        ref self: TContractState, stream_id: u256, amount: u256, to: ContractAddress,
     ) -> (u128, u128);
 
     /// @notice Withdraws the entire withdrawable amount minus the protocol fee

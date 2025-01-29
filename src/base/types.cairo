@@ -42,3 +42,19 @@ pub enum StreamStatus {
     Paused, // Stream is temporarily paused
     Voided // Stream has been permanently voided
 }
+
+
+#[derive(Copy, Drop, Serde, starknet::Store)]
+pub struct StreamMetrics {
+    last_activity: u64,
+    total_withdrawn: u256,
+    withdrawal_count: u32,
+    pause_count: u32,
+}
+
+#[derive(Drop, Serde, starknet::Store)]
+pub struct ProtocolMetrics {
+    pub total_active_streams: u256,
+    pub total_tokens_distributed: u256,
+    pub total_streams_created: u256,
+}
