@@ -15,7 +15,7 @@ mod Distributor {
     };
     //  use super::Errors;
     use crate::base::errors::Errors::{
-        EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN
+        EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN, ARRAY_LEN_MISMATCH,
     };
     use fundable::interfaces::IDistributor::IDistributor;
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
@@ -52,6 +52,53 @@ mod Distributor {
         UpgradeableEvent: UpgradeableComponent::Event,
     }
 
+    #[generate_trait]
+    impl InternalImpl of InternalTrait {
+        fn update_global_stats(ref self: ContractState, total_amount: u256) {
+            let current_total_distributions = self.total_distributions.read();
+            self.total_distributions.write(current_total_distributions + 1);
+
+            let current_total_distributed_amount = self.total_distributed_amount.read();
+            self.total_distributed_amount.write(current_total_distributed_amount + total_amount);
+        }
+
+        fn update_token_stats(
+            ref self: ContractState, token: ContractAddress, amount: u256, recipients_count: u32,
+        ) {
+            let mut stats = self.token_stats.read(token);
+            stats.total_amount += amount;
+            stats.distribution_count += 1;
+            stats.last_distribution_time = get_block_timestamp();
+
+            self.token_stats.write(token, stats);
+        }
+
+        fn update_user_stats(
+            ref self: ContractState,
+            user: ContractAddress,
+            total_amount: u256,
+            token: ContractAddress,
+        ) {
+            let mut stats = self.user_stats.read(user);
+            stats.distributions_initiated += 1;
+            stats.total_amount_distributed += total_amount;
+            stats.unique_tokens_used += 1;
+            stats.last_distribution_time = get_block_timestamp();
+            self.user_stats.write(user, stats);
+        }
+
+        fn record_distribution(ref self: ContractState, distribution: DistributionHistory) {
+            let current_count = self.distribution_count.read();
+            let current_count = if current_count == 0.into() {
+                0.into()
+            } else {
+                current_count
+            };
+
+            self.distribution_history.write(current_count, distribution);
+            self.distribution_count.write(current_count + 1);
+        }
+    }
 
     #[abi(embed_v0)]
     impl DistributorImpl of IDistributor<ContractState> {
@@ -105,12 +152,9 @@ mod Distributor {
                 .emit(
                     Event::Distribution(
                         Distribution {
-                            caller,
-                            token,
-                            amount: total_amount,
-                            recipients_count: recipients_list.len()
-                        }
-                    )
+                            caller, token, amount, recipients_count: recipients_list.len(),
+                        },
+                    ),
                 );
         }
 
@@ -121,8 +165,8 @@ mod Distributor {
             token: ContractAddress,
         ) {
             // Validate inputs
-            assert(!recipients.is_empty(), 'Recipients array is empty');
-            assert(amounts.len() == recipients.len(), 'Arrays length mismatch');
+            assert(!recipients.is_empty(), EMPTY_RECIPIENTS);
+            assert(amounts.len() == recipients.len(), ARRAY_LEN_MISMATCH);
 
             let caller = get_caller_address();
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
@@ -135,7 +179,7 @@ mod Distributor {
                     break;
                 }
                 let amount = *amounts.at(i);
-                assert(amount > 0, 'Amount must be greater than 0');
+                assert(amount > 0, ZERO_AMOUNT);
                 total_amount += amount;
                 i += 1;
             };
@@ -161,9 +205,9 @@ mod Distributor {
                 .emit(
                     Event::Distribution(
                         Distribution {
-                            caller, token, amount: total_amount, recipients_count: recipients.len()
-                        }
-                    )
+                            caller, token, amount: total_amount, recipients_count: recipients.len(),
+                        },
+                    ),
                 );
         }
 
@@ -210,52 +254,4 @@ mod Distributor {
         }
     }
 
-    #[generate_trait]
-    impl InternalImpl of InternalTrait {
-        fn update_global_stats(ref self: ContractState, total_amount: u256) {
-            let current_total_distributions = self.total_distributions.read();
-            self.total_distributions.write(current_total_distributions + 1);
-
-            let current_total_distributed_amount = self.total_distributed_amount.read();
-            self.total_distributed_amount.write(current_total_distributed_amount + total_amount);
-        }
-
-        fn update_token_stats(
-            ref self: ContractState, token: ContractAddress, amount: u256, recipients_count: u32,
-        ) {
-            let mut stats = self.token_stats.read(token);
-            stats.total_amount += amount;
-            stats.distribution_count += 1;
-            stats.last_distribution_time = get_block_timestamp();
-
-            self.token_stats.write(token, stats);
-        }
-
-
-        fn update_user_stats(
-            ref self: ContractState,
-            user: ContractAddress,
-            total_amount: u256,
-            token: ContractAddress,
-        ) {
-            let mut stats = self.user_stats.read(user);
-            stats.distributions_initiated += 1;
-            stats.total_amount_distributed += total_amount;
-            stats.unique_tokens_used += 1;
-            stats.last_distribution_time = get_block_timestamp();
-            self.user_stats.write(user, stats);
-        }
-
-        fn record_distribution(ref self: ContractState, distribution: DistributionHistory) {
-            let current_count = self.distribution_count.read();
-            let current_count = if current_count == 0.into() {
-                0.into()
-            } else {
-                current_count
-            };
-
-            self.distribution_history.write(current_count, distribution);
-            self.distribution_count.write(current_count + 1);
-        }
-    }
 }
