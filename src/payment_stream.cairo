@@ -4,7 +4,7 @@ mod PaymentStream {
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
-    use crate::base::types::{Stream, StreamStatus};
+    use crate::base::types::{Stream, StreamStatus, StreamMetrics, ProtocolMetrics};
     use fundable::interfaces::IPaymentStream::IPaymentStream;
     use crate::base::errors::Errors::{
         ZERO_AMOUNT, INVALID_TOKEN, UNEXISTING_STREAM, WRONG_RECIPIENT, WRONG_SENDER,
@@ -15,7 +15,12 @@ mod PaymentStream {
     struct Storage {
         next_stream_id: u256,
         streams: Map<u256, Stream>,
+        total_active_streams: u256,
+        total_distributed: Map<ContractAddress, u256>,
+        stream_metrics: Map<u256, StreamMetrics>,
+        protocol_metrics: ProtocolMetrics,
     }
+
 
     #[event]
     #[derive(Drop, starknet::Event)]
@@ -135,6 +140,18 @@ mod PaymentStream {
 
             self.streams.write(stream_id, stream);
 
+            let protocol_metrics = self.protocol_metrics.read();
+            self
+                .protocol_metrics
+                .write(
+                    ProtocolMetrics {
+                        total_active_streams: protocol_metrics.total_active_streams + 1,
+                        total_tokens_distributed: protocol_metrics.total_tokens_distributed
+                            + total_amount,
+                        total_streams_created: protocol_metrics.total_streams_created + 1,
+                    },
+                );
+
             self
                 .emit(
                     Event::StreamCreated(
@@ -229,6 +246,22 @@ mod PaymentStream {
         fn get_refundable_amount(self: @ContractState, stream_id: u256) -> u256 {
             // Return dummy amount
             0_u256
+        }
+
+        fn get_active_streams_count(self: @ContractState) -> u256 {
+            self.total_active_streams.read()
+        }
+
+        fn get_token_distribution(self: @ContractState, token: ContractAddress) -> u256 {
+            self.total_distributed.read(token)
+        }
+
+        fn get_stream_metrics(self: @ContractState, stream_id: u256) -> StreamMetrics {
+            self.stream_metrics.read(stream_id)
+        }
+
+        fn get_protocol_metrics(self: @ContractState) -> ProtocolMetrics {
+            self.protocol_metrics.read()
         }
     }
 }
