@@ -5,7 +5,6 @@ use core::option::OptionTrait;
 /// @notice Struct containing all data for a single stream
 #[derive(Drop, Serde, starknet::Store)]
 pub struct Stream {
-    pub owner: ContractAddress,
     pub sender: ContractAddress,
     pub recipient: ContractAddress,
     pub total_amount: u256,

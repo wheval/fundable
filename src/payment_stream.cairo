@@ -150,6 +150,7 @@ mod PaymentStream {
         /// @notice points basis: 100pbs = 1%
         fn calculate_protocol_fee(self: @ContractState, total_amount: u256) -> u256 {
             let protocol_fee_percentage = self.protocol_fee_percentage.read();
+            assert(protocol_fee_percentage > 0, 'Zero protocol fee');
             let fee = (total_amount * protocol_fee_percentage.into()) / 10000;
             fee
         }
@@ -181,13 +182,11 @@ mod PaymentStream {
             assert(end_time > start_time, 'End time before start time');
             assert(!token.is_zero(), 'Invalid token address');
 
-            let caller = get_caller_address();
             let stream_id = self.next_stream_id.read();
             self.next_stream_id.write(stream_id + 1);
 
             // Create new stream
             let stream = Stream {
-                owner: caller,
                 sender: get_caller_address(),
                 recipient,
                 token,
@@ -201,7 +200,7 @@ mod PaymentStream {
                 last_update_time: 0,
             };
 
-            self.accesscontrol._grant_role(STREAM_ADMIN_ROLE, stream.owner);
+            self.accesscontrol._grant_role(STREAM_ADMIN_ROLE, stream.sender);
             self.streams.write(stream_id, stream);
 
             self
@@ -391,7 +390,6 @@ mod PaymentStream {
         fn get_stream(self: @ContractState, stream_id: u256) -> Stream {
             // Return dummy stream
             Stream {
-                owner: starknet::contract_address_const::<0>(),
                 sender: starknet::contract_address_const::<0>(),
                 recipient: starknet::contract_address_const::<0>(),
                 token: starknet::contract_address_const::<0>(),
