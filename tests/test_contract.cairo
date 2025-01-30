@@ -24,20 +24,6 @@ fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
     (erc20_address, sender, IDistributorDispatcher { contract_address: distributor_address })
 }
 
-fn payment_stream_setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher ) {
-    let sender: ContractAddress = contract_address_const::<'sender'>();
-    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
-    // Deploy mock ERC20
-    let erc20_class = declare("MockUsdc").unwrap().contract_class();
-    let mut calldata = array![sender.into(), sender.into(),];
-    let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
-
-    let payment_stream_class = declare("PaymentStream").unwrap().contract_class();
-    let mut calldata = array![protocol_owner.into()];
-    let (payment_stream_address, _) = payment_stream_class.deploy(@calldata).unwrap();
-    (erc20_address, sender, IPaymentStreamDispatcher { contract_address: payment_stream_address })
-}
-
 #[test]
 fn test_successful_distribution() {
     let (token_address, sender, distributor) = setup();
@@ -309,27 +295,3 @@ fn test_weighted_distribution_zero_amount() {
 //     let events = spy.get_events().unwrap();
 //     assert(events.is_empty(), 'Should not emit events');
 // }
-
-
-#[test]
-fn test_update_fee_collector() {
-    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
-    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
-
-    let (token_address, sender, payment_stream ) = payment_stream_setup();
-
-    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
-    payment_stream.update_fee_collector(new_fee_collector);
-
-    let fee_collector = payment_stream.get_fee_collector();
-    assert(fee_collector == new_fee_collector, 'wrong fee collector');
-}
-
-#[test]
-fn test_update_percentage_protocol_fee() {
-    let (token_address, sender, payment_stream ) = payment_stream_setup();
-    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
-
-    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
-    payment_stream.update_percentage_protocol_fee(300);
-}

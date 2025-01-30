@@ -59,14 +59,13 @@ mod PaymentStream {
     #[derive(Drop, starknet::Event)]
     struct FeeCollected {
         #[key]
-        stream_id: u256,
+        from: ContractAddress,
         amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct WithdrawalSuccessful {
         #[key]
-        stream_id: u256,
         token: ContractAddress,
         amount: u256,
         recipient: ContractAddress,
@@ -221,24 +220,65 @@ mod PaymentStream {
         fn withdraw(
             ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
         ) -> (u128, u128) {
-            // Return dummy values for (withdrawn_amount, protocol_fee_amount)
-            // let stream = self.streams.read(stream_id);
-            // let stream_token_balance = stream.
-            // self.accesscontrol.assert_only_role(STREAM_ADMIN_ROLE);
+            self.accesscontrol.assert_only_role(STREAM_ADMIN_ROLE);
+            
+            assert(amount > 0, 'Invalid amount');
+            assert(to.is_non_zero(), 'Zero address');
+            
+            let stream = self.streams.read(stream_id);
+            let fee = self.calculate_protocol_fee(amount);
+            let net_amount = (amount - fee);
+            let token_address = stream.token;
+            let sender = stream.sender;
+            let token_dispatcher = ERC20ABIDispatcher { contract_address: token_address };
 
-            // assert(amount > 0, 'Invalid amount');
-            // assert(to.is_non_zero(), 'Zero address');
+            /// @dev converting fee and net_amount into u128 type
+            let net_amount_into_u128 = net_amount.try_into().unwrap();
+            let fee_into_u128 = fee.try_into().unwrap();
+            
+            token_dispatcher.transfer_from(sender, to, net_amount);
+            self.collect_protocol_fee(sender, token_address, fee);
 
-            // let token_address = stream.token;
+            self.emit( StreamWithdrawn {
+                stream_id,
+                recipient: to,
+                amount: net_amount,
+                protocol_fee: fee_into_u128,
+             });
 
-            (0_u128, 0_u128)
+            (net_amount_into_u128, fee_into_u128)
         }
 
         fn withdraw_max(
             ref self: ContractState, stream_id: u256, to: ContractAddress,
         ) -> (u128, u128) {
-            // Return dummy values for (withdrawn_amount, protocol_fee_amount)
-            (0_u128, 0_u128)
+            self.accesscontrol.assert_only_role(STREAM_ADMIN_ROLE);
+
+            assert(to.is_non_zero(), 'Zero address');
+
+            let stream = self.streams.read(stream_id);
+            let token_address = stream.token;
+            let sender = stream.sender;
+            let token_dispatcher = ERC20ABIDispatcher { contract_address: token_address };
+            let max_amount = token_dispatcher.balance_of(sender);
+            let fee = self.calculate_protocol_fee(max_amount);
+            let net_amount = (max_amount - fee);
+
+            /// @dev converting fee and net_amount into u128 type
+            let fee_into_u128 = fee.try_into().unwrap();
+            let net_amount_into_u128 = net_amount.try_into().unwrap();
+
+            token_dispatcher.transfer_from(sender, to, net_amount);
+            self.collect_protocol_fee(sender, token_address, fee);
+
+            self.emit( StreamWithdrawn {
+                stream_id,
+                recipient: to,
+                amount: net_amount,
+                protocol_fee: fee_into_u128,
+             });
+
+            (net_amount_into_u128, fee_into_u128)
         }
 
         fn withdraw_protocol_fee(
@@ -258,6 +298,12 @@ mod PaymentStream {
 
             let accumulated_fees = self.accumulated_fees.read(token);
             self.accumulated_fees.write(token, accumulated_fees - amount);
+
+            self.emit( WithdrawalSuccessful {
+                token,
+                amount,
+                recipient
+             });
         }
 
         fn withdraw_max_protocol_fee(
@@ -277,6 +323,12 @@ mod PaymentStream {
 
             let accumulated_fees = self.accumulated_fees.read(token);
             self.accumulated_fees.write(token, accumulated_fees - max_amount);
+
+            self.emit( WithdrawalSuccessful {
+                token,
+                amount: max_amount,
+                recipient
+             });
         }
 
         fn update_percentage_protocol_fee(ref self: ContractState, new_percentage: u16) {
@@ -305,11 +357,11 @@ mod PaymentStream {
             let current_owner = self.protocol_owner.read();
             assert(new_protocol_owner.is_non_zero(), 'Invalid address');
             assert(new_protocol_owner != current_owner, 'current owner == new_owner');
-    
+
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
-    
+
             self.protocol_owner.write(new_protocol_owner);
-    
+
             self.accesscontrol.revoke_role(PROTOCOL_OWNER_ROLE, current_owner);
             self.accesscontrol._grant_role(PROTOCOL_OWNER_ROLE, new_protocol_owner);
         }
@@ -389,5 +441,4 @@ mod PaymentStream {
             0_u256
         }
     }
-
 }
