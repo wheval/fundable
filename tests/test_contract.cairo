@@ -6,7 +6,6 @@ use snforge_std::{
 };
 // use fundable::payment_stream::PaymentStream;
 use fundable::interfaces::IDistributor::{IDistributorDispatcher, IDistributorDispatcherTrait};
-use fundable::interfaces::IPaymentStream::{ IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait };
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
 
