@@ -1,6 +1,6 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{get_block_timestamp, get_caller_address, contract_address_const, storage::Map};
+    use starknet::{get_block_timestamp, get_caller_address, get_contract_address, contract_address_const, storage::Map};
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
@@ -12,7 +12,7 @@ mod PaymentStream {
     };
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
-    use openzeppelin::token::erc20::{ERC20ABIDispatcher, ERC20ABIDispatcherTrait};
+    use openzeppelin::token::erc20::interface::{ IERC20Dispatcher, IERC20DispatcherTrait };
 
     component!(path: AccessControlComponent, storage: accesscontrol, event: AccessControlEvent);
     component!(path: SRC5Component, storage: src5, event: Src5Event);
@@ -164,8 +164,8 @@ mod PaymentStream {
             self: @ContractState, sender: ContractAddress, token: ContractAddress, amount: u256
         ) {
             let fee_collector: ContractAddress = self.fee_collector.read();
-            assert(fee_collector.is_non_zero(), 'Fee collector is zero addr');
-            ERC20ABIDispatcher { contract_address: token }
+            assert(fee_collector.is_non_zero(), INVALID_RECIPIENT);
+            IERC20Dispatcher { contract_address: token }
                 .transfer_from(sender, fee_collector, amount);
         }
     }
@@ -238,21 +238,22 @@ mod PaymentStream {
         ) -> (u128, u128) {
             self.accesscontrol.assert_only_role(STREAM_ADMIN_ROLE);
             
-            assert(amount > 0, 'Invalid amount');
-            assert(to.is_non_zero(), 'Zero address');
+            assert(amount > 0, ZERO_AMOUNT);
+            assert(to.is_non_zero(), INVALID_RECIPIENT);
             
             let stream = self.streams.read(stream_id);
             let fee = self.calculate_protocol_fee(amount);
             let net_amount = (amount - fee);
             let token_address = stream.token;
-            let sender = stream.sender;
-            let token_dispatcher = ERC20ABIDispatcher { contract_address: token_address };
-
+            let sender = get_caller_address();
+            let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+            let contract_allowance = token_dispatcher.allowance(sender, get_contract_address());
+            
+            assert(contract_allowance >= amount, 'INSUFFICIENT ALLOWANCE');
             /// @dev converting fee and net_amount into u128 type
             let net_amount_into_u128 = net_amount.try_into().unwrap();
             let fee_into_u128 = fee.try_into().unwrap();
             
-            token_dispatcher.transfer_from(sender, to, net_amount);
             self.collect_protocol_fee(sender, token_address, fee);
 
             self.emit( StreamWithdrawn {
@@ -275,7 +276,7 @@ mod PaymentStream {
             let stream = self.streams.read(stream_id);
             let token_address = stream.token;
             let sender = stream.sender;
-            let token_dispatcher = ERC20ABIDispatcher { contract_address: token_address };
+            let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
             let max_amount = token_dispatcher.balance_of(sender);
             let fee = self.calculate_protocol_fee(max_amount);
             let net_amount = (max_amount - fee);
@@ -308,7 +309,7 @@ mod PaymentStream {
             assert(recipient.is_non_zero(), 'Zero recipient address');
 
             let fee_collector = self.fee_collector.read();
-            let _success = ERC20ABIDispatcher { contract_address: token }
+            let _success = IERC20Dispatcher { contract_address: token }
                 .transfer_from(fee_collector, recipient, amount);
             assert(_success, 'token withdrawal fail...');
 
@@ -330,10 +331,10 @@ mod PaymentStream {
 
             let fee_collector = self.fee_collector.read();
 
-            let max_amount = ERC20ABIDispatcher { contract_address: token }
+            let max_amount = IERC20Dispatcher { contract_address: token }
                 .balance_of(fee_collector);
 
-            let _success = ERC20ABIDispatcher { contract_address: token }
+            let _success = IERC20Dispatcher { contract_address: token }
                 .transfer_from(fee_collector, recipient, max_amount);
             assert(_success, 'token withdrawal fail...');
 
@@ -406,19 +407,21 @@ mod PaymentStream {
 
         fn get_stream(self: @ContractState, stream_id: u256) -> Stream {
             // Return dummy stream
-            Stream {
-                sender: starknet::contract_address_const::<0>(),
-                recipient: starknet::contract_address_const::<0>(),
-                token: starknet::contract_address_const::<0>(),
-                total_amount: 0_u256,
-                start_time: 0_u64,
-                end_time: 0_u64,
-                withdrawn_amount: 0_u256,
-                cancelable: false,
-                status: StreamStatus::Active,
-                rate_per_second: 0,
-                last_update_time: 0,
-            }
+            // Stream {
+            //     sender: starknet::contract_address_const::<0>(),
+            //     recipient: starknet::contract_address_const::<0>(),
+            //     token: starknet::contract_address_const::<0>(),
+            //     total_amount: 0_u256,
+            //     start_time: 0_u64,
+            //     end_time: 0_u64,
+            //     withdrawn_amount: 0_u256,
+            //     cancelable: false,
+            //     status: StreamStatus::Active,
+            //     rate_per_second: 0,
+            //     last_update_time: 0,
+            // }
+
+            self.streams.read(stream_id)
         }
 
         fn get_withdrawable_amount(self: @ContractState, stream_id: u256) -> u256 {
