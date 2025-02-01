@@ -1,6 +1,6 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{get_block_timestamp, get_caller_address, contract_address_const, storage::Map};
+    use starknet::{get_block_timestamp, get_caller_address, get_contract_address, contract_address_const, storage::Map};
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
