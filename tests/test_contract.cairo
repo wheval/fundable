@@ -4,8 +4,10 @@ use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
     stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global,
 };
+// use fundable::payment_stream::PaymentStream;
 use fundable::interfaces::IDistributor::{IDistributorDispatcher, IDistributorDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+
 
 fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
@@ -165,6 +167,7 @@ fn test_weighted_distribution_zero_amount() {
     distributor.distribute_weighted(amounts, recipients, token_address);
     stop_cheat_caller_address(distributor.contract_address);
 }
+
 // #[test]
 // fn test_weighted_distribution_events() {
 //     // Setup
@@ -291,5 +294,3 @@ fn test_weighted_distribution_zero_amount() {
 //     let events = spy.get_events().unwrap();
 //     assert(events.is_empty(), 'Should not emit events');
 // }
-
-
