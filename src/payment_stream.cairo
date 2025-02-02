@@ -1,6 +1,9 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{get_block_timestamp, get_caller_address, get_contract_address, contract_address_const, storage::Map};
+    use starknet::{
+        get_block_timestamp, get_caller_address, get_contract_address, contract_address_const,
+        storage::Map
+    };
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
@@ -8,11 +11,11 @@ mod PaymentStream {
     use fundable::interfaces::IPaymentStream::IPaymentStream;
     use crate::base::errors::Errors::{
         ZERO_AMOUNT, INVALID_TOKEN, UNEXISTING_STREAM, WRONG_RECIPIENT, WRONG_SENDER,
-        INVALID_RECIPIENT, END_BEFORE_START,
+        INVALID_RECIPIENT, END_BEFORE_START, INSUFFICIENT_ALLOWANCE,
     };
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
-    use openzeppelin::token::erc20::interface::{ IERC20Dispatcher, IERC20DispatcherTrait };
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
     component!(path: AccessControlComponent, storage: accesscontrol, event: AccessControlEvent);
     component!(path: SRC5Component, storage: src5, event: Src5Event);
@@ -182,10 +185,10 @@ mod PaymentStream {
             token: ContractAddress,
         ) -> u256 {
             // Validate inputs
-            assert(!recipient.is_zero(), 'Invalid recipient');
-            assert(total_amount > 0, 'Amount must be > 0');
-            assert(end_time > start_time, 'End time before start time');
-            assert(!token.is_zero(), 'Invalid token address');
+            assert(!recipient.is_zero(), INVALID_RECIPIENT);
+            assert(total_amount > 0, ZERO_AMOUNT);
+            assert(end_time > start_time, END_BEFORE_START);
+            assert(!token.is_zero(), INVALID_TOKEN);
 
             let stream_id = self.next_stream_id.read();
             self.next_stream_id.write(stream_id + 1);
@@ -237,10 +240,10 @@ mod PaymentStream {
             ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
         ) -> (u128, u128) {
             self.accesscontrol.assert_only_role(STREAM_ADMIN_ROLE);
-            
+
             assert(amount > 0, ZERO_AMOUNT);
             assert(to.is_non_zero(), INVALID_RECIPIENT);
-            
+
             let stream = self.streams.read(stream_id);
             let fee = self.calculate_protocol_fee(amount);
             let net_amount = (amount - fee);
@@ -248,20 +251,20 @@ mod PaymentStream {
             let sender = get_caller_address();
             let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
             let contract_allowance = token_dispatcher.allowance(sender, get_contract_address());
-            
-            assert(contract_allowance >= amount, 'INSUFFICIENT ALLOWANCE');
+
+            assert(contract_allowance >= amount, INSUFFICIENT_ALLOWANCE);
             /// @dev converting fee and net_amount into u128 type
             let net_amount_into_u128 = net_amount.try_into().unwrap();
             let fee_into_u128 = fee.try_into().unwrap();
-            
+
             self.collect_protocol_fee(sender, token_address, fee);
 
-            self.emit( StreamWithdrawn {
-                stream_id,
-                recipient: to,
-                amount: net_amount,
-                protocol_fee: fee_into_u128,
-             });
+            self
+                .emit(
+                    StreamWithdrawn {
+                        stream_id, recipient: to, amount: net_amount, protocol_fee: fee_into_u128,
+                    }
+                );
 
             (net_amount_into_u128, fee_into_u128)
         }
@@ -271,7 +274,7 @@ mod PaymentStream {
         ) -> (u128, u128) {
             self.accesscontrol.assert_only_role(STREAM_ADMIN_ROLE);
 
-            assert(to.is_non_zero(), 'Zero address');
+            assert(to.is_non_zero(), INVALID_RECIPIENT);
 
             let stream = self.streams.read(stream_id);
             let token_address = stream.token;
@@ -288,12 +291,12 @@ mod PaymentStream {
             token_dispatcher.transfer_from(sender, to, net_amount);
             self.collect_protocol_fee(sender, token_address, fee);
 
-            self.emit( StreamWithdrawn {
-                stream_id,
-                recipient: to,
-                amount: net_amount,
-                protocol_fee: fee_into_u128,
-             });
+            self
+                .emit(
+                    StreamWithdrawn {
+                        stream_id, recipient: to, amount: net_amount, protocol_fee: fee_into_u128,
+                    }
+                );
 
             (net_amount_into_u128, fee_into_u128)
         }
@@ -305,8 +308,8 @@ mod PaymentStream {
             token: ContractAddress
         ) {
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
-            assert(amount > 0, 'amount is 0');
-            assert(recipient.is_non_zero(), 'Zero recipient address');
+            assert(amount > 0, ZERO_AMOUNT);
+            assert(recipient.is_non_zero(), INVALID_RECIPIENT);
 
             let fee_collector = self.fee_collector.read();
             let _success = IERC20Dispatcher { contract_address: token }
@@ -316,23 +319,18 @@ mod PaymentStream {
             let accumulated_fees = self.accumulated_fees.read(token);
             self.accumulated_fees.write(token, accumulated_fees - amount);
 
-            self.emit( WithdrawalSuccessful {
-                token,
-                amount,
-                recipient
-             });
+            self.emit(WithdrawalSuccessful { token, amount, recipient });
         }
 
         fn withdraw_max_protocol_fee(
             ref self: ContractState, recipient: ContractAddress, token: ContractAddress
         ) {
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
-            assert(recipient.is_non_zero(), 'Zero recipient address');
+            assert(recipient.is_non_zero(), INVALID_RECIPIENT);
 
             let fee_collector = self.fee_collector.read();
 
-            let max_amount = IERC20Dispatcher { contract_address: token }
-                .balance_of(fee_collector);
+            let max_amount = IERC20Dispatcher { contract_address: token }.balance_of(fee_collector);
 
             let _success = IERC20Dispatcher { contract_address: token }
                 .transfer_from(fee_collector, recipient, max_amount);
@@ -341,11 +339,7 @@ mod PaymentStream {
             let accumulated_fees = self.accumulated_fees.read(token);
             self.accumulated_fees.write(token, accumulated_fees - max_amount);
 
-            self.emit( WithdrawalSuccessful {
-                token,
-                amount: max_amount,
-                recipient
-             });
+            self.emit(WithdrawalSuccessful { token, amount: max_amount, recipient });
         }
 
         fn update_percentage_protocol_fee(ref self: ContractState, new_percentage: u16) {
@@ -364,7 +358,7 @@ mod PaymentStream {
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
 
             let fee_collector = self.fee_collector.read();
-            assert(new_fee_collector.is_non_zero(), 'Zero address');
+            assert(new_fee_collector.is_non_zero(), INVALID_RECIPIENT);
             assert(new_fee_collector != fee_collector, 'same collector address');
 
             self.fee_collector.write(new_fee_collector);
@@ -372,7 +366,7 @@ mod PaymentStream {
 
         fn update_protocol_owner(ref self: ContractState, new_protocol_owner: ContractAddress) {
             let current_owner = self.protocol_owner.read();
-            assert(new_protocol_owner.is_non_zero(), 'Invalid address');
+            assert(new_protocol_owner.is_non_zero(), INVALID_RECIPIENT);
             assert(new_protocol_owner != current_owner, 'current owner == new_owner');
 
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);

@@ -253,5 +253,4 @@ mod Distributor {
             self.upgradeable.upgrade(new_class_hash);
         }
     }
-
 }

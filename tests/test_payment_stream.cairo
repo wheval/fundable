@@ -151,19 +151,19 @@ fn test_withdraw() {
     start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
     payment_stream.update_percentage_protocol_fee(300);
     stop_cheat_caller_address(payment_stream.contract_address);
-    
+
     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
     let sender_initial_balance = token_dispatcher.balance_of(sender);
     println!("Initial balance of sender: {}", sender_initial_balance);
-    
+
     start_cheat_caller_address(token_address, sender);
     token_dispatcher.approve(payment_stream.contract_address, total_amount);
     stop_cheat_caller_address(token_address);
-    
+
     let allowance = token_dispatcher.allowance(sender, payment_stream.contract_address);
     assert(allowance >= total_amount, 'Allowance not set correctly');
     println!("Allowance for withdrawal: {}", allowance);
-    
+
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let (net_amount, fee) = payment_stream.withdraw(stream_id, 1000, recipient);
     stop_cheat_caller_address(payment_stream.contract_address);
