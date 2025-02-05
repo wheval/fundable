@@ -67,6 +67,67 @@ fn test_successful_distribution() {
     );
 }
 
+// ... existing code ...
+
+#[test]
+fn test_protocol_fee_calculation() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Set protocol fee to 250 basis points (2.5%)
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.set_protocol_fee_percent(250);
+
+    // Create recipients array
+    let recipients = array![
+        contract_address_const::<0x2>(),
+        contract_address_const::<0x3>(),
+    ];
+
+    let amount_per_recipient = 1000_u256;
+    let total_amount = amount_per_recipient * 2; // 2000 total
+
+    // Approve tokens for distributor (including fee)
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, total_amount);
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    distributor.distribute(amount_per_recipient, recipients, token_address);
+
+    // Check protocol fee address received correct amount (2.5% of 2000 = 50)
+    let protocol_fee_address = distributor.get_protocol_fee_address();
+    assert(
+        token.balance_of(protocol_fee_address) == 50_u256,
+        'Wrong protocol fee amount'
+    );
+
+    // Check recipients received correct amount (1000 - 2.5% = 975 each)
+    assert(
+        token.balance_of(contract_address_const::<0x2>()) == 975_u256,
+        'Wrong recipient 1 amount'
+    );
+    assert(
+        token.balance_of(contract_address_const::<0x3>()) == 975_u256,
+        'Wrong recipient 2 amount'
+    );
+}
+
+#[test]
+fn test_protocol_fee_edge_cases() {
+    let (token_address, sender, distributor) = setup();
+    
+    // Test with 0% fee
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.set_protocol_fee_percent(0);
+    assert(distributor.get_protocol_fee_percent() == 0, 'Fee should be 0');
+
+    // Test with max fee (100%)
+    distributor.set_protocol_fee_percent(10000);
+    assert(distributor.get_protocol_fee_percent() == 10000, 'Fee should be 10000');
+    stop_cheat_caller_address(distributor.contract_address);
+}
+
 #[test]
 #[should_panic(expected: ('Error: Recipients array empty.',))]
 fn test_empty_recipients() {

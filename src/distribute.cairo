@@ -39,6 +39,8 @@ mod Distributor {
         user_stats: Map<ContractAddress, UserStats>,
         distribution_history: Map<u256, DistributionHistory>,
         distribution_count: u256,
+        protocol_fee_percent: u256,
+        protocol_fee_address: ContractAddress,
     }
 
     #[event]
@@ -98,6 +100,12 @@ mod Distributor {
             self.distribution_history.write(current_count, distribution);
             self.distribution_count.write(current_count + 1);
         }
+
+        fn calculate_protocol_fee(self: @ContractState, total_amount: @u256) -> u256 {
+            let fee_percent = self.protocol_fee_percent.read();
+            let protocol_fee = (*total_amount * fee_percent) / 10000;
+            protocol_fee
+        }
     }
 
     #[abi(embed_v0)]
@@ -120,13 +128,14 @@ mod Distributor {
 
             // Calculate total amount and check allowance
             let total_amount = amount * recipients.len().into();
+            let protocol_fee = self.calculate_protocol_fee(@total_amount);
             let allowance = token_dispatcher.allowance(caller, get_contract_address());
             assert(allowance >= total_amount, INSUFFICIENT_ALLOWANCE);
 
-            // Update global statistics
-            self.update_global_stats(total_amount);
-            self.update_token_stats(token, total_amount, recipients.len());
-            self.update_user_stats(caller, total_amount, token);
+            // Calculate and transfer protocol fee
+            let adjusted_total_amount = total_amount - protocol_fee;
+            let protocol_address = self.protocol_fee_address.read();
+            token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
 
             // Perform distribution
             let recipients_list = recipients.span();
@@ -134,6 +143,11 @@ mod Distributor {
                 token_dispatcher.transfer_from(caller, recipient, amount);
                 self.emit(WeightedDistribution { recipient, amount });
             };
+
+            // Update global statistics
+            self.update_global_stats(total_amount);
+            self.update_token_stats(token, total_amount, recipients_list.len());
+            self.update_user_stats(caller, total_amount, token);
 
             // Record distribution history
             self
@@ -167,10 +181,12 @@ mod Distributor {
             // Validate inputs
             assert(!recipients.is_empty(), EMPTY_RECIPIENTS);
             assert(amounts.len() == recipients.len(), ARRAY_LEN_MISMATCH);
+            assert(!token.is_zero(), INVALID_TOKEN);
 
             let caller = get_caller_address();
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
             let mut total_amount: u256 = 0;
+            let timestamp: u64 = get_block_timestamp();
 
             // Calculate total amount needed
             let mut i = 0;
@@ -200,6 +216,24 @@ mod Distributor {
 
                 i += 1;
             };
+
+            // Update global statistics
+            self.update_global_stats(total_amount);
+            self.update_token_stats(token, total_amount, recipients.len());
+            self.update_user_stats(caller, total_amount, token);
+
+            // Record distribution history
+            self
+                .record_distribution(
+                    DistributionHistory {
+                        caller,
+                        token,
+                        amount: total_amount,
+                        recipients_count: recipients.len(),
+                        timestamp
+                    }
+                );
+
             // Add summary event at the end
             self
                 .emit(
@@ -209,6 +243,24 @@ mod Distributor {
                         },
                     ),
                 );
+        }
+
+        fn get_protocol_fee_percent(self: @ContractState) -> u256 {
+            self.protocol_fee_percent.read()
+        }
+
+        fn set_protocol_fee_percent(ref self: ContractState, new_fee_percent: u256) {
+            self.ownable.assert_only_owner();
+            self.protocol_fee_percent.write(new_fee_percent);
+        }
+
+        fn get_protocol_fee_address(self: @ContractState) -> ContractAddress {
+            self.protocol_fee_address.read()
+        }
+
+        fn set_protocol_fee_address(ref self: ContractState, new_fee_address: ContractAddress) {
+            self.ownable.assert_only_owner();
+            self.protocol_fee_address.write(new_fee_address);
         }
 
         fn get_balance(self: @ContractState) -> u256 {
