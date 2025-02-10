@@ -22,14 +22,23 @@ pub struct Stream {
 pub struct Distribution {
     #[key]
     pub caller: ContractAddress,
+    #[key]
     pub token: ContractAddress,
+    #[key]
     pub amount: u256,
+    #[key]
     pub recipients_count: u32,
 }
 
 #[derive(Drop, starknet::Event)]
 pub struct WeightedDistribution {
+    #[key]
+    pub caller: ContractAddress,
+    #[key]
+    pub token: ContractAddress,
+    #[key]
     pub recipient: ContractAddress,
+    #[key]
     pub amount: u256,
 }
 

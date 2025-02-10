@@ -15,7 +15,7 @@ mod Distributor {
     };
     //  use super::Errors;
     use crate::base::errors::Errors::{
-        EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN, ARRAY_LEN_MISMATCH,
+        EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN, ARRAY_LEN_MISMATCH, PROTOCOL_FEE_ADDRESS_NOT_SET
     };
     use fundable::interfaces::IDistributor::IDistributor;
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
@@ -54,6 +54,12 @@ mod Distributor {
         UpgradeableEvent: UpgradeableComponent::Event,
     }
 
+    #[constructor]
+    fn constructor(ref self: ContractState, protocol_fee_address: ContractAddress, owner: ContractAddress) {
+        self.protocol_fee_address.write(protocol_fee_address);
+        self.ownable.initializer(owner);
+    }
+
     #[generate_trait]
     impl InternalImpl of InternalTrait {
         fn update_global_stats(ref self: ContractState, total_amount: u256) {
@@ -65,7 +71,7 @@ mod Distributor {
         }
 
         fn update_token_stats(
-            ref self: ContractState, token: ContractAddress, amount: u256, recipients_count: u32,
+            ref self: ContractState, token: ContractAddress, amount: u256,
         ) {
             let mut stats = self.token_stats.read(token);
             stats.total_amount += amount;
@@ -127,27 +133,28 @@ mod Distributor {
             let timestamp: u64 = get_block_timestamp();
 
             // Calculate total amount and check allowance
-            let total_amount = amount * recipients.len().into();
-            let protocol_fee = self.calculate_protocol_fee(@total_amount);
+            let amount_to_distribute = amount * recipients.len().into();
+            let protocol_fee = self.calculate_protocol_fee(@amount_to_distribute);
+            let total_amount = amount_to_distribute + protocol_fee;
             let allowance = token_dispatcher.allowance(caller, get_contract_address());
             assert(allowance >= total_amount, INSUFFICIENT_ALLOWANCE);
 
-            // Calculate and transfer protocol fee
-            let adjusted_total_amount = total_amount - protocol_fee;
+            // transfer protocol fee
             let protocol_address = self.protocol_fee_address.read();
+            assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
             token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
 
             // Perform distribution
             let recipients_list = recipients.span();
             for recipient in recipients {
                 token_dispatcher.transfer_from(caller, recipient, amount);
-                self.emit(WeightedDistribution { recipient, amount });
+                self.emit(WeightedDistribution { caller, token, recipient, amount });
             };
 
             // Update global statistics
-            self.update_global_stats(total_amount);
-            self.update_token_stats(token, total_amount, recipients_list.len());
-            self.update_user_stats(caller, total_amount, token);
+            self.update_global_stats(amount_to_distribute);
+            self.update_token_stats(token, amount_to_distribute);
+            self.update_user_stats(caller, amount_to_distribute, token);
 
             // Record distribution history
             self
@@ -155,7 +162,7 @@ mod Distributor {
                     DistributionHistory {
                         caller,
                         token,
-                        amount: total_amount,
+                        amount: amount_to_distribute,
                         recipients_count: recipients_list.len(),
                         timestamp
                     }
@@ -166,7 +173,7 @@ mod Distributor {
                 .emit(
                     Event::Distribution(
                         Distribution {
-                            caller, token, amount, recipients_count: recipients_list.len(),
+                            caller, token, amount: amount_to_distribute, recipients_count: recipients_list.len(),
                         },
                     ),
                 );
@@ -185,7 +192,7 @@ mod Distributor {
 
             let caller = get_caller_address();
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
-            let mut total_amount: u256 = 0;
+            let mut amount_to_distribute: u256 = 0;
             let timestamp: u64 = get_block_timestamp();
 
             // Calculate total amount needed
@@ -196,9 +203,19 @@ mod Distributor {
                 }
                 let amount = *amounts.at(i);
                 assert(amount > 0, ZERO_AMOUNT);
-                total_amount += amount;
+                amount_to_distribute += amount;
                 i += 1;
             };
+
+            let protocol_fee = self.calculate_protocol_fee(@amount_to_distribute);
+            let total_amount = amount_to_distribute + protocol_fee;
+            let allowance = token_dispatcher.allowance(caller, get_contract_address());
+            assert(allowance >= total_amount, INSUFFICIENT_ALLOWANCE);
+
+            // transfer protocol fee
+            let protocol_address = self.protocol_fee_address.read();
+            assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
+            token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
 
             // Transfer tokens from sender to recipients
             i = 0;
@@ -212,15 +229,15 @@ mod Distributor {
                 token_dispatcher.transfer_from(caller, recipient, amount);
 
                 // Emit event for each distribution
-                self.emit(WeightedDistribution { recipient, amount });
+                self.emit(WeightedDistribution { caller, token, recipient, amount });
 
                 i += 1;
             };
 
             // Update global statistics
-            self.update_global_stats(total_amount);
-            self.update_token_stats(token, total_amount, recipients.len());
-            self.update_user_stats(caller, total_amount, token);
+            self.update_global_stats(amount_to_distribute);
+            self.update_token_stats(token, amount_to_distribute);
+            self.update_user_stats(caller, amount_to_distribute, token);
 
             // Record distribution history
             self
@@ -228,7 +245,7 @@ mod Distributor {
                     DistributionHistory {
                         caller,
                         token,
-                        amount: total_amount,
+                        amount: amount_to_distribute,
                         recipients_count: recipients.len(),
                         timestamp
                     }
@@ -239,7 +256,7 @@ mod Distributor {
                 .emit(
                     Event::Distribution(
                         Distribution {
-                            caller, token, amount: total_amount, recipients_count: recipients.len(),
+                            caller, token, amount: amount_to_distribute, recipients_count: recipients.len(),
                         },
                     ),
                 );

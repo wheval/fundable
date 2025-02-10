@@ -16,7 +16,8 @@ fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
 
     // Deploy distributor contract
     let distributor_class = declare("Distributor").unwrap().contract_class();
-    let (distributor_address, _) = distributor_class.deploy(@array![]).unwrap();
+    let protocol_address = contract_address_const::<'protocol_address'>();
+    let (distributor_address, _) = distributor_class.deploy(@array![protocol_address.into(), sender.into()]).unwrap();
 
     (erc20_address, sender, IDistributorDispatcher { contract_address: distributor_address })
 }
@@ -67,8 +68,6 @@ fn test_successful_distribution() {
     );
 }
 
-// ... existing code ...
-
 #[test]
 fn test_protocol_fee_calculation() {
     let (token_address, sender, distributor) = setup();
@@ -76,7 +75,9 @@ fn test_protocol_fee_calculation() {
 
     // Set protocol fee to 250 basis points (2.5%)
     start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.set_protocol_fee_address(protocol_address);
     distributor.set_protocol_fee_percent(250);
+    stop_cheat_caller_address(distributor.contract_address);
 
     // Create recipients array
     let recipients = array![
@@ -85,7 +86,9 @@ fn test_protocol_fee_calculation() {
     ];
 
     let amount_per_recipient = 1000_u256;
-    let total_amount = amount_per_recipient * 2; // 2000 total
+    let total_base_amount = amount_per_recipient * 2; // 2000 total tokens
+    let protocol_fee = (total_base_amount * 250) / 10000; // 2.5% of 2000 = 50
+    let total_amount = total_base_amount + protocol_fee; // 2050 total tokens needed
 
     // Approve tokens for distributor (including fee)
     start_cheat_caller_address(token_address, sender);
@@ -93,29 +96,30 @@ fn test_protocol_fee_calculation() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
     distributor.distribute(amount_per_recipient, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
 
     // Check protocol fee address received correct amount (2.5% of 2000 = 50)
-    let protocol_fee_address = distributor.get_protocol_fee_address();
     assert(
-        token.balance_of(protocol_fee_address) == 50_u256,
+        token.balance_of(protocol_address) == protocol_fee,
         'Wrong protocol fee amount'
     );
 
-    // Check recipients received correct amount (1000 - 2.5% = 975 each)
+    // Check recipients received full amount (no fee deduction from their share)
     assert(
-        token.balance_of(contract_address_const::<0x2>()) == 975_u256,
+        token.balance_of(contract_address_const::<0x2>()) == amount_per_recipient,
         'Wrong recipient 1 amount'
     );
     assert(
-        token.balance_of(contract_address_const::<0x3>()) == 975_u256,
+        token.balance_of(contract_address_const::<0x3>()) == amount_per_recipient,
         'Wrong recipient 2 amount'
     );
 }
 
 #[test]
 fn test_protocol_fee_edge_cases() {
-    let (token_address, sender, distributor) = setup();
+    let (_token_address, sender, distributor) = setup();
     
     // Test with 0% fee
     start_cheat_caller_address(distributor.contract_address, sender);
