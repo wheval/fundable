@@ -40,7 +40,7 @@ mod Distributor {
         user_stats: Map<ContractAddress, UserStats>,
         distribution_history: Map<u256, DistributionHistory>,
         distribution_count: u256,
-        /// Protocol fee percentage using basis points (e.g. 250 = 2.5%). Default is 0.
+        /// Protocol fee percentage using 10000 basis points (e.g. 250 = 2.5%). Default is 0.
         protocol_fee_percent: u256,
         protocol_fee_address: ContractAddress,
     }
