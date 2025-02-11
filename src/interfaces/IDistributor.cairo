@@ -12,7 +12,7 @@ pub trait IDistributor<TContractState> {
         ref self: TContractState,
         amount: u256,
         recipients: Array<ContractAddress>,
-        token: ContractAddress
+        token: ContractAddress,
     );
 
     /// @notice Distributes tokens to recipients with custom amounts
@@ -23,7 +23,7 @@ pub trait IDistributor<TContractState> {
         ref self: TContractState,
         amounts: Array<u256>,
         recipients: Array<ContractAddress>,
-        token: ContractAddress
+        token: ContractAddress,
     );
 
     /// @notice Gets the current protocol fee percentage

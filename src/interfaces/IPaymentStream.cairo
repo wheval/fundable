@@ -42,13 +42,13 @@ pub trait IPaymentStream<TContractState> {
     /// @param amount Amount of fee to be withdrawn from fee holder
     /// @param recipient Receiver of the token withdrawn
     fn withdraw_protocol_fee(
-        ref self: TContractState, recipient: ContractAddress, amount: u256, token: ContractAddress
+        ref self: TContractState, recipient: ContractAddress, amount: u256, token: ContractAddress,
     );
 
     /// @notice withdraws total accumulated protocol fee to the provided recipient
     /// @param recipient Receiver of the token withdrawn
     fn withdraw_max_protocol_fee(
-        ref self: TContractState, recipient: ContractAddress, token: ContractAddress
+        ref self: TContractState, recipient: ContractAddress, token: ContractAddress,
     );
 
     /// @notice updates the percentage fee for the protocol

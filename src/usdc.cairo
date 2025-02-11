@@ -9,7 +9,6 @@ trait IExternal<ContractState> {
 #[starknet::contract]
 pub mod MockUsdc {
     use openzeppelin::token::erc20::{ERC20Component, ERC20HooksEmptyImpl};
-    use openzeppelin::token::erc20::interface::IERC20Metadata;
     use openzeppelin::access::ownable::OwnableComponent;
     use starknet::ContractAddress;
 

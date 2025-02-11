@@ -2,7 +2,7 @@ use core::traits::Into;
 use starknet::{get_block_timestamp, ContractAddress, contract_address_const};
 use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
-    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global
+    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global,
 };
 use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
@@ -11,7 +11,7 @@ fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
     let erc20_class = declare("MockUsdc").unwrap().contract_class();
-    let mut calldata = array![sender.into(), sender.into(),];
+    let mut calldata = array![sender.into(), sender.into()];
     let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
 
     // Deploy Payment stream contract
@@ -52,7 +52,7 @@ fn test_invalid_end_time() {
     let cancelable = true;
 
     payment_stream
-        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address,);
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn test_zero_recipient_address() {
     let cancelable = true;
 
     payment_stream
-        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address,);
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn test_zero_total_amount() {
     let cancelable = true;
 
     payment_stream
-        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address,);
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
 }
 
 

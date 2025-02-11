@@ -1,7 +1,7 @@
 /// Main contract implementation
 #[starknet::contract]
 mod Distributor {
-    use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
     use openzeppelin::access::ownable::OwnableComponent;
@@ -11,11 +11,12 @@ mod Distributor {
     use starknet::storage::{Map};
     use core::num::traits::Zero;
     use crate::base::types::{
-        DistributionHistory, Distribution, WeightedDistribution, TokenStats, UserStats
+        DistributionHistory, Distribution, WeightedDistribution, TokenStats, UserStats,
     };
     //  use super::Errors;
     use crate::base::errors::Errors::{
-        EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN, ARRAY_LEN_MISMATCH, PROTOCOL_FEE_ADDRESS_NOT_SET
+        EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN, ARRAY_LEN_MISMATCH,
+        PROTOCOL_FEE_ADDRESS_NOT_SET,
     };
     use fundable::interfaces::IDistributor::IDistributor;
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
@@ -39,6 +40,7 @@ mod Distributor {
         user_stats: Map<ContractAddress, UserStats>,
         distribution_history: Map<u256, DistributionHistory>,
         distribution_count: u256,
+        /// Protocol fee percentage using basis points (e.g. 250 = 2.5%). Default is 0.
         protocol_fee_percent: u256,
         protocol_fee_address: ContractAddress,
     }
@@ -55,7 +57,9 @@ mod Distributor {
     }
 
     #[constructor]
-    fn constructor(ref self: ContractState, protocol_fee_address: ContractAddress, owner: ContractAddress) {
+    fn constructor(
+        ref self: ContractState, protocol_fee_address: ContractAddress, owner: ContractAddress,
+    ) {
         self.protocol_fee_address.write(protocol_fee_address);
         self.ownable.initializer(owner);
     }
@@ -70,9 +74,7 @@ mod Distributor {
             self.total_distributed_amount.write(current_total_distributed_amount + total_amount);
         }
 
-        fn update_token_stats(
-            ref self: ContractState, token: ContractAddress, amount: u256,
-        ) {
+        fn update_token_stats(ref self: ContractState, token: ContractAddress, amount: u256) {
             let mut stats = self.token_stats.read(token);
             stats.total_amount += amount;
             stats.distribution_count += 1;
@@ -164,8 +166,8 @@ mod Distributor {
                         token,
                         amount: amount_to_distribute,
                         recipients_count: recipients_list.len(),
-                        timestamp
-                    }
+                        timestamp,
+                    },
                 );
 
             // Emit summary event
@@ -173,7 +175,10 @@ mod Distributor {
                 .emit(
                     Event::Distribution(
                         Distribution {
-                            caller, token, amount: amount_to_distribute, recipients_count: recipients_list.len(),
+                            caller,
+                            token,
+                            amount: amount_to_distribute,
+                            recipients_count: recipients_list.len(),
                         },
                     ),
                 );
@@ -191,6 +196,7 @@ mod Distributor {
             assert(!token.is_zero(), INVALID_TOKEN);
 
             let caller = get_caller_address();
+            let contract_address = get_contract_address();
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
             let mut amount_to_distribute: u256 = 0;
             let timestamp: u64 = get_block_timestamp();
@@ -209,7 +215,7 @@ mod Distributor {
 
             let protocol_fee = self.calculate_protocol_fee(@amount_to_distribute);
             let total_amount = amount_to_distribute + protocol_fee;
-            let allowance = token_dispatcher.allowance(caller, get_contract_address());
+            let allowance = token_dispatcher.allowance(caller, contract_address);
             assert(allowance >= total_amount, INSUFFICIENT_ALLOWANCE);
 
             // transfer protocol fee
@@ -247,8 +253,8 @@ mod Distributor {
                         token,
                         amount: amount_to_distribute,
                         recipients_count: recipients.len(),
-                        timestamp
-                    }
+                        timestamp,
+                    },
                 );
 
             // Add summary event at the end
@@ -256,7 +262,10 @@ mod Distributor {
                 .emit(
                     Event::Distribution(
                         Distribution {
-                            caller, token, amount: amount_to_distribute, recipients_count: recipients.len(),
+                            caller,
+                            token,
+                            amount: amount_to_distribute,
+                            recipients_count: recipients.len(),
                         },
                     ),
                 );

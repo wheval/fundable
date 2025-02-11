@@ -11,7 +11,7 @@ enum Event {
     StreamCanceled: StreamCanceled,
     StreamPaused: StreamPaused,
     StreamRestarted: StreamRestarted,
-    StreamVoided: StreamVoided
+    StreamVoided: StreamVoided,
 }
 
 /// @notice Emitted when a new payment stream is created
@@ -28,7 +28,7 @@ struct StreamCreated {
     sender: ContractAddress,
     recipient: ContractAddress,
     total_amount: u256,
-    token: ContractAddress
+    token: ContractAddress,
 }
 
 /// @notice Emitted when tokens are withdrawn from a stream
@@ -43,7 +43,7 @@ struct StreamWithdrawn {
     stream_id: u256,
     recipient: ContractAddress,
     amount: u256,
-    protocol_fee: u128
+    protocol_fee: u128,
 }
 
 /// @notice Emitted when a stream is canceled by an authorized user
