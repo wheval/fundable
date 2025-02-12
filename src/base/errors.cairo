@@ -31,4 +31,7 @@ pub mod Errors {
 
     /// Thrown when attempting to create a stream where the end time is before the start time
     pub const END_BEFORE_START: felt252 = 'Error: End time < start time.';
+
+    /// Thrown when a protocol address is not set
+    pub const PROTOCOL_FEE_ADDRESS_NOT_SET: felt252 = 'Error: Zero Protocol address';
 }
