@@ -8,14 +8,14 @@ use fundable::interfaces::IDistributor::{IDistributorDispatcher, IDistributorDis
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
 pub fn OWNER_ADDRESS() -> ContractAddress {
-    'owner'.try_into().unwrap()
+    contract_address_const::<'Owner'>()
 }
 
 fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
     let erc20_class = declare("MockUsdc").unwrap().contract_class();
-    let owner = OWNER_ADDRESS();
+    let owner = contract_address_const::<'Owner'>();;
     let mut calldata = array![sender.into(), sender.into(), owner.into()];
     let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
 
