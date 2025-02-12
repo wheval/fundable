@@ -1,9 +1,6 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{
-        get_block_timestamp, get_caller_address, get_contract_address, contract_address_const,
-        storage::Map
-    };
+    use starknet::{get_caller_address, get_contract_address, storage::Map};
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
@@ -121,7 +118,7 @@ mod PaymentStream {
     #[derive(Drop, starknet::Event)]
     struct StreamVoided {
         #[key]
-        stream_id: u256
+        stream_id: u256,
     }
 
     #[constructor]
@@ -164,7 +161,7 @@ mod PaymentStream {
         }
 
         fn collect_protocol_fee(
-            self: @ContractState, sender: ContractAddress, token: ContractAddress, amount: u256
+            self: @ContractState, sender: ContractAddress, token: ContractAddress, amount: u256,
         ) {
             let fee_collector: ContractAddress = self.fee_collector.read();
             assert(fee_collector.is_non_zero(), INVALID_RECIPIENT);
@@ -263,7 +260,7 @@ mod PaymentStream {
                 .emit(
                     StreamWithdrawn {
                         stream_id, recipient: to, amount: net_amount, protocol_fee: fee_into_u128,
-                    }
+                    },
                 );
 
             (net_amount_into_u128, fee_into_u128)
@@ -295,7 +292,7 @@ mod PaymentStream {
                 .emit(
                     StreamWithdrawn {
                         stream_id, recipient: to, amount: net_amount, protocol_fee: fee_into_u128,
-                    }
+                    },
                 );
 
             (net_amount_into_u128, fee_into_u128)
@@ -305,7 +302,7 @@ mod PaymentStream {
             ref self: ContractState,
             recipient: ContractAddress,
             amount: u256,
-            token: ContractAddress
+            token: ContractAddress,
         ) {
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
             assert(amount > 0, ZERO_AMOUNT);
@@ -323,7 +320,7 @@ mod PaymentStream {
         }
 
         fn withdraw_max_protocol_fee(
-            ref self: ContractState, recipient: ContractAddress, token: ContractAddress
+            ref self: ContractState, recipient: ContractAddress, token: ContractAddress,
         ) {
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
             assert(recipient.is_non_zero(), INVALID_RECIPIENT);
@@ -348,7 +345,7 @@ mod PaymentStream {
             let protocol_fee_percentage = self.protocol_fee_percentage.read();
             assert(
                 new_percentage > 0 && new_percentage != protocol_fee_percentage,
-                'invalid fee percentage'
+                'invalid fee percentage',
             );
 
             self.protocol_fee_percentage.write(new_percentage);
