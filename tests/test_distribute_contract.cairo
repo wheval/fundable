@@ -7,16 +7,12 @@ use snforge_std::{
 use fundable::interfaces::IDistributor::{IDistributorDispatcher, IDistributorDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
-pub fn OWNER_ADDRESS() -> ContractAddress {
-    contract_address_const::<'Owner'>()
-}
 
 fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
     let erc20_class = declare("MockUsdc").unwrap().contract_class();
-    let owner = contract_address_const::<'Owner'>();;
-    let mut calldata = array![sender.into(), sender.into(), owner.into()];
+    let mut calldata = array![sender.into(), sender.into()];
     let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
 
     // Deploy distributor contract
@@ -278,34 +274,34 @@ fn test_weighted_distribution_zero_amount() {
 
 #[test]
 fn test_set_protocol_fee_percent() {
-    let (token_address, dispatcher) = setup();
-    start_cheat_caller_address(distributor.contract_address, OWNER_ADDRESS());
+    let (_, sender, distributor) = setup();
+    start_cheat_caller_address(distributor.contract_address, sender);
     distributor.set_protocol_fee_percent(5);
     assert(distributor.get_protocol_fee_percent() == 5, 'Wrong protocol fee');
     stop_cheat_caller_address(distributor.contract_address);
 }
 
 #[test]
-#[should_panic(expected: ('Caller is missing role',))]
+#[should_panic(expected: ('Caller is not the owner',))]
 fn test_set_protocol_fee_percent_unauthorized() {
-    let (token_address, dispatcher) = setup();
+    let (_, _, distributor) = setup();
     distributor.set_protocol_fee_percent(5);
 }
 
 #[test]
 fn test_set_protocol_fee_address() {
-    let (token_address, dispatcher) = setup();
+    let (_, sender, distributor) = setup();
     let test_address = contract_address_const::<'test'>();
-    start_cheat_caller_address(distributor.contract_address, OWNER_ADDRESS());
+    start_cheat_caller_address(distributor.contract_address, sender);
     distributor.set_protocol_fee_address(test_address);
-    assert(distributor.get_protocol_fee_address() == test, 'Wrong protocol address');
+    assert(distributor.get_protocol_fee_address() == test_address, 'Wrong protocol address');
     stop_cheat_caller_address(distributor.contract_address);
 }
 
 #[test]
-#[should_panic(expected: ('Caller is missing role',))]
+#[should_panic(expected: ('Caller is not the owner',))]
 fn test_set_protocol_fee_address_unauthorized() {
-    let (token_address, dispatcher) = setup();
+    let (_, _, distributor) = setup();
     let test_address = contract_address_const::<'test'>();
     distributor.set_protocol_fee_address(test_address);
 }
