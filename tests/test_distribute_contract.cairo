@@ -7,6 +7,7 @@ use snforge_std::{
 use fundable::interfaces::IDistributor::{IDistributorDispatcher, IDistributorDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
+
 fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
@@ -269,4 +270,38 @@ fn test_weighted_distribution_zero_amount() {
     start_cheat_caller_address(distributor.contract_address, sender);
     distributor.distribute_weighted(amounts, recipients, token_address);
     stop_cheat_caller_address(distributor.contract_address);
+}
+
+#[test]
+fn test_set_protocol_fee_percent() {
+    let (_, sender, distributor) = setup();
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.set_protocol_fee_percent(5);
+    assert(distributor.get_protocol_fee_percent() == 5, 'Wrong protocol fee');
+    stop_cheat_caller_address(distributor.contract_address);
+}
+
+#[test]
+#[should_panic(expected: ('Caller is not the owner',))]
+fn test_set_protocol_fee_percent_unauthorized() {
+    let (_, _, distributor) = setup();
+    distributor.set_protocol_fee_percent(5);
+}
+
+#[test]
+fn test_set_protocol_fee_address() {
+    let (_, sender, distributor) = setup();
+    let test_address = contract_address_const::<'test'>();
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.set_protocol_fee_address(test_address);
+    assert(distributor.get_protocol_fee_address() == test_address, 'Wrong protocol address');
+    stop_cheat_caller_address(distributor.contract_address);
+}
+
+#[test]
+#[should_panic(expected: ('Caller is not the owner',))]
+fn test_set_protocol_fee_address_unauthorized() {
+    let (_, _, distributor) = setup();
+    let test_address = contract_address_const::<'test'>();
+    distributor.set_protocol_fee_address(test_address);
 }
