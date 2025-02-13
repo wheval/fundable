@@ -273,7 +273,7 @@ fn test_weighted_distribution_zero_amount() {
 }
 
 #[test]
-fn test_set_protocol_fee_percent() {
+fn test_set_and_get_protocol_fee_percent() {
     let (_, sender, distributor) = setup();
     start_cheat_caller_address(distributor.contract_address, sender);
     distributor.set_protocol_fee_percent(5);
@@ -289,7 +289,7 @@ fn test_set_protocol_fee_percent_unauthorized() {
 }
 
 #[test]
-fn test_set_protocol_fee_address() {
+fn test_set_and_get_protocol_fee_address() {
     let (_, sender, distributor) = setup();
     let test_address = contract_address_const::<'test'>();
     start_cheat_caller_address(distributor.contract_address, sender);
