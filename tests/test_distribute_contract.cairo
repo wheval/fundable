@@ -585,34 +585,34 @@ fn test_user_stats_after_distribution() {
     distributor.distribute(amount_per_recipient, recipients, token_address);
     stop_cheat_caller_address(distributor.contract_address);
 
-    println!("Hent: {}", distributor.get_token_stats(token_address).last_distribution_time);
-
     //Assert token stats
-    assert(distributor.get_user_stats(sender).distributions_initiated == 1, 'wrong distributions
-    amount');
-    assert(distributor.get_user_stats(sender).total_amount_distributed == 300, 'wrong distributed
-    amount');
-    assert(distributor.get_user_stats(sender).last_distribution_time == 0x2137_u64, 'wrong last_distribution time');
-    assert(distributor.get_user_stats(sender).unique_tokens_used == 1, 'wrong unique token
-    count');
+    assert(
+        distributor.get_user_stats(sender).distributions_initiated == 1,
+        'wrong distributions
+    amount',
+    );
+    assert(
+        distributor.get_user_stats(sender).total_amount_distributed == 300,
+        'wrong distributed
+    amount',
+    );
+    assert(
+        distributor.get_user_stats(sender).last_distribution_time == 0x2137_u64,
+        'wrong last_distribution time',
+    );
+    assert(
+        distributor.get_user_stats(sender).unique_tokens_used == 1, 'wrong unique token
+    count',
+    );
 
     stop_cheat_block_timestamp(distributor.contract_address);
 }
 
 #[test]
 fn test_distribution_history_initial_state() {
-    let (token_address, sender, distributor) = setup();
+    let (_, _, distributor) = setup();
 
-    start_cheat_caller_address(distributor.contract_address, sender);
-    start_cheat_block_timestamp(distributor.contract_address, 0x2137_u64);
-    let mut history = distributor.get_distribution_history(0, 0);
-    //Assert token stats
-    assert(*history.at(0).caller == sender, 'wrong initial state');
-    assert(*history[0].token == token_address, 'wrong initial state');
-    assert(*history[0].amount == 0, 'wrong initial state');
-    assert(*history[0].recipients_count == 0_u32, 'wrong initial state');
-    assert(*history[0].timestamp == 0x2137_u64, 'wrong initial state');
-    stop_cheat_caller_address(distributor.contract_address);
-    
-    stop_cheat_block_timestamp(distributor.contract_address);
+    let mut history = distributor
+        .get_distribution_history(0, distributor.get_total_distributions());
+    assert(history.len() == 0, 'Wrong initial state');
 }
