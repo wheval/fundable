@@ -616,3 +616,57 @@ fn test_distribution_history_initial_state() {
         .get_distribution_history(0, distributor.get_total_distributions());
     assert(history.len() == 0, 'Wrong initial state');
 }
+
+#[test]
+fn test_distribution_history_after_distribution() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create recipients array
+    let mut recipients = array![
+        contract_address_const::<0x2>(),
+        contract_address_const::<0x3>(),
+        contract_address_const::<0x4>(),
+    ];
+
+    let amount_per_recipient = 100_u256;
+
+    let _sender_balance_before = token.balance_of(sender);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 3 + amount_per_recipient);
+
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
+    start_cheat_block_timestamp(distributor.contract_address, 0x2137_u64);
+    distributor.distribute(amount_per_recipient, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    let history = distributor.get_distribution_history(0, 1);
+
+    //Assert token stats
+    assert(
+        *history[0].caller == sender,
+        'wrong caller',
+    );
+    assert(
+        *history[0].token == token_address,
+        'wrong token',
+    );
+    assert(
+        *history[0].amount == 300,
+        'wrong last_distribution time',
+    );
+    assert(
+        *history[0].recipients_count == 3, 'wrong recipient
+    count',
+    );
+    assert(
+        *history[0].timestamp == 0x2137_u64, 'wrong timestamp',
+    );
+
+    stop_cheat_block_timestamp(distributor.contract_address);
+}
