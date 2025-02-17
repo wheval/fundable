@@ -2,10 +2,13 @@ use core::traits::Into;
 use starknet::{ContractAddress, contract_address_const};
 use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
-    stop_cheat_caller_address,
+    stop_cheat_caller_address, start_cheat_block_timestamp, stop_cheat_block_timestamp,
 };
 use fundable::interfaces::IDistributor::{IDistributorDispatcher, IDistributorDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use fundable::base::types::{
+    DistributionHistory, Distribution, WeightedDistribution, TokenStats, UserStats,
+};
 
 
 fn setup() -> (ContractAddress, ContractAddress, IDistributorDispatcher) {
@@ -273,7 +276,7 @@ fn test_weighted_distribution_zero_amount() {
 }
 
 #[test]
-fn test_set_protocol_fee_percent() {
+fn test_set_and_get_protocol_fee_percent() {
     let (_, sender, distributor) = setup();
     start_cheat_caller_address(distributor.contract_address, sender);
     distributor.set_protocol_fee_percent(5);
@@ -289,7 +292,7 @@ fn test_set_protocol_fee_percent_unauthorized() {
 }
 
 #[test]
-fn test_set_protocol_fee_address() {
+fn test_set_and_get_protocol_fee_address() {
     let (_, sender, distributor) = setup();
     let test_address = contract_address_const::<'test'>();
     start_cheat_caller_address(distributor.contract_address, sender);
@@ -304,4 +307,353 @@ fn test_set_protocol_fee_address_unauthorized() {
     let (_, _, distributor) = setup();
     let test_address = contract_address_const::<'test'>();
     distributor.set_protocol_fee_address(test_address);
+}
+
+
+#[test]
+fn test_total_distribution_initial_state() {
+    let (_, _, distributor) = setup();
+    assert(distributor.get_total_distributions() == 0, 'wrong initial state');
+}
+
+#[test]
+fn test_total_distribution_after_single_distribution() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create recipients array
+    let mut recipients = array![
+        contract_address_const::<0x2>(),
+        contract_address_const::<0x3>(),
+        contract_address_const::<0x4>(),
+    ];
+
+    let amount_per_recipient = 100_u256;
+
+    let _sender_balance_before = token.balance_of(sender);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 3 + amount_per_recipient);
+
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute(amount_per_recipient, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    // Assert distributions
+    assert(distributor.get_total_distributions() == 1, 'wrong total distribution');
+}
+
+#[test]
+fn test_total_distribution_after_multiple_distribution() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create recipients array
+    let mut recipients = array![contract_address_const::<0x2>(), contract_address_const::<0x3>()];
+
+    let amount_per_recipient = 50_u256;
+
+    let _sender_balance_before = token.balance_of(sender);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 2 + amount_per_recipient);
+
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute(amount_per_recipient, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    // Create recipients array
+    let mut new_recipients = array![
+        contract_address_const::<0x2>(), contract_address_const::<0x3>(),
+    ];
+
+    let amount_per_recipient = 50_u256;
+
+    let _sender_balance_before = token.balance_of(sender);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 2 + amount_per_recipient);
+
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute(amount_per_recipient, new_recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    // Assert distributions
+    assert(distributor.get_total_distributions() == 2, 'wrong total distribution');
+}
+
+#[test]
+fn test_total_distributed_amount_initial_state() {
+    let (_, _, distributor) = setup();
+    assert(distributor.get_total_distributed_amount() == 0, 'wrong initial state');
+}
+
+#[test]
+fn test_total_distributed_amount_after_single_distribution() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create recipients array
+    let mut recipients = array![
+        contract_address_const::<0x2>(),
+        contract_address_const::<0x3>(),
+        contract_address_const::<0x4>(),
+    ];
+
+    let amount_per_recipient = 100_u256;
+
+    let _sender_balance_before = token.balance_of(sender);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 3 + amount_per_recipient);
+
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute(amount_per_recipient, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    // Assert distributions
+    assert(
+        distributor.get_total_distributed_amount() == 300_u256, 'wrong total distributed amount',
+    );
+}
+
+#[test]
+fn test_total_distributed_amount_after_multiple_distribution() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create recipients array
+    let mut recipients = array![contract_address_const::<0x2>(), contract_address_const::<0x3>()];
+
+    let amount_per_recipient = 50_u256;
+
+    let _sender_balance_before = token.balance_of(sender);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 2 + amount_per_recipient);
+
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute(amount_per_recipient, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    // Create recipients array
+    let mut new_recipients = array![
+        contract_address_const::<0x2>(), contract_address_const::<0x3>(),
+    ];
+
+    let amount_per_recipient = 50_u256;
+
+    let _sender_balance_before = token.balance_of(sender);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 2 + amount_per_recipient);
+
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
+    distributor.distribute(amount_per_recipient, new_recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    // Assert distributions
+    assert(
+        distributor.get_total_distributed_amount() == 200_u256, 'wrong total distributed amount',
+    );
+}
+
+#[test]
+fn test_token_stats_initial_state() {
+    let (token_address, _, distributor) = setup();
+
+    //Assert token stats
+    assert(distributor.get_token_stats(token_address).total_amount == 0, 'wrong initial state');
+    assert(
+        distributor.get_token_stats(token_address).distribution_count == 0, 'wrong initial state',
+    );
+    assert(
+        distributor.get_token_stats(token_address).unique_recipients == 0, 'wrong initial state',
+    );
+    assert(
+        distributor.get_token_stats(token_address).last_distribution_time == 0,
+        'wrong initial state',
+    );
+}
+
+#[test]
+fn test_token_stats_after_distribution() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create recipients array
+    let mut recipients = array![
+        contract_address_const::<0x2>(),
+        contract_address_const::<0x3>(),
+        contract_address_const::<0x4>(),
+    ];
+
+    let amount_per_recipient = 100_u256;
+
+    let _sender_balance_before = token.balance_of(sender);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 3 + amount_per_recipient);
+
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
+    start_cheat_block_timestamp(distributor.contract_address, 0x2137_u64);
+    distributor.distribute(amount_per_recipient, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    //Assert token stats
+    assert(distributor.get_token_stats(token_address).total_amount == 300, 'wrong total amount');
+    assert(
+        distributor.get_token_stats(token_address).distribution_count == 1,
+        'wrong distribution amount',
+    );
+    assert(
+        distributor.get_token_stats(token_address).unique_recipients == 0,
+        'wrong unique recipients',
+    );
+    assert(
+        distributor.get_token_stats(token_address).last_distribution_time == 0x2137_u64,
+        'wrong last distribution time',
+    );
+
+    stop_cheat_block_timestamp(distributor.contract_address);
+}
+
+#[test]
+fn test_user_stats_initial_state() {
+    let (_, sender, distributor) = setup();
+
+    //Assert token stats
+    assert(distributor.get_user_stats(sender).distributions_initiated == 0, 'wrong initial state');
+    assert(distributor.get_user_stats(sender).total_amount_distributed == 0, 'wrong initial state');
+    assert(distributor.get_user_stats(sender).last_distribution_time == 0, 'wrong initial state');
+    assert(distributor.get_user_stats(sender).unique_tokens_used == 0, 'wrong initial state');
+}
+
+#[test]
+fn test_user_stats_after_distribution() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create recipients array
+    let mut recipients = array![
+        contract_address_const::<0x2>(),
+        contract_address_const::<0x3>(),
+        contract_address_const::<0x4>(),
+    ];
+
+    let amount_per_recipient = 100_u256;
+
+    let _sender_balance_before = token.balance_of(sender);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 3 + amount_per_recipient);
+
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
+    start_cheat_block_timestamp(distributor.contract_address, 0x2137_u64);
+    distributor.distribute(amount_per_recipient, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    //Assert token stats
+    assert(
+        distributor.get_user_stats(sender).distributions_initiated == 1,
+        'wrong distributions
+    amount',
+    );
+    assert(
+        distributor.get_user_stats(sender).total_amount_distributed == 300,
+        'wrong distributed
+    amount',
+    );
+    assert(
+        distributor.get_user_stats(sender).last_distribution_time == 0x2137_u64,
+        'wrong last_distribution time',
+    );
+    assert(
+        distributor.get_user_stats(sender).unique_tokens_used == 1, 'wrong unique token
+    count',
+    );
+
+    stop_cheat_block_timestamp(distributor.contract_address);
+}
+
+#[test]
+fn test_distribution_history_initial_state() {
+    let (_, _, distributor) = setup();
+
+    let mut history = distributor
+        .get_distribution_history(0, distributor.get_total_distributions());
+    assert(history.len() == 0, 'Wrong initial state');
+}
+
+#[test]
+fn test_distribution_history_after_distribution() {
+    let (token_address, sender, distributor) = setup();
+    let token = IERC20Dispatcher { contract_address: token_address };
+
+    // Create recipients array
+    let mut recipients = array![
+        contract_address_const::<0x2>(),
+        contract_address_const::<0x3>(),
+        contract_address_const::<0x4>(),
+    ];
+
+    let amount_per_recipient = 100_u256;
+
+    let _sender_balance_before = token.balance_of(sender);
+
+    // Approve tokens for distributor
+    start_cheat_caller_address(token_address, sender);
+    token.approve(distributor.contract_address, amount_per_recipient * 3 + amount_per_recipient);
+
+    stop_cheat_caller_address(token_address);
+
+    // Distribute tokens
+    start_cheat_caller_address(distributor.contract_address, sender);
+    start_cheat_block_timestamp(distributor.contract_address, 0x2137_u64);
+    distributor.distribute(amount_per_recipient, recipients, token_address);
+    stop_cheat_caller_address(distributor.contract_address);
+
+    let history = distributor.get_distribution_history(0, 1);
+
+    //Assert token stats
+    assert(*history[0].caller == sender, 'wrong caller');
+    assert(*history[0].token == token_address, 'wrong token');
+    assert(*history[0].amount == 300, 'wrong last_distribution time');
+    assert(*history[0].recipients_count == 3, 'wrong recipient
+    count');
+    assert(*history[0].timestamp == 0x2137_u64, 'wrong timestamp');
+
+    stop_cheat_block_timestamp(distributor.contract_address);
 }
