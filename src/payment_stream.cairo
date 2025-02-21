@@ -1,6 +1,6 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{get_caller_address, get_contract_address, storage::Map};
+    use starknet::{get_caller_address, get_contract_address, storage::Map, storage::Vec};
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
@@ -41,6 +41,8 @@ mod PaymentStream {
         total_distributed: Map<ContractAddress, u256>,
         stream_metrics: Map<u256, StreamMetrics>,
         protocol_metrics: ProtocolMetrics,
+        stream_delegates: Map<u256, ContractAddress>,
+        delegation_history: Map<u256, Vec<ContractAddress>>,
     }
 
 
@@ -119,6 +121,22 @@ mod PaymentStream {
     struct StreamVoided {
         #[key]
         stream_id: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct DelegationGranted {
+        #[key]
+        stream_id: u256,
+        delegator: ContractAddress,
+        delegate: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct DelegationRevoked {
+        #[key]
+        stream_id: u256,
+        delegator: ContractAddress,
+        delegate: ContractAddress,
     }
 
     #[constructor]
