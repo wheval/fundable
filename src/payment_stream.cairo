@@ -47,6 +47,7 @@ mod PaymentStream {
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
+        StreamRateUpdated: StreamRateUpdated,
         StreamCreated: StreamCreated,
         StreamWithdrawn: StreamWithdrawn,
         StreamCanceled: StreamCanceled,
@@ -59,6 +60,15 @@ mod PaymentStream {
         Src5Event: SRC5Component::Event,
         #[flat]
         AccessControlEvent: AccessControlComponent::Event,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct StreamRateUpdated {
+        #[key]
+        stream_id: u256,
+        old_rate: u256,
+        new_rate: u256,
+        update_time: u64
     }
 
     #[derive(Drop, starknet::Event)]
@@ -464,6 +474,26 @@ mod PaymentStream {
 
         fn get_protocol_metrics(self: @ContractState) -> ProtocolMetrics {
             self.protocol_metrics.read()
+        }
+
+        fn update_stream_rate(
+            ref self: ContractState,
+            stream_id: u256,
+            new_rate_per_second: u256,
+        ) {
+            // Validate caller is stream owner
+            
+            // Get current stream
+            
+            // Validate stream is active
+            
+            // Calculate and update remaining amount
+            
+            // Update stream rate
+            
+            // Store updated stream
+            
+            // Emit rate update event
         }
     }
 }

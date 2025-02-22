@@ -140,4 +140,6 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Retrieves overall protocol-level streaming metrics
     /// @return ProtocolMetrics containing comprehensive protocol analytics
     fn get_protocol_metrics(self: @TContractState) -> ProtocolMetrics;
+
+    fn update_stream_rate(ref self: TContractState, stream_id: u256, new_rate_per_second: u256);
 }
