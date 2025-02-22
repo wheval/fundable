@@ -141,5 +141,8 @@ pub trait IPaymentStream<TContractState> {
     /// @return ProtocolMetrics containing comprehensive protocol analytics
     fn get_protocol_metrics(self: @TContractState) -> ProtocolMetrics;
 
+    /// @notice Updates the rate per second for the stream
+    /// @param stream_id The ID of the stream to update
+    /// @param new_rate_per_second The new rate per second for the stream
     fn update_stream_rate(ref self: TContractState, stream_id: u256, new_rate_per_second: u256);
 }
