@@ -68,7 +68,7 @@ mod PaymentStream {
         stream_id: u256,
         old_rate: u256,
         new_rate: u256,
-        update_time: u64
+        update_time: u64,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -476,24 +476,42 @@ mod PaymentStream {
             self.protocol_metrics.read()
         }
 
-        fn update_stream_rate(
-            ref self: ContractState,
-            stream_id: u256,
-            new_rate_per_second: u256,
-        ) {
-            // Validate caller is stream owner
-            
-            // Get current stream
-            
-            // Validate stream is active
-            
-            // Calculate and update remaining amount
-            
-            // Update stream rate
-            
-            // Store updated stream
-            
-            // Emit rate update event
+        fn update_stream_rate(ref self: ContractState, stream_id: u256, new_rate_per_second: u256) {
+            let caller = get_caller_address();
+            assert!(new_rate_per_second > 0, "Rate must be greater than 0");
+            assert!(
+                self.streams.read(stream_id).sender == caller, "Only stream owner can update rate",
+            );
+
+            let stream: Stream = self.streams.read(stream_id);
+            assert!(stream.status == StreamStatus::Active, "Stream is not active");
+
+            let new_stream = Stream {
+                rate_per_second: new_rate_per_second,
+                sender: stream.sender,
+                recipient: stream.recipient,
+                token: stream.token,
+                total_amount: stream.total_amount,
+                start_time: stream.start_time,
+                end_time: stream.end_time,
+                withdrawn_amount: stream.withdrawn_amount,
+                cancelable: stream.cancelable,
+                status: stream.status,
+                last_update_time: starknet::get_block_timestamp(),
+            };
+
+            self.streams.write(stream_id, new_stream);
+            self
+                .emit(
+                    Event::StreamRateUpdated(
+                        StreamRateUpdated {
+                            stream_id,
+                            old_rate: stream.rate_per_second,
+                            new_rate: new_rate_per_second,
+                            update_time: starknet::get_block_timestamp(),
+                        },
+                    ),
+                );
         }
     }
 }
