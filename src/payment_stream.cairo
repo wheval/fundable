@@ -1,6 +1,6 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{get_caller_address, get_contract_address, storage::Map};
+    use starknet::{get_caller_address, get_contract_address,get_block_timestamp, storage::Map};
     use core::traits::Into;
     use core::num::traits::Zero;
     use starknet::ContractAddress;
@@ -378,8 +378,37 @@ mod PaymentStream {
             self.fee_collector.read()
         }
 
-        fn cancel(ref self: ContractState, stream_id: u256) { // Empty implementation
+        fn cancel(ref self: ContractState, stream_id: u256)  { // Empty implementation
         // todo!()
+        // Ensure the caller has the STREAM_ADMIN_ROLE
+        self.accesscontrol.assert_only_role(STREAM_ADMIN_ROLE);
+
+        // Retrieve the stream
+        let mut stream = self.streams.read(stream_id);
+        
+        
+        // Ensure the stream is active before cancellation
+        self.assert_stream_exists(stream_id);
+        assert(stream.status == StreamStatus::Active, 'Stream is not Active');
+
+        // Update the stream status to canceled
+        stream.status = StreamStatus::Canceled;
+
+        // Update the stream end time
+        stream.end_time = get_block_timestamp() ;
+        
+        // Handle refunding unclaimed funds
+        let recipient = get_caller_address();
+        if stream.total_amount > 0 {
+                self.withdraw_max(stream_id, recipient);
+            }
+
+            
+            // Emit an event for stream cancellation
+            self.emit(StreamCanceled { stream_id });
+
+            // Update Stream in State
+            self.streams.write(stream_id, stream);
         }
 
         fn pause(ref self: ContractState, stream_id: u256) { // Empty implementation
@@ -396,7 +425,7 @@ mod PaymentStream {
         //  todo!()
         }
 
-        fn get_stream(self: @ContractState, stream_id: u256) -> Stream {
+  fn get_stream(self: @ContractState, stream_id: u256) -> Stream {
             // Return dummy stream
             // Stream {
             //     sender: starknet::contract_address_const::<0>(),
@@ -422,7 +451,15 @@ mod PaymentStream {
 
         fn is_stream_active(self: @ContractState, stream_id: u256) -> bool {
             // Return dummy status
-            false
+            let mut stream = self.streams.read(stream_id);
+
+           if (stream.status == StreamStatus::Active){
+            return true;
+           }
+           else{
+             return  false;
+
+           }
         }
 
         fn get_depletion_time(self: @ContractState, stream_id: u256) -> u64 {
