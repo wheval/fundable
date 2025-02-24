@@ -62,9 +62,7 @@ mod PaymentStream {
         #[flat]
         Src5Event: SRC5Component::Event,
         #[flat]
-        AccessControlEvent: AccessControlComponent::Event,
-        DelegationGranted: DelegationGranted,
-        DelegationRevoked: DelegationRevoked,
+        AccessControlEvent: AccessControlComponent::Event
     }
 
     #[derive(Drop, starknet::Event)]
