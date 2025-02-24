@@ -178,3 +178,32 @@ fn test_withdraw() {
     let sender_final_balance = token_dispatcher.balance_of(sender);
     println!("Sender's final balance: {}", sender_final_balance);
 }
+
+#[test]
+fn test_successful_stream_cancellation() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
+
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_fee_collector(new_fee_collector);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+
+    payment_stream.cancel(stream_id);
+    let get_let = payment_stream.is_stream_active(stream_id);
+
+    assert(get_let == false, 'Cancelation failed');
+}
