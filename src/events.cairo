@@ -51,7 +51,6 @@ struct StreamWithdrawn {
 /// @param stream_id Unique identifier for the canceled stream
 /// @param remaining_balance Amount of tokens returned to sender
 #[derive(Drop, starknet::Event)]
-
 struct StreamCanceled {
     #[key]
     stream_id: u256,

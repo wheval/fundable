@@ -199,8 +199,4 @@ fn test_successful_stream_cancellation() {
     let get_let = payment_stream.is_stream_active(stream_id);
 
     assert(get_let == false, 'Cancelation failed');
-
-    
-
-
 }
