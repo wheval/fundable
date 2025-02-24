@@ -175,7 +175,6 @@ mod PaymentStream {
         /// @notice points basis: 100pbs = 1%
         fn calculate_protocol_fee(self: @ContractState, total_amount: u256) -> u256 {
             let protocol_fee_percentage = self.protocol_fee_percentage.read();
-            assert(protocol_fee_percentage > 0, 'Zero protocol fee');
             let fee = (total_amount * protocol_fee_percentage.into()) / 10000;
             fee
         }
@@ -305,7 +304,7 @@ mod PaymentStream {
             let fee_into_u128 = fee.try_into().unwrap();
             let net_amount_into_u128 = net_amount.try_into().unwrap();
 
-            token_dispatcher.transfer_from(sender, to, net_amount);
+            token_dispatcher.transfer_from(sender, to, net_amount); // todo: check if this is correct
             self.collect_protocol_fee(sender, token_address, fee);
 
             self
@@ -346,6 +345,8 @@ mod PaymentStream {
             assert(recipient.is_non_zero(), INVALID_RECIPIENT);
 
             let fee_collector = self.fee_collector.read();
+
+            assert(fee_collector.is_non_zero(), INVALID_RECIPIENT);
 
             let max_amount = IERC20Dispatcher { contract_address: token }.balance_of(fee_collector);
 
@@ -398,8 +399,7 @@ mod PaymentStream {
             self.fee_collector.read()
         }
 
-        fn cancel(ref self: ContractState, stream_id: u256) { // Empty implementation
-            // todo!()
+        fn cancel(ref self: ContractState, stream_id: u256) {
             // Ensure the caller has the STREAM_ADMIN_ROLE
             self.accesscontrol.assert_only_role(STREAM_ADMIN_ROLE);
 

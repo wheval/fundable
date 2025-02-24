@@ -188,6 +188,13 @@ fn test_successful_stream_cancellation() {
     let end_time = 200_u64;
     let cancelable = true;
 
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
+
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_fee_collector(new_fee_collector);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
     println!("Stream ID: {}", stream_id);
