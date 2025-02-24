@@ -528,7 +528,7 @@ mod PaymentStream {
             self.assert_stream_exists(stream_id);
             self.assert_is_sender(stream_id);
             assert(delegate.is_non_zero(), INVALID_RECIPIENT);
-            let mut history = self.delegation_history.get(stream_id).unwrap_or(VecTrait::new());
+            let mut history = self.delegation_history.read(stream_id);
             history.append(delegate);
             self.delegation_history.insert(stream_id, history);
             self.emit(DelegationGranted { stream_id, delegator: get_caller_address(), delegate });
