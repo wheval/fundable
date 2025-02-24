@@ -304,7 +304,8 @@ mod PaymentStream {
             let fee_into_u128 = fee.try_into().unwrap();
             let net_amount_into_u128 = net_amount.try_into().unwrap();
 
-            token_dispatcher.transfer_from(sender, to, net_amount); // todo: check if this is correct
+            token_dispatcher
+                .transfer_from(sender, to, net_amount); // todo: check if this is correct
             self.collect_protocol_fee(sender, token_address, fee);
 
             self
