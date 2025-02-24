@@ -63,6 +63,8 @@ mod PaymentStream {
         Src5Event: SRC5Component::Event,
         #[flat]
         AccessControlEvent: AccessControlComponent::Event,
+        DelegationGranted: DelegationGranted,
+        DelegationRevoked: DelegationRevoked,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -518,6 +520,42 @@ mod PaymentStream {
 
         fn get_protocol_metrics(self: @ContractState) -> ProtocolMetrics {
             self.protocol_metrics.read()
+        }
+        
+        fn delegate_stream(
+            ref self: ContractState,
+            stream_id: u256,
+            delegate: ContractAddress
+        ) -> bool {
+            self.assert_stream_exists(stream_id);
+            self.assert_is_sender(stream_id);
+            assert(delegate.is_non_zero(), INVALID_RECIPIENT);
+
+            self.stream_delegates.write(stream_id, delegate);
+            self.delegation_history.push(stream_id, delegate);
+            self.emit(Event::DelegationGranted { stream_id, delegator: get_caller_address(), delegate });
+            true
+        }
+
+        fn revoke_delegation(
+            ref self: ContractState,
+            stream_id: u256
+        ) -> bool {
+            self.assert_stream_exists(stream_id);
+            self.assert_is_sender(stream_id);
+
+            let delegate = self.stream_delegates.read(stream_id);
+            assert(delegate.is_non_zero(), UNEXISTING_STREAM);
+            self.stream_delegates.remove(stream_id);
+            self.emit(Event::DelegationRevoked { stream_id, delegator: get_caller_address(), delegate });
+            true
+        }
+
+        fn get_stream_delegate(
+            self: @ContractState,
+            stream_id: u256
+        ) -> ContractAddress {
+            self.stream_delegates.read(stream_id)
         }
     }
 }
