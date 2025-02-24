@@ -146,22 +146,14 @@ pub trait IPaymentStream<TContractState> {
     /// @param delegate The address to delegate a stream to
     /// @return Boolean indicating if the stream delegation is successsful
     fn delegate_stream(
-        ref self: TContractState,
-        stream_id: u256,
-        delegate: ContractAddress
+        ref self: TContractState, stream_id: u256, delegate: ContractAddress
     ) -> bool;
-    
+
     /// @notice Revoke a delegation on a stream
     /// @param stream_id The stream ID for the query
     /// @return Boolean indicating if the stream delegation is revoked
-    fn revoke_delegation(
-        ref self: TContractState,
-        stream_id: u256
-    ) -> bool;
-    
+    fn revoke_delegation(ref self: TContractState, stream_id: u256) -> bool;
+
     /// @notice returns the delegated address from a stream
-    fn get_stream_delegate(
-        self: @TContractState,
-        stream_id: u256
-    ) -> ContractAddress;
+    fn get_stream_delegate(self: @TContractState, stream_id: u256) -> ContractAddress;
 }
