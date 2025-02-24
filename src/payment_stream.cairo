@@ -62,7 +62,7 @@ mod PaymentStream {
         #[flat]
         Src5Event: SRC5Component::Event,
         #[flat]
-        AccessControlEvent: AccessControlComponent::Event
+        AccessControlEvent: AccessControlComponent::Event,
     }
 
     #[derive(Drop, starknet::Event)]
