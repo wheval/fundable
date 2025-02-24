@@ -528,15 +528,10 @@ mod PaymentStream {
             self.assert_stream_exists(stream_id);
             self.assert_is_sender(stream_id);
             assert(delegate.is_non_zero(), INVALID_RECIPIENT);
-
-            self.stream_delegates.write(stream_id, delegate);
-            self.delegation_history.push(stream_id, delegate);
-            self
-                .emit(
-                    Event::DelegationGranted {
-                        stream_id, delegator: get_caller_address(), delegate,
-                    },
-                );
+            let mut history = self.delegation_history.get(stream_id).unwrap_or(VecTrait::new());
+            history.append(delegate);
+            self.delegation_history.insert(stream_id, history);
+            self.emit(DelegationGranted { stream_id, delegator: get_caller_address(), delegate });
             true
         }
 
@@ -546,13 +541,8 @@ mod PaymentStream {
 
             let delegate = self.stream_delegates.read(stream_id);
             assert(delegate.is_non_zero(), UNEXISTING_STREAM);
-            self.stream_delegates.remove(stream_id);
-            self
-                .emit(
-                    Event::DelegationRevoked {
-                        stream_id, delegator: get_caller_address(), delegate,
-                    },
-                );
+            self.stream_delegates.insert(stream_id, Option::None);
+            self.emit(DelegationRevoked { stream_id, delegator: get_caller_address(), delegate });
             true
         }
 
