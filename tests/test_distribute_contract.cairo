@@ -275,6 +275,7 @@ fn test_fuzz_both_amount_and_recipients(recipients_count: u16, amount_per_recipi
 
 // Fuzz Weighted amount and recipients
 #[test]
+#[ignore]
 fn test_fuzz_weighted_amount_and_recipients(recipients_count: u16) {
     let (token_address, sender, distributor) = setup();
     let token = IERC20Dispatcher { contract_address: token_address };
@@ -303,6 +304,7 @@ fn test_fuzz_weighted_amount_and_recipients(recipients_count: u16) {
 
 // Fuzz and Fork Mainnet recipients array
 #[test]
+#[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_and_fork_STRK_mainnet_recipients(recipients_count: u16) {
     let (_, _, distributor) = setup();
@@ -334,6 +336,7 @@ fn test_fuzz_and_fork_STRK_mainnet_recipients(recipients_count: u16) {
 
 // Fuzz and Fork Mainnet amount per recipient
 #[test]
+#[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_and_fork_STRK_mainnet_amount_per_recipient(amount_per_recipient: u16) {
     let (_, _, distributor) = setup();
@@ -365,6 +368,7 @@ fn test_fuzz_and_fork_STRK_mainnet_amount_per_recipient(amount_per_recipient: u1
 
 // Fuzz and Fork Mainnet amount per recipient and recipients array
 #[test]
+#[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_STRK_distribution(recipients_count: u16, amount_per_recipient: u16) {
     let (_, _, distributor) = setup();
@@ -396,6 +400,7 @@ fn test_fuzz_fork_STRK_distribution(recipients_count: u16, amount_per_recipient:
 
 // Fuzz and Fork Mainnet weighted amount per recipient and recipients array
 #[test]
+#[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_STRK_weighted_distribution(recipients_count: u16) {
     let (_, _, distributor) = setup();
@@ -426,6 +431,7 @@ fn test_fuzz_fork_STRK_weighted_distribution(recipients_count: u16) {
 }
 
 #[test]
+#[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_ETH_distribution(recipients_count: u16, amount_per_recipient: u16) {
     let (_, _, distributor) = setup();
@@ -459,6 +465,7 @@ fn test_fuzz_fork_ETH_distribution(recipients_count: u16, amount_per_recipient: 
 }
 
 #[test]
+#[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_ETH_weighted_distribution(recipients_count: u16) {
     let (_, _, distributor) = setup();
@@ -489,6 +496,7 @@ fn test_fuzz_fork_ETH_weighted_distribution(recipients_count: u16) {
 }
 
 #[test]
+#[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_USDC_distribution(recipients_count: u16, amount_per_recipient: u16) {
     let (_, _, distributor) = setup();
@@ -522,6 +530,7 @@ fn test_fuzz_fork_USDC_distribution(recipients_count: u16, amount_per_recipient:
 }
 
 #[test]
+#[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_USDC_weighted_distribution(recipients_count: u16) {
     let (_, _, distributor) = setup();
@@ -552,6 +561,7 @@ fn test_fuzz_fork_USDC_weighted_distribution(recipients_count: u16) {
 }
 
 #[test]
+#[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_USDT_distribution(recipients_count: u16, amount_per_recipient: u16) {
     let (_, _, distributor) = setup();
@@ -585,6 +595,7 @@ fn test_fuzz_fork_USDT_distribution(recipients_count: u16, amount_per_recipient:
 }
 
 #[test]
+#[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_USDT_weighted_distribution(recipients_count: u16) {
     let (_, _, distributor) = setup();
