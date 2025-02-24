@@ -535,7 +535,7 @@ mod PaymentStream {
                 .emit(
                     Event::DelegationGranted {
                         stream_id, delegator: get_caller_address(), delegate,
-                    }
+                    },
                 );
             true
         }
@@ -551,7 +551,7 @@ mod PaymentStream {
                 .emit(
                     Event::DelegationRevoked {
                         stream_id, delegator: get_caller_address(), delegate,
-                    }
+                    },
                 );
             true
         }
