@@ -3,9 +3,9 @@ mod PaymentStream {
     use starknet::{
         get_caller_address, get_contract_address, get_block_timestamp, storage::Map, storage::Vec,
     };
+    use starknet::{ContractAddress, contract_address_const};
     use core::traits::Into;
     use core::num::traits::Zero;
-    use starknet::ContractAddress;
     use crate::base::types::{Stream, StreamStatus, StreamMetrics, ProtocolMetrics};
     use fundable::interfaces::IPaymentStream::IPaymentStream;
     use crate::base::errors::Errors::{
@@ -44,7 +44,7 @@ mod PaymentStream {
         stream_metrics: Map<u256, StreamMetrics>,
         protocol_metrics: ProtocolMetrics,
         stream_delegates: Map<u256, ContractAddress>,
-        delegation_history: Map<u256, Vec<ContractAddress>>,
+        delegation_history: Map<(u256, ContractAddress), bool>,
     }
 
 
@@ -528,9 +528,8 @@ mod PaymentStream {
             self.assert_stream_exists(stream_id);
             self.assert_is_sender(stream_id);
             assert(delegate.is_non_zero(), INVALID_RECIPIENT);
-            let mut history = self.delegation_history.read(stream_id);
-            history.append(delegate);
-            self.delegation_history.insert(stream_id, history);
+            self.stream_delegates.write(stream_id, delegate);
+            self.delegation_history.write((stream_id, delegate), true);
             self.emit(DelegationGranted { stream_id, delegator: get_caller_address(), delegate });
             true
         }
@@ -538,10 +537,10 @@ mod PaymentStream {
         fn revoke_delegation(ref self: ContractState, stream_id: u256) -> bool {
             self.assert_stream_exists(stream_id);
             self.assert_is_sender(stream_id);
-
             let delegate = self.stream_delegates.read(stream_id);
             assert(delegate.is_non_zero(), UNEXISTING_STREAM);
-            self.stream_delegates.insert(stream_id, Option::None);
+            self.stream_delegates.write(stream_id, contract_address_const::<0x0>());
+            self.delegation_history.write((stream_id, delegate), false);
             self.emit(DelegationRevoked { stream_id, delegator: get_caller_address(), delegate });
             true
         }
