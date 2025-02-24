@@ -523,7 +523,7 @@ mod PaymentStream {
         }
 
         fn delegate_stream(
-            ref self: ContractState, stream_id: u256, delegate: ContractAddress
+            ref self: ContractState, stream_id: u256, delegate: ContractAddress,
         ) -> bool {
             self.assert_stream_exists(stream_id);
             self.assert_is_sender(stream_id);
@@ -534,7 +534,7 @@ mod PaymentStream {
             self
                 .emit(
                     Event::DelegationGranted {
-                        stream_id, delegator: get_caller_address(), delegate
+                        stream_id, delegator: get_caller_address(), delegate,
                     }
                 );
             true
@@ -550,7 +550,7 @@ mod PaymentStream {
             self
                 .emit(
                     Event::DelegationRevoked {
-                        stream_id, delegator: get_caller_address(), delegate
+                        stream_id, delegator: get_caller_address(), delegate,
                     }
                 );
             true
