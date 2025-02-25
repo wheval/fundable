@@ -2,6 +2,7 @@
 mod PaymentStream {
     use starknet::{
         get_caller_address, get_contract_address, get_block_timestamp, storage::Map, storage::Vec,
+        storage::VecTrait, storage::MutableVecTrait, storage::StoragePointerWriteAccess, storage::StoragePointerReadAccess, storage::StoragePathEntry
     };
     use starknet::{ContractAddress, contract_address_const};
     use core::traits::Into;
@@ -44,7 +45,7 @@ mod PaymentStream {
         stream_metrics: Map<u256, StreamMetrics>,
         protocol_metrics: ProtocolMetrics,
         stream_delegates: Map<u256, ContractAddress>,
-        delegation_history: Map<(u256, ContractAddress), bool>,
+        delegation_history: Map<u256, Vec<ContractAddress>>,
     }
 
 
@@ -529,7 +530,7 @@ mod PaymentStream {
             self.assert_is_sender(stream_id);
             assert(delegate.is_non_zero(), INVALID_RECIPIENT);
             self.stream_delegates.write(stream_id, delegate);
-            self.delegation_history.write((stream_id, delegate), true);
+            self.delegation_history.entry(stream_id).append().write(delegate);
             self.emit(DelegationGranted { stream_id, delegator: get_caller_address(), delegate });
             true
         }
@@ -540,7 +541,7 @@ mod PaymentStream {
             let delegate = self.stream_delegates.read(stream_id);
             assert(delegate.is_non_zero(), UNEXISTING_STREAM);
             self.stream_delegates.write(stream_id, contract_address_const::<0x0>());
-            self.delegation_history.write((stream_id, delegate), false);
+            // self.delegation_history.write((stream_id, delegate), false);
             self.emit(DelegationRevoked { stream_id, delegator: get_caller_address(), delegate });
             true
         }
