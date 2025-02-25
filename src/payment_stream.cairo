@@ -52,6 +52,7 @@ mod PaymentStream {
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
+        StreamRateUpdated: StreamRateUpdated,
         StreamCreated: StreamCreated,
         StreamWithdrawn: StreamWithdrawn,
         StreamCanceled: StreamCanceled,
@@ -66,6 +67,15 @@ mod PaymentStream {
         AccessControlEvent: AccessControlComponent::Event,
         DelegationGranted: DelegationGranted,
         DelegationRevoked: DelegationRevoked,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct StreamRateUpdated {
+        #[key]
+        stream_id: u256,
+        old_rate: u256,
+        new_rate: u256,
+        update_time: u64,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -541,13 +551,50 @@ mod PaymentStream {
             let delegate = self.stream_delegates.read(stream_id);
             assert(delegate.is_non_zero(), UNEXISTING_STREAM);
             self.stream_delegates.write(stream_id, contract_address_const::<0x0>());
-            // self.delegation_history.write((stream_id, delegate), false);
             self.emit(DelegationRevoked { stream_id, delegator: get_caller_address(), delegate });
             true
         }
 
         fn get_stream_delegate(self: @ContractState, stream_id: u256) -> ContractAddress {
             self.stream_delegates.read(stream_id)
+        }
+
+        fn update_stream_rate(ref self: ContractState, stream_id: u256, new_rate_per_second: u256) {
+            let caller = get_caller_address();
+            assert!(new_rate_per_second > 0, "Rate must be greater than 0");
+            assert!(
+                self.streams.read(stream_id).sender == caller, "Only stream owner can update rate",
+            );
+
+            let stream: Stream = self.streams.read(stream_id);
+            assert!(stream.status == StreamStatus::Active, "Stream is not active");
+
+            let new_stream = Stream {
+                rate_per_second: new_rate_per_second,
+                sender: stream.sender,
+                recipient: stream.recipient,
+                token: stream.token,
+                total_amount: stream.total_amount,
+                start_time: stream.start_time,
+                end_time: stream.end_time,
+                withdrawn_amount: stream.withdrawn_amount,
+                cancelable: stream.cancelable,
+                status: stream.status,
+                last_update_time: starknet::get_block_timestamp(),
+            };
+
+            self.streams.write(stream_id, new_stream);
+            self
+                .emit(
+                    Event::StreamRateUpdated(
+                        StreamRateUpdated {
+                            stream_id,
+                            old_rate: stream.rate_per_second,
+                            new_rate: new_rate_per_second,
+                            update_time: starknet::get_block_timestamp(),
+                        },
+                    ),
+                );
         }
     }
 }
