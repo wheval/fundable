@@ -114,17 +114,16 @@ mod Distributor {
             let protocol_fee = (*total_amount * fee_percent) / 10000;
             protocol_fee
         }
-    }
-
-    #[abi(embed_v0)]
-    impl DistributorImpl of IDistributor<ContractState> {
         fn validate_token(self: @ContractState, token: ContractAddress) {
             assert(!token.is_zero(), INVALID_TOKEN);
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
             let token_decimals = token_dispatcher.decimals();
             assert(token_decimals > 0, 'INVALID_TOKEN_DECIMALS');
         }
+    }
 
+    #[abi(embed_v0)]
+    impl DistributorImpl of IDistributor<ContractState> {        
         fn distribute(
             ref self: ContractState,
             amount: u256,
