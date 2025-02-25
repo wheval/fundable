@@ -4,14 +4,6 @@ use crate::base::types::{DistributionHistory, TokenStats, UserStats};
 /// Interface for the distribution contract
 #[starknet::interface]
 pub trait IDistributor<TContractState> {
-    /// @notice Validates the ERC20 token to ensure it is a valid token for distribution
-    /// @param token The ERC20 token address to be validated
-    /// @dev This function checks whether the provided token address is non-zero and verifies that
-    /// the token has a valid decimal value.
-    /// If the token is invalid (either a zero address or a token with zero decimals), an assertion
-    /// is triggered, preventing further operations.
-    fn validate_token(self: @TContractState, token: ContractAddress);
-
     /// @notice Distributes equal amounts of tokens to multiple recipients
     /// @param amount The total amount to distribute
     /// @param recipients Array of recipient addresses

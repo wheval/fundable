@@ -123,7 +123,7 @@ mod Distributor {
     }
 
     #[abi(embed_v0)]
-    impl DistributorImpl of IDistributor<ContractState> {        
+    impl DistributorImpl of IDistributor<ContractState> {
         fn distribute(
             ref self: ContractState,
             amount: u256,
