@@ -2,7 +2,8 @@
 mod PaymentStream {
     use starknet::{
         get_caller_address, get_contract_address, get_block_timestamp, storage::Map, storage::Vec,
-        storage::VecTrait, storage::MutableVecTrait, storage::StoragePointerWriteAccess, storage::StoragePointerReadAccess, storage::StoragePathEntry
+        storage::VecTrait, storage::MutableVecTrait, storage::StoragePointerWriteAccess,
+        storage::StoragePointerReadAccess, storage::StoragePathEntry,
     };
     use starknet::{ContractAddress, contract_address_const};
     use core::traits::Into;
