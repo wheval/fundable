@@ -4,8 +4,35 @@ use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
     stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global,
 };
+use fundable::base::types::{Stream, StreamStatus};
 use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::access::accesscontrol::interface::{IAccessControlDispatcher, IAccessControlDispatcherTrait};
+
+// Constantes para roles
+const STREAM_ADMIN_ROLE: felt252 = selector!("STREAM_ADMIN");
+const PROTOCOL_OWNER_ROLE: felt252 = selector!("PROTOCOL_OWNER");
+
+fn setup_access_control() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher, IAccessControlDispatcher) {
+    let sender: ContractAddress = contract_address_const::<'sender'>();
+    // Deploy mock ERC20
+    let erc20_class = declare("MockUsdc").unwrap().contract_class();
+    let mut calldata = array![sender.into(), sender.into()];
+    let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
+
+    // Deploy Payment stream contract
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let payment_stream_class = declare("PaymentStream").unwrap().contract_class();
+    let mut calldata = array![protocol_owner.into()];
+    let (payment_stream_address, _) = payment_stream_class.deploy(@calldata).unwrap();
+
+    (
+        erc20_address, 
+        sender, 
+        IPaymentStreamDispatcher { contract_address: payment_stream_address },
+        IAccessControlDispatcher { contract_address: payment_stream_address }
+    )
+}
 
 fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
@@ -206,4 +233,117 @@ fn test_successful_stream_cancellation() {
     let get_let = payment_stream.is_stream_active(stream_id);
 
     assert(get_let == false, 'Cancelation failed');
+}
+
+
+
+
+#[test]
+#[should_panic(expected: ('Caller is missing role',))]
+fn test_unauthorized_cancel() {
+    let (token_address, sender, payment_stream, access_control) = setup_access_control();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    
+    // Create a stream as the sender - this will automatically assign STREAM_ADMIN_ROLE
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    
+    // Verify that the sender has the STREAM_ADMIN_ROLE after creating the stream
+    let has_role = access_control.has_role(STREAM_ADMIN_ROLE, sender);
+    assert(has_role, 'Sender should have admin role');
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Try to cancel the stream with an unauthorized user (recipient)
+    // The recipient does not have the STREAM_ADMIN_ROLE
+    start_cheat_caller_address(payment_stream.contract_address, recipient);
+    
+    // Verify that the recipient does NOT have the STREAM_ADMIN_ROLE
+    let recipient_has_role = access_control.has_role(STREAM_ADMIN_ROLE, recipient);
+    assert(!recipient_has_role, 'Recipient should not have role');
+
+    payment_stream.cancel(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+fn test_pause_stream() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    
+    // Create a stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    
+    // Pause the stream
+    payment_stream.pause(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+    
+    // Verify that the stream was paused
+    let stream = payment_stream.get_stream(stream_id);
+    assert(stream.status == StreamStatus::Paused, 'Stream should be paused');
+}
+
+#[test]
+fn test_restart_stream() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    
+    // Create a stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    
+    // Pause the stream first
+    payment_stream.pause(stream_id);
+    
+    // Verify that the stream was paused
+    let stream = payment_stream.get_stream(stream_id);
+    assert(stream.status == StreamStatus::Paused, 'Stream should be paused');
+    
+    // Restart the stream with a new rate
+    let new_rate = 100_u256; // Rate per second
+    payment_stream.restart(stream_id, new_rate);
+    stop_cheat_caller_address(payment_stream.contract_address);
+    
+    // Verify that the stream was restarted
+    let stream = payment_stream.get_stream(stream_id);
+    assert(stream.status == StreamStatus::Active, 'Stream should be active');
+    assert(stream.rate_per_second == new_rate, 'Rate should be updated');
+}
+
+#[test]
+fn test_void_stream() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    
+    // Create a stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    
+    // Void the stream
+    payment_stream.void(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+    
+    // Verify that the stream was voided
+    let stream = payment_stream.get_stream(stream_id);
+    assert(stream.status == StreamStatus::Voided, 'Stream should be voided');
 }
