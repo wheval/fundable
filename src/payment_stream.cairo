@@ -450,37 +450,34 @@ mod PaymentStream {
             assert(stream.status != StreamStatus::Canceled, 'Stream is not active');
 
             stream.status = StreamStatus::Paused;
-            self.streams.write(stream_id,stream);
- 
-            self.emit(StreamPaused {stream_id,pause_time: starknet::get_block_timestamp() });
- 
-         }
+            self.streams.write(stream_id, stream);
 
-        fn restart(
-            ref self: ContractState, stream_id: u256, rate_per_second: u256,
-        ) { 
-            let mut stream = self.streams.read(stream_id);
-            
-            self.assert_stream_exists(stream_id);
-            assert(stream.status != StreamStatus::Canceled, 'Stream is not active');
-          
-            stream.status = StreamStatus::Active;
-            stream.rate_per_second = rate_per_second;
-            self.streams.write(stream_id,stream);
-
-            self.emit(StreamRestarted {stream_id,rate_per_second});
+            self.emit(StreamPaused { stream_id, pause_time: starknet::get_block_timestamp() });
         }
 
-        fn void(ref self: ContractState, stream_id: u256) { 
+        fn restart(ref self: ContractState, stream_id: u256, rate_per_second: u256) {
             let mut stream = self.streams.read(stream_id);
-            
+
             self.assert_stream_exists(stream_id);
             assert(stream.status != StreamStatus::Canceled, 'Stream is not active');
-          
-            stream.status = StreamStatus::Voided;
-            self.streams.write(stream_id,stream);
 
-            self.emit(StreamVoided {stream_id});
+            stream.status = StreamStatus::Active;
+            stream.rate_per_second = rate_per_second;
+            self.streams.write(stream_id, stream);
+
+            self.emit(StreamRestarted { stream_id, rate_per_second });
+        }
+
+        fn void(ref self: ContractState, stream_id: u256) {
+            let mut stream = self.streams.read(stream_id);
+
+            self.assert_stream_exists(stream_id);
+            assert(stream.status != StreamStatus::Canceled, 'Stream is not active');
+
+            stream.status = StreamStatus::Voided;
+            self.streams.write(stream_id, stream);
+
+            self.emit(StreamVoided { stream_id });
         }
 
         fn get_stream(self: @ContractState, stream_id: u256) -> Stream {
