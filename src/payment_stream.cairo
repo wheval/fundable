@@ -12,7 +12,7 @@ mod PaymentStream {
     use fundable::interfaces::IPaymentStream::IPaymentStream;
     use crate::base::errors::Errors::{
         ZERO_AMOUNT, INVALID_TOKEN, UNEXISTING_STREAM, WRONG_RECIPIENT, WRONG_SENDER,
-        INVALID_RECIPIENT, END_BEFORE_START, INSUFFICIENT_ALLOWANCE,
+        INVALID_RECIPIENT, END_BEFORE_START, INSUFFICIENT_ALLOWANCE, WRONG_RECIPIENT_OR_DELEGATE,
     };
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
@@ -201,6 +201,15 @@ mod PaymentStream {
             IERC20Dispatcher { contract_address: token }
                 .transfer_from(sender, fee_collector, amount);
         }
+
+        fn assert_is_recipient_or_delegate(self: @ContractState, stream_id: u256) {
+            let stream = self.streams.read(stream_id);
+            let caller = get_caller_address();
+            if caller != stream.recipient {
+                let delegate = self.stream_delegates.read(stream_id);
+                assert(caller == delegate, WRONG_RECIPIENT_OR_DELEGATE);
+            }
+        }
     }
 
     #[abi(embed_v0)]
@@ -269,8 +278,7 @@ mod PaymentStream {
         fn withdraw(
             ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
         ) -> (u128, u128) {
-            self.accesscontrol.assert_only_role(STREAM_ADMIN_ROLE);
-
+            self.assert_is_recipient_or_delegate(stream_id);
             assert(amount > 0, ZERO_AMOUNT);
             assert(to.is_non_zero(), INVALID_RECIPIENT);
 
@@ -302,8 +310,7 @@ mod PaymentStream {
         fn withdraw_max(
             ref self: ContractState, stream_id: u256, to: ContractAddress,
         ) -> (u128, u128) {
-            self.accesscontrol.assert_only_role(STREAM_ADMIN_ROLE);
-
+            self.assert_is_recipient_or_delegate(stream_id);
             assert(to.is_non_zero(), INVALID_RECIPIENT);
 
             let stream = self.streams.read(stream_id);
@@ -621,3 +628,4 @@ mod PaymentStream {
         }
     }
 }
+
