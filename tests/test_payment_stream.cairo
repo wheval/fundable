@@ -224,7 +224,8 @@ fn test_withdraw_by_delegate() {
 
     // Sender creates a stream.
     start_cheat_caller_address(payment_stream.contract_address, sender);
-    let stream_id = payment_stream.create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
     // Sender assigns a delegate.
     payment_stream.delegate_stream(stream_id, delegate);
     stop_cheat_caller_address(payment_stream.contract_address);
@@ -263,7 +264,8 @@ fn test_withdraw_by_unauthorized() {
 
     // Sender creates a stream.
     start_cheat_caller_address(payment_stream.contract_address, sender);
-    let stream_id = payment_stream.create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
     stop_cheat_caller_address(payment_stream.contract_address);
 
     // Unauthorized account attempts withdrawal.
