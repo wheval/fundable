@@ -416,3 +416,201 @@ fn test_void_stream() {
     let stream = payment_stream.get_stream(stream_id);
     assert(stream.status == StreamStatus::Voided, 'Stream should be voided');
 }
+
+#[test]
+fn test_delegate_assignment_and_verification() {
+    // Setup
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let delegate = contract_address_const::<'delegate'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    
+    // Assign delegate
+    let delegation_success = payment_stream.delegate_stream(stream_id, delegate);
+    assert(delegation_success == true, 'Delegation should succeed');
+
+    // Verify delegate assignment
+    let assigned_delegate = payment_stream.get_stream_delegate(stream_id);
+    assert(assigned_delegate == delegate, 'Wrong delegate assigned');
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+fn test_multiple_delegations() {
+    // Setup
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let delegate1 = contract_address_const::<'delegate1'>();
+    let delegate2 = contract_address_const::<'delegate2'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    
+    // Assign first delegate
+    payment_stream.delegate_stream(stream_id, delegate1);
+    let first_delegate = payment_stream.get_stream_delegate(stream_id);
+    assert(first_delegate == delegate1, 'First delegation failed');
+
+    // Assign second delegate (should override first)
+    payment_stream.delegate_stream(stream_id, delegate2);
+    let second_delegate = payment_stream.get_stream_delegate(stream_id);
+    assert(second_delegate == delegate2, 'Second delegation failed');
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+fn test_delegation_revocation() {
+    // Setup
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let delegate = contract_address_const::<'delegate'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create stream and assign delegate
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    payment_stream.delegate_stream(stream_id, delegate);
+
+    // Verify delegate is assigned
+    let assigned_delegate = payment_stream.get_stream_delegate(stream_id);
+    assert(assigned_delegate == delegate, 'Delegate not assigned');
+
+    // Revoke delegation
+    let revocation_success = payment_stream.revoke_delegation(stream_id);
+    assert(revocation_success == true, 'Revocation should succeed');
+
+    // Verify delegate is removed
+    let delegate_after_revocation = payment_stream.get_stream_delegate(stream_id);
+    assert(delegate_after_revocation == contract_address_const::<0x0>(), 'Delegate not revoked');
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'WRONG_SENDER')]
+fn test_unauthorized_delegation() {
+    // Setup
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let delegate = contract_address_const::<'delegate'>();
+    let unauthorized = contract_address_const::<'unauthorized'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create stream as sender
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Try to delegate from unauthorized address
+    start_cheat_caller_address(payment_stream.contract_address, unauthorized);
+    payment_stream.delegate_stream(stream_id, delegate);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'UNEXISTING_STREAM')]
+fn test_revoke_nonexistent_delegation() {
+    // Setup
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    
+    // Try to revoke non-existent delegation
+    payment_stream.revoke_delegation(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+fn test_delegate_withdrawal_after_revocation() {
+    // Setup
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let delegate = contract_address_const::<'delegate'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
+
+    // Create stream and setup
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_fee_collector(new_fee_collector);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    
+    // Assign and then revoke delegate
+    payment_stream.delegate_stream(stream_id, delegate);
+    payment_stream.revoke_delegation(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Setup delegate's approval
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    start_cheat_caller_address(token_address, delegate);
+    token_dispatcher.approve(payment_stream.contract_address, 5000_u256);
+    stop_cheat_caller_address(token_address);
+
+    // Attempt withdrawal as revoked delegate (should fail)
+    start_cheat_caller_address(payment_stream.contract_address, delegate);
+    let mut success = false;
+    match payment_stream.withdraw(stream_id, 1000_u256, recipient) {
+        Ok(_) => { success = true; },
+        Err(_) => { success = false; }
+    };
+    assert(!success, 'Revoked delegate should not withdraw');
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'INVALID_RECIPIENT')]
+fn test_delegate_to_zero_address() {
+    // Setup
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    
+    // Try to delegate to zero address
+    payment_stream.delegate_stream(stream_id, contract_address_const::<0x0>());
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
