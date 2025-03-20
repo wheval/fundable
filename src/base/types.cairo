@@ -83,6 +83,10 @@ pub struct StreamMetrics {
     total_withdrawn: u256,
     withdrawal_count: u32,
     pause_count: u32,
+    // delegation metrics
+    total_delegations: u64,
+    current_delegate: ContractAddress,
+    last_delegation_time: u64,
 }
 
 #[derive(Drop, Serde, starknet::Store)]
@@ -90,4 +94,5 @@ pub struct ProtocolMetrics {
     pub total_active_streams: u256,
     pub total_tokens_distributed: u256,
     pub total_streams_created: u256,
+    pub total_delegations: u64
 }
