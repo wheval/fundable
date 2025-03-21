@@ -261,7 +261,7 @@ mod PaymentStream {
                         total_tokens_distributed: protocol_metrics.total_tokens_distributed
                             + total_amount,
                         total_streams_created: protocol_metrics.total_streams_created + 1,
-                        total_delegations: protocol_metrics.total_delegations +1,
+                        total_delegations: protocol_metrics.total_delegations + 1,
                     },
                 );
 

@@ -6,7 +6,7 @@ on:
   pull_request:
 
 env:
-  SCARB_VERSION: 2.9.2
+  SCARB_VERSION: 2.11.3
 
 jobs:
   check:
@@ -44,7 +44,7 @@ jobs:
       - name: Set up snforge
         uses: foundry-rs/setup-snfoundry@v3
         with:
-          starknet-foundry-version: "0.35.0"
+          starknet-foundry-version: "0.38.3"
 
       - name: Run tests
         run: snforge test

@@ -431,7 +431,7 @@ fn test_delegate_assignment_and_verification() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Assign delegate
     let delegation_success = payment_stream.delegate_stream(stream_id, delegate);
     assert(delegation_success == true, 'Delegation should succeed');
@@ -458,7 +458,7 @@ fn test_multiple_delegations() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Assign first delegate
     payment_stream.delegate_stream(stream_id, delegate1);
     let first_delegate = payment_stream.get_stream_delegate(stream_id);
@@ -542,7 +542,7 @@ fn test_revoke_nonexistent_delegation() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Try to revoke non-existent delegation
     payment_stream.revoke_delegation(stream_id);
     stop_cheat_caller_address(payment_stream.contract_address);
@@ -570,7 +570,7 @@ fn test_delegate_withdrawal_after_revocation() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Assign and then revoke delegate
     payment_stream.delegate_stream(stream_id, delegate);
     payment_stream.revoke_delegation(stream_id);
@@ -587,8 +587,8 @@ fn test_delegate_withdrawal_after_revocation() {
     let mut success = false;
     match payment_stream.withdraw(stream_id, 1000_u256, recipient) {
         Ok(_) => { success = true; },
-        Err(_) => { success = false; }
-    };
+        Err(_) => { success = false; },
+    }
     assert(!success, 'Revoked delegate should not withdraw');
     stop_cheat_caller_address(payment_stream.contract_address);
 }
@@ -608,7 +608,7 @@ fn test_delegate_to_zero_address() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Try to delegate to zero address
     payment_stream.delegate_stream(stream_id, contract_address_const::<0x0>());
     stop_cheat_caller_address(payment_stream.contract_address);

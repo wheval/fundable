@@ -94,5 +94,5 @@ pub struct ProtocolMetrics {
     pub total_active_streams: u256,
     pub total_tokens_distributed: u256,
     pub total_streams_created: u256,
-    pub total_delegations: u64
+    pub total_delegations: u64,
 }
