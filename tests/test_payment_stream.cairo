@@ -1,15 +1,15 @@
 use core::traits::Into;
-use starknet::{get_block_timestamp, ContractAddress, contract_address_const};
-use snforge_std::{
-    declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
-    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global,
-};
 use fundable::base::types::{Stream, StreamStatus};
 use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 use openzeppelin::access::accesscontrol::interface::{
     IAccessControlDispatcher, IAccessControlDispatcherTrait,
 };
+use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use snforge_std::{
+    ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
+    start_cheat_caller_address_global, stop_cheat_caller_address, stop_cheat_caller_address_global,
+};
+use starknet::{ContractAddress, contract_address_const, get_block_timestamp};
 
 // Constantes para roles
 const STREAM_ADMIN_ROLE: felt252 = selector!("STREAM_ADMIN");
@@ -306,7 +306,6 @@ fn test_withdraw_by_unauthorized() {
 }
 
 
-
 #[test]
 #[should_panic(expected: ('Caller is missing role',))]
 fn test_unauthorized_cancel() {
@@ -432,7 +431,7 @@ fn test_delegate_assignment_and_verification() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Assign delegate
     let delegation_success = payment_stream.delegate_stream(stream_id, delegate);
     assert(delegation_success == true, 'Delegation should succeed');
@@ -459,7 +458,7 @@ fn test_multiple_delegations() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Assign first delegate
     payment_stream.delegate_stream(stream_id, delegate1);
     let first_delegate = payment_stream.get_stream_delegate(stream_id);
@@ -504,7 +503,7 @@ fn test_delegation_revocation() {
 }
 
 #[test]
-#[should_panic(expected: 'WRONG_SENDER')]
+#[should_panic(expected: 'Error: Not stream sender.')]
 fn test_unauthorized_delegation() {
     // Setup
     let (token_address, sender, payment_stream) = setup();
@@ -529,7 +528,7 @@ fn test_unauthorized_delegation() {
 }
 
 #[test]
-#[should_panic(expected: 'UNEXISTING_STREAM')]
+#[should_panic(expected: 'Error: Stream does not exist.')]
 fn test_revoke_nonexistent_delegation() {
     // Setup
     let (token_address, sender, payment_stream) = setup();
@@ -543,13 +542,14 @@ fn test_revoke_nonexistent_delegation() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Try to revoke non-existent delegation
     payment_stream.revoke_delegation(stream_id);
     stop_cheat_caller_address(payment_stream.contract_address);
 }
 
 #[test]
+#[should_panic(expected: 'WRONG_RECIPIENT_OR_DELEGATE')]
 fn test_delegate_withdrawal_after_revocation() {
     // Setup
     let (token_address, sender, payment_stream) = setup();
@@ -571,7 +571,7 @@ fn test_delegate_withdrawal_after_revocation() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Assign and then revoke delegate
     payment_stream.delegate_stream(stream_id, delegate);
     payment_stream.revoke_delegation(stream_id);
@@ -583,19 +583,15 @@ fn test_delegate_withdrawal_after_revocation() {
     token_dispatcher.approve(payment_stream.contract_address, 5000_u256);
     stop_cheat_caller_address(token_address);
 
-    // Attempt withdrawal as revoked delegate (should fail)
+    // Attempt withdrawal as revoked delegate (should fail with WRONG_RECIPIENT_OR_DELEGATE)
     start_cheat_caller_address(payment_stream.contract_address, delegate);
-    let mut success = false;
-    match payment_stream.withdraw(stream_id, 1000_u256, recipient) {
-        Ok(_) => { success = true; },
-        Err(_) => { success = false; }
-    };
-    assert(!success, 'Revoked delegate should not withdraw');
+    // This should panic with the expected error since the delegate was revoked
+    payment_stream.withdraw(stream_id, 1000_u256, recipient);
     stop_cheat_caller_address(payment_stream.contract_address);
 }
 
 #[test]
-#[should_panic(expected: 'INVALID_RECIPIENT')]
+#[should_panic(expected: 'Error: Invalid recipient.')]
 fn test_delegate_to_zero_address() {
     // Setup
     let (token_address, sender, payment_stream) = setup();
@@ -609,7 +605,7 @@ fn test_delegate_to_zero_address() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Try to delegate to zero address
     payment_stream.delegate_stream(stream_id, contract_address_const::<0x0>());
     stop_cheat_caller_address(payment_stream.contract_address);

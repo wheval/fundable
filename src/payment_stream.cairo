@@ -1,22 +1,24 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{
-        get_caller_address, get_contract_address, get_block_timestamp, storage::Map, storage::Vec,
-        storage::VecTrait, storage::MutableVecTrait, storage::StoragePointerWriteAccess,
-        storage::StoragePointerReadAccess, storage::StoragePathEntry,
-    };
-    use starknet::{ContractAddress, contract_address_const};
-    use core::traits::Into;
     use core::num::traits::Zero;
-    use crate::base::types::{Stream, StreamStatus, StreamMetrics, ProtocolMetrics};
+    use core::traits::Into;
     use fundable::interfaces::IPaymentStream::IPaymentStream;
-    use crate::base::errors::Errors::{
-        ZERO_AMOUNT, INVALID_TOKEN, UNEXISTING_STREAM, WRONG_RECIPIENT, WRONG_SENDER,
-        INVALID_RECIPIENT, END_BEFORE_START, INSUFFICIENT_ALLOWANCE, WRONG_RECIPIENT_OR_DELEGATE,
-    };
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use starknet::storage::{
+        Map, MutableVecTrait, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
+        Vec, VecTrait,
+    };
+    use starknet::{
+        ContractAddress, contract_address_const, get_block_timestamp, get_caller_address,
+        get_contract_address,
+    };
+    use crate::base::errors::Errors::{
+        END_BEFORE_START, INSUFFICIENT_ALLOWANCE, INVALID_RECIPIENT, INVALID_TOKEN,
+        UNEXISTING_STREAM, WRONG_RECIPIENT, WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
+    };
+    use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
 
     component!(path: AccessControlComponent, storage: accesscontrol, event: AccessControlEvent);
     component!(path: SRC5Component, storage: src5, event: Src5Event);
@@ -259,7 +261,7 @@ mod PaymentStream {
                         total_tokens_distributed: protocol_metrics.total_tokens_distributed
                             + total_amount,
                         total_streams_created: protocol_metrics.total_streams_created + 1,
-                        total_delegations: protocol_metrics.total_delegations +1,
+                        total_delegations: protocol_metrics.total_delegations + 1,
                     },
                 );
 
@@ -434,21 +436,26 @@ mod PaymentStream {
             assert(stream.status == StreamStatus::Active, 'Stream is not Active');
             // Update the stream status to canceled
             stream.status = StreamStatus::Canceled;
+            // Update the stream recipient back to the sender
+            stream.recipient = stream.sender;
 
             // Update the stream end time
             stream.end_time = get_block_timestamp();
 
             // Handle refunding unclaimed funds
             let recipient = get_caller_address();
-            if stream.total_amount > 0 {
+
+            // Calculate the amount that can be refunded
+            let refundable_amount = stream.total_amount - stream.withdrawn_amount;
+            // Update Stream in State
+            self.streams.write(stream_id, stream);
+
+            if refundable_amount > 0 {
                 self.withdraw_max(stream_id, recipient);
             }
 
             // Emit an event for stream cancellation
             self.emit(StreamCanceled { stream_id });
-
-            // Update Stream in State
-            self.streams.write(stream_id, stream);
         }
 
         fn pause(ref self: ContractState, stream_id: u256) {
