@@ -1,17 +1,17 @@
-use core::traits::Into;
 use core::num::traits::Bounded;
-use starknet::{ContractAddress, contract_address_const};
-use snforge_std::{
-    declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
-    stop_cheat_caller_address, start_cheat_block_timestamp, stop_cheat_block_timestamp,
-    generate_random_felt,
+use core::traits::Into;
+use fundable::base::types::{
+    Distribution, DistributionHistory, TokenStats, UserStats, WeightedDistribution,
 };
 use fundable::interfaces::IDistributor::{IDistributorDispatcher, IDistributorDispatcherTrait};
 //use fundable::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
-use fundable::base::types::{
-    DistributionHistory, Distribution, WeightedDistribution, TokenStats, UserStats,
+use snforge_std::{
+    ContractClassTrait, DeclareResultTrait, declare, generate_random_felt,
+    start_cheat_block_timestamp, start_cheat_caller_address, stop_cheat_block_timestamp,
+    stop_cheat_caller_address,
 };
+use starknet::{ContractAddress, contract_address_const};
 
 const U16_MAX: u16 = Bounded::<u16>::MAX;
 
@@ -102,7 +102,7 @@ fn recipients_array(
         let current_address: ContractAddress = (base_address + i.into()).try_into().unwrap();
         recipients.append(current_address);
         recipients_initial_balances.append(token.balance_of(current_address));
-    };
+    }
 
     (recipients, recipients_initial_balances)
 }
@@ -163,7 +163,7 @@ fn gen_weighted_amounts(weight: u32) -> Array<u256> {
             amount
         };
         weighted_amounts.append(amount);
-    };
+    }
     weighted_amounts
 }
 
@@ -182,13 +182,14 @@ fn gen_based_weighted_amounts(weight: u32, max_check: u256) -> Array<u256> {
             amount
         };
         weighted_amounts.append(amount);
-    };
+    }
     weighted_amounts
 }
 
 // Test Cases (Distribute, DistributeWeighted)
 // Fuzz recipients array
 #[test]
+#[fuzzer]
 fn test_fuzz_recipients(recipients_count: u16) {
     let (token_address, sender, distributor) = setup();
     let token = IERC20Dispatcher { contract_address: token_address };
@@ -219,6 +220,7 @@ fn test_fuzz_recipients(recipients_count: u16) {
 
 // Fuzz amount per recipient
 #[test]
+#[fuzzer]
 fn test_fuzz_amount_per_recipient(amount_per_recipient: u16) {
     let (token_address, sender, distributor) = setup();
     let token = IERC20Dispatcher { contract_address: token_address };
@@ -247,6 +249,7 @@ fn test_fuzz_amount_per_recipient(amount_per_recipient: u16) {
 
 // Fuzz Both amount and recipients
 #[test]
+#[fuzzer]
 fn test_fuzz_both_amount_and_recipients(recipients_count: u16, amount_per_recipient: u16) {
     let (token_address, sender, distributor) = setup();
     let token = IERC20Dispatcher { contract_address: token_address };
@@ -275,6 +278,7 @@ fn test_fuzz_both_amount_and_recipients(recipients_count: u16, amount_per_recipi
 
 // Fuzz Weighted amount and recipients
 #[test]
+#[fuzzer]
 #[ignore]
 fn test_fuzz_weighted_amount_and_recipients(recipients_count: u16) {
     let (token_address, sender, distributor) = setup();
@@ -304,6 +308,7 @@ fn test_fuzz_weighted_amount_and_recipients(recipients_count: u16) {
 
 // Fuzz and Fork Mainnet recipients array
 #[test]
+#[fuzzer]
 #[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_and_fork_STRK_mainnet_recipients(recipients_count: u16) {
@@ -336,6 +341,7 @@ fn test_fuzz_and_fork_STRK_mainnet_recipients(recipients_count: u16) {
 
 // Fuzz and Fork Mainnet amount per recipient
 #[test]
+#[fuzzer]
 #[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_and_fork_STRK_mainnet_amount_per_recipient(amount_per_recipient: u16) {
@@ -368,6 +374,7 @@ fn test_fuzz_and_fork_STRK_mainnet_amount_per_recipient(amount_per_recipient: u1
 
 // Fuzz and Fork Mainnet amount per recipient and recipients array
 #[test]
+#[fuzzer]
 #[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_STRK_distribution(recipients_count: u16, amount_per_recipient: u16) {
@@ -400,6 +407,7 @@ fn test_fuzz_fork_STRK_distribution(recipients_count: u16, amount_per_recipient:
 
 // Fuzz and Fork Mainnet weighted amount per recipient and recipients array
 #[test]
+#[fuzzer]
 #[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_STRK_weighted_distribution(recipients_count: u16) {
@@ -431,6 +439,7 @@ fn test_fuzz_fork_STRK_weighted_distribution(recipients_count: u16) {
 }
 
 #[test]
+#[fuzzer]
 #[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_ETH_distribution(recipients_count: u16, amount_per_recipient: u16) {
@@ -465,6 +474,7 @@ fn test_fuzz_fork_ETH_distribution(recipients_count: u16, amount_per_recipient: 
 }
 
 #[test]
+#[fuzzer]
 #[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_ETH_weighted_distribution(recipients_count: u16) {
@@ -496,6 +506,7 @@ fn test_fuzz_fork_ETH_weighted_distribution(recipients_count: u16) {
 }
 
 #[test]
+#[fuzzer]
 #[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_USDC_distribution(recipients_count: u16, amount_per_recipient: u16) {
@@ -530,6 +541,7 @@ fn test_fuzz_fork_USDC_distribution(recipients_count: u16, amount_per_recipient:
 }
 
 #[test]
+#[fuzzer]
 #[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_USDC_weighted_distribution(recipients_count: u16) {
@@ -561,6 +573,7 @@ fn test_fuzz_fork_USDC_weighted_distribution(recipients_count: u16) {
 }
 
 #[test]
+#[fuzzer]
 #[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_USDT_distribution(recipients_count: u16, amount_per_recipient: u16) {
@@ -595,6 +608,7 @@ fn test_fuzz_fork_USDT_distribution(recipients_count: u16, amount_per_recipient:
 }
 
 #[test]
+#[fuzzer]
 #[ignore]
 #[fork("MAINNET")]
 fn test_fuzz_fork_USDT_weighted_distribution(recipients_count: u16) {

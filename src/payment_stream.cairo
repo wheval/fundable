@@ -1,22 +1,24 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{
-        get_caller_address, get_contract_address, get_block_timestamp, storage::Map, storage::Vec,
-        storage::VecTrait, storage::MutableVecTrait, storage::StoragePointerWriteAccess,
-        storage::StoragePointerReadAccess, storage::StoragePathEntry,
-    };
-    use starknet::{ContractAddress, contract_address_const};
-    use core::traits::Into;
     use core::num::traits::Zero;
-    use crate::base::types::{Stream, StreamStatus, StreamMetrics, ProtocolMetrics};
+    use core::traits::Into;
     use fundable::interfaces::IPaymentStream::IPaymentStream;
-    use crate::base::errors::Errors::{
-        ZERO_AMOUNT, INVALID_TOKEN, UNEXISTING_STREAM, WRONG_RECIPIENT, WRONG_SENDER,
-        INVALID_RECIPIENT, END_BEFORE_START, INSUFFICIENT_ALLOWANCE, WRONG_RECIPIENT_OR_DELEGATE,
-    };
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use starknet::storage::{
+        Map, MutableVecTrait, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
+        Vec, VecTrait,
+    };
+    use starknet::{
+        ContractAddress, contract_address_const, get_block_timestamp, get_caller_address,
+        get_contract_address,
+    };
+    use crate::base::errors::Errors::{
+        END_BEFORE_START, INSUFFICIENT_ALLOWANCE, INVALID_RECIPIENT, INVALID_TOKEN,
+        UNEXISTING_STREAM, WRONG_RECIPIENT, WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
+    };
+    use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
 
     component!(path: AccessControlComponent, storage: accesscontrol, event: AccessControlEvent);
     component!(path: SRC5Component, storage: src5, event: Src5Event);

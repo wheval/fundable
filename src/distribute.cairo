@@ -1,24 +1,25 @@
 /// Main contract implementation
 #[starknet::contract]
 mod Distributor {
+    use core::num::traits::Zero;
+    use core::traits::Into;
+    use fundable::interfaces::IDistributor::IDistributor;
+    use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
-    use openzeppelin::access::ownable::OwnableComponent;
-    use starknet::ContractAddress;
-    use core::traits::Into;
-    use starknet::{get_block_timestamp, get_caller_address, get_contract_address, ClassHash};
-    use starknet::storage::{Map};
-    use core::num::traits::Zero;
-    use crate::base::types::{
-        DistributionHistory, Distribution, WeightedDistribution, TokenStats, UserStats,
+    use starknet::storage::Map;
+    use starknet::{
+        ClassHash, ContractAddress, get_block_timestamp, get_caller_address, get_contract_address,
     };
-    use crate::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
     //  use super::Errors;
     use crate::base::errors::Errors::{
-        EMPTY_RECIPIENTS, ZERO_AMOUNT, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN, ARRAY_LEN_MISMATCH,
-        PROTOCOL_FEE_ADDRESS_NOT_SET,
+        ARRAY_LEN_MISMATCH, EMPTY_RECIPIENTS, INSUFFICIENT_ALLOWANCE, INVALID_TOKEN,
+        PROTOCOL_FEE_ADDRESS_NOT_SET, ZERO_AMOUNT,
     };
-    use fundable::interfaces::IDistributor::IDistributor;
+    use crate::base::types::{
+        Distribution, DistributionHistory, TokenStats, UserStats, WeightedDistribution,
+    };
+    use crate::interfaces::IERC20::{IERC20Dispatcher, IERC20DispatcherTrait};
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
@@ -157,7 +158,7 @@ mod Distributor {
             for recipient in recipients {
                 token_dispatcher.transfer_from(caller, recipient, amount);
                 self.emit(WeightedDistribution { caller, token, recipient, amount });
-            };
+            }
 
             // Update global statistics
             self.update_global_stats(amount_to_distribute);
@@ -209,15 +210,12 @@ mod Distributor {
 
             // Calculate total amount needed
             let mut i = 0;
-            loop {
-                if i >= amounts.len() {
-                    break;
-                }
+            while i < amounts.len() {
                 let amount = *amounts.at(i);
                 assert(amount > 0, ZERO_AMOUNT);
                 amount_to_distribute += amount;
                 i += 1;
-            };
+            }
 
             let protocol_fee = self.calculate_protocol_fee(@amount_to_distribute);
             let total_amount = amount_to_distribute + protocol_fee;
@@ -231,10 +229,7 @@ mod Distributor {
 
             // Transfer tokens from sender to recipients
             i = 0;
-            loop {
-                if i >= recipients.len() {
-                    break;
-                }
+            while i < recipients.len() {
                 let recipient = *recipients.at(i);
                 let amount = *amounts.at(i);
 
@@ -244,7 +239,7 @@ mod Distributor {
                 self.emit(WeightedDistribution { caller, token, recipient, amount });
 
                 i += 1;
-            };
+            }
 
             // Update global statistics
             self.update_global_stats(amount_to_distribute);
@@ -325,7 +320,7 @@ mod Distributor {
                 let distribution = self.distribution_history.read(i);
                 history.append(distribution);
                 i += 1;
-            };
+            }
             history
         }
     }
