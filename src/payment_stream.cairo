@@ -1,22 +1,25 @@
 #[starknet::contract]
 mod PaymentStream {
-    use starknet::{
-        get_caller_address, get_contract_address, get_block_timestamp, storage::Map, storage::Vec,
-        storage::VecTrait, storage::MutableVecTrait, storage::StoragePointerWriteAccess,
-        storage::StoragePointerReadAccess, storage::StoragePathEntry,
-    };
-    use starknet::{ContractAddress, contract_address_const};
-    use core::traits::Into;
     use core::num::traits::Zero;
-    use crate::base::types::{Stream, StreamStatus, StreamMetrics, ProtocolMetrics};
+    use core::traits::Into;
+    use fp::{UFixedPoint123x128, UFixedPoint123x128PartialEq};
     use fundable::interfaces::IPaymentStream::IPaymentStream;
-    use crate::base::errors::Errors::{
-        ZERO_AMOUNT, INVALID_TOKEN, UNEXISTING_STREAM, WRONG_RECIPIENT, WRONG_SENDER,
-        INVALID_RECIPIENT, END_BEFORE_START, INSUFFICIENT_ALLOWANCE, WRONG_RECIPIENT_OR_DELEGATE,
-    };
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use starknet::storage::{
+        Map, MutableVecTrait, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
+        Vec, VecTrait,
+    };
+    use starknet::{
+        ContractAddress, contract_address_const, get_block_timestamp, get_caller_address,
+        get_contract_address,
+    };
+    use crate::base::errors::Errors::{
+        END_BEFORE_START, INSUFFICIENT_ALLOWANCE, INVALID_RECIPIENT, INVALID_TOKEN,
+        UNEXISTING_STREAM, WRONG_RECIPIENT, WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
+    };
+    use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
 
     component!(path: AccessControlComponent, storage: accesscontrol, event: AccessControlEvent);
     component!(path: SRC5Component, storage: src5, event: Src5Event);
@@ -28,6 +31,7 @@ mod PaymentStream {
 
     const PROTOCOL_OWNER_ROLE: felt252 = selector!("PROTOCOL_OWNER");
     const STREAM_ADMIN_ROLE: felt252 = selector!("STREAM_ADMIN");
+
 
     #[storage]
     struct Storage {
@@ -74,8 +78,8 @@ mod PaymentStream {
     struct StreamRateUpdated {
         #[key]
         stream_id: u256,
-        old_rate: u256,
-        new_rate: u256,
+        old_rate: UFixedPoint123x128,
+        new_rate: UFixedPoint123x128,
         update_time: u64,
     }
 
@@ -130,7 +134,7 @@ mod PaymentStream {
     struct StreamRestarted {
         #[key]
         stream_id: u256,
-        rate_per_second: u256,
+        rate_per_second: UFixedPoint123x128,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -179,11 +183,16 @@ mod PaymentStream {
             assert(get_caller_address() == stream.sender, WRONG_SENDER);
         }
 
-        fn calculate_stream_rate(total_amount: u256, duration: u64) -> u256 {
+        fn calculate_stream_rate(
+            self: @ContractState, total_amount: u256, duration: u64,
+        ) -> UFixedPoint123x128 {
             if duration == 0 {
-                return 0;
+                return 0_u64.into();
             }
-            total_amount / duration.into()
+            let num: UFixedPoint123x128 = total_amount.into();
+            let divisor: UFixedPoint123x128 = duration.into();
+            let rate = num / divisor;
+            return rate;
         }
 
         /// @notice points basis: 100pbs = 1%
@@ -232,6 +241,10 @@ mod PaymentStream {
             let stream_id = self.next_stream_id.read();
             self.next_stream_id.write(stream_id + 1);
 
+            // Calculate rate using FixedPoint
+            let duration = end_time - start_time;
+            let rate_per_second = self.calculate_stream_rate(total_amount, duration);
+
             // Create new stream
             let stream = Stream {
                 sender: get_caller_address(),
@@ -243,7 +256,7 @@ mod PaymentStream {
                 withdrawn_amount: 0,
                 cancelable,
                 status: StreamStatus::Active,
-                rate_per_second: 0,
+                rate_per_second: rate_per_second,
                 last_update_time: 0,
             };
 
@@ -259,7 +272,7 @@ mod PaymentStream {
                         total_tokens_distributed: protocol_metrics.total_tokens_distributed
                             + total_amount,
                         total_streams_created: protocol_metrics.total_streams_created + 1,
-                        total_delegations: protocol_metrics.total_delegations +1,
+                        total_delegations: protocol_metrics.total_delegations + 1,
                     },
                 );
 
@@ -463,7 +476,7 @@ mod PaymentStream {
             self.emit(StreamPaused { stream_id, pause_time: starknet::get_block_timestamp() });
         }
 
-        fn restart(ref self: ContractState, stream_id: u256, rate_per_second: u256) {
+        fn restart(ref self: ContractState, stream_id: u256, rate_per_second: UFixedPoint123x128) {
             let mut stream = self.streams.read(stream_id);
 
             self.assert_stream_exists(stream_id);
@@ -590,9 +603,14 @@ mod PaymentStream {
             self.stream_delegates.read(stream_id)
         }
 
-        fn update_stream_rate(ref self: ContractState, stream_id: u256, new_rate_per_second: u256) {
+        fn update_stream_rate(
+            ref self: ContractState, stream_id: u256, new_rate_per_second: UFixedPoint123x128,
+        ) {
             let caller = get_caller_address();
-            assert!(new_rate_per_second > 0, "Rate must be greater than 0");
+            let zero_amount: UFixedPoint123x128 = 0.into();
+            let total = new_rate_per_second + zero_amount;
+            let z: u256 = total.into();
+            assert!(z > 0, "Rate must be greater than 0");
             assert!(
                 self.streams.read(stream_id).sender == caller, "Only stream owner can update rate",
             );
@@ -629,4 +647,3 @@ mod PaymentStream {
         }
     }
 }
-

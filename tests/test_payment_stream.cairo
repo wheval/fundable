@@ -1,15 +1,16 @@
 use core::traits::Into;
-use starknet::{get_block_timestamp, ContractAddress, contract_address_const};
-use snforge_std::{
-    declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
-    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global,
-};
+use fp::UFixedPoint123x128;
 use fundable::base::types::{Stream, StreamStatus};
 use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 use openzeppelin::access::accesscontrol::interface::{
     IAccessControlDispatcher, IAccessControlDispatcherTrait,
 };
+use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use snforge_std::{
+    ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
+    start_cheat_caller_address_global, stop_cheat_caller_address, stop_cheat_caller_address_global,
+};
+use starknet::{ContractAddress, contract_address_const, get_block_timestamp};
 
 // Constantes para roles
 const STREAM_ADMIN_ROLE: felt252 = selector!("STREAM_ADMIN");
@@ -135,6 +136,38 @@ fn test_zero_total_amount() {
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
 }
 
+#[test]
+fn test_successful_create_stream_and_return_correct_rate_per_second() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 100_u256;
+    let start_time = 0_u64;
+    let end_time = 10_u64;
+    let cancelable = false;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    let stream = payment_stream.get_stream(stream_id);
+    let rate_per_second: UFixedPoint123x128 = 10_u256.into();
+    assert!(stream.rate_per_second == rate_per_second, "Stream rate per second is invalid");
+}
+
+#[test]
+#[should_panic(expected: 'Error: Rate per second')]
+fn test_successful_create_stream_and_return_wrong_rate_per_second() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 100_u256;
+    let start_time = 0_u64;
+    let end_time = 10_u64;
+    let cancelable = false;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    let stream = payment_stream.get_stream(stream_id);
+    let rate_per_second: UFixedPoint123x128 = 1_u256.into();
+    assert!(stream.rate_per_second == rate_per_second, "Stream rate per second is invalid");
+}
 
 #[test]
 fn test_update_fee_collector() {
@@ -306,7 +339,6 @@ fn test_withdraw_by_unauthorized() {
 }
 
 
-
 #[test]
 #[should_panic(expected: ('Caller is missing role',))]
 fn test_unauthorized_cancel() {
@@ -384,7 +416,7 @@ fn test_restart_stream() {
     assert(stream.status == StreamStatus::Paused, 'Stream should be paused');
 
     // Restart the stream with a new rate
-    let new_rate = 100_u256; // Rate per second
+    let new_rate: UFixedPoint123x128 = 100_u256.into(); // Rate per second
     payment_stream.restart(stream_id, new_rate);
     stop_cheat_caller_address(payment_stream.contract_address);
 
@@ -432,7 +464,7 @@ fn test_delegate_assignment_and_verification() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Assign delegate
     let delegation_success = payment_stream.delegate_stream(stream_id, delegate);
     assert(delegation_success == true, 'Delegation should succeed');
@@ -459,7 +491,7 @@ fn test_multiple_delegations() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Assign first delegate
     payment_stream.delegate_stream(stream_id, delegate1);
     let first_delegate = payment_stream.get_stream_delegate(stream_id);
@@ -543,7 +575,7 @@ fn test_revoke_nonexistent_delegation() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Try to revoke non-existent delegation
     payment_stream.revoke_delegation(stream_id);
     stop_cheat_caller_address(payment_stream.contract_address);
@@ -571,7 +603,7 @@ fn test_delegate_withdrawal_after_revocation() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Assign and then revoke delegate
     payment_stream.delegate_stream(stream_id, delegate);
     payment_stream.revoke_delegation(stream_id);
@@ -588,8 +620,8 @@ fn test_delegate_withdrawal_after_revocation() {
     let mut success = false;
     match payment_stream.withdraw(stream_id, 1000_u256, recipient) {
         Ok(_) => { success = true; },
-        Err(_) => { success = false; }
-    };
+        Err(_) => { success = false; },
+    }
     assert(!success, 'Revoked delegate should not withdraw');
     stop_cheat_caller_address(payment_stream.contract_address);
 }
@@ -609,7 +641,7 @@ fn test_delegate_to_zero_address() {
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
-    
+
     // Try to delegate to zero address
     payment_stream.delegate_stream(stream_id, contract_address_const::<0x0>());
     stop_cheat_caller_address(payment_stream.contract_address);

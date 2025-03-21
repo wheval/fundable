@@ -1,4 +1,5 @@
 use starknet::ContractAddress;
+use fp::{ UFixedPoint123x128 };
 
 /// @notice Struct containing all data for a single stream
 #[derive(Drop, Serde, starknet::Store)]
@@ -12,7 +13,7 @@ pub struct Stream {
     pub cancelable: bool,
     pub token: ContractAddress,
     pub status: StreamStatus,
-    pub rate_per_second: u256,
+    pub rate_per_second: UFixedPoint123x128,
     pub last_update_time: u64,
 }
 

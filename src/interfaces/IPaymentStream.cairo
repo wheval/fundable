@@ -1,6 +1,8 @@
 use starknet::ContractAddress;
 use crate::base::types::{Stream, StreamMetrics, ProtocolMetrics};
 
+use fp::{ UFixedPoint123x128 };
+
 /// @title IPaymentStream
 /// @notice Creates and manages payment streams with linear streaming functions.
 #[starknet::interface]
@@ -77,7 +79,7 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Restarts the stream with the provided rate per second
     /// @param stream_id The ID of the stream to restart
     /// @param rate_per_second The amount by which the debt increases every second
-    fn restart(ref self: TContractState, stream_id: u256, rate_per_second: u256);
+    fn restart(ref self: TContractState, stream_id: u256, rate_per_second: UFixedPoint123x128);
 
     /// @notice Voids a stream, making it permanently inactive
     /// @param stream_id The ID of the stream to void
@@ -160,5 +162,5 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Updates the rate per second for the stream
     /// @param stream_id The ID of the stream to update
     /// @param new_rate_per_second The new rate per second for the stream
-    fn update_stream_rate(ref self: TContractState, stream_id: u256, new_rate_per_second: u256);
+    fn update_stream_rate(ref self: TContractState, stream_id: u256, new_rate_per_second: UFixedPoint123x128);
 }
