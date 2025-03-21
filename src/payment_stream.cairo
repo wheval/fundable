@@ -615,10 +615,8 @@ mod PaymentStream {
             let zero_amount: UFixedPoint123x128 = 0.into();
             let total = new_rate_per_second + zero_amount;
             let z: u256 = total.into();
-            assert!(z > 0, "Rate must be greater than 0");
-            assert!(
-                self.streams.read(stream_id).sender == caller, "Only stream owner can update rate",
-            );
+            assert(z > 0, ZERO_AMOUNT);
+            assert(self.streams.read(stream_id).sender == caller, WRONG_SENDER);
 
             let stream: Stream = self.streams.read(stream_id);
             assert!(stream.status == StreamStatus::Active, "Stream is not active");
