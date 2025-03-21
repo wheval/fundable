@@ -1,5 +1,5 @@
 use starknet::ContractAddress;
-use crate::base::types::{Stream, StreamMetrics, ProtocolMetrics};
+use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics};
 
 use fp::{ UFixedPoint123x128 };
 

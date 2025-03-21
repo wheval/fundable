@@ -1,3 +1,3 @@
 pub mod IDistributor;
-pub mod IPaymentStream;
 pub mod IERC20;
+pub mod IPaymentStream;
