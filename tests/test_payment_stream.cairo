@@ -170,6 +170,22 @@ fn test_successful_create_stream_and_return_wrong_rate_per_second() {
 }
 
 #[test]
+#[should_panic(expected: 'Error: Zero Rate per second')]
+fn test_update_stream_with_zero_rate_per_second() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 100_u256;
+    let start_time = 0_u64;
+    let end_time = 10_u64;
+    let cancelable = false;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    let rate_per_second: UFixedPoint123x128 = 0_u256.into();
+    payment_stream.update_stream_rate(stream_id, rate_per_second);
+}
+
+#[test]
 fn test_update_fee_collector() {
     let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
     let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
