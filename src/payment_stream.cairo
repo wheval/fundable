@@ -436,21 +436,26 @@ mod PaymentStream {
             assert(stream.status == StreamStatus::Active, 'Stream is not Active');
             // Update the stream status to canceled
             stream.status = StreamStatus::Canceled;
+            // Update the stream recipient back to the sender
+            stream.recipient = stream.sender;
 
             // Update the stream end time
             stream.end_time = get_block_timestamp();
 
             // Handle refunding unclaimed funds
             let recipient = get_caller_address();
-            if stream.total_amount > 0 {
+
+            // Calculate the amount that can be refunded
+            let refundable_amount = stream.total_amount - stream.withdrawn_amount;
+            // Update Stream in State
+            self.streams.write(stream_id, stream);
+            
+            if refundable_amount > 0 {
                 self.withdraw_max(stream_id, recipient);
             }
 
             // Emit an event for stream cancellation
             self.emit(StreamCanceled { stream_id });
-
-            // Update Stream in State
-            self.streams.write(stream_id, stream);
         }
 
         fn pause(ref self: ContractState, stream_id: u256) {

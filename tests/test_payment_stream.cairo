@@ -503,7 +503,7 @@ fn test_delegation_revocation() {
 }
 
 #[test]
-#[should_panic(expected: 'WRONG_SENDER')]
+#[should_panic(expected: 'Error: Not stream sender.')]
 fn test_unauthorized_delegation() {
     // Setup
     let (token_address, sender, payment_stream) = setup();
@@ -528,7 +528,7 @@ fn test_unauthorized_delegation() {
 }
 
 #[test]
-#[should_panic(expected: 'UNEXISTING_STREAM')]
+#[should_panic(expected: 'Error: Stream does not exist.')]
 fn test_revoke_nonexistent_delegation() {
     // Setup
     let (token_address, sender, payment_stream) = setup();
@@ -549,6 +549,7 @@ fn test_revoke_nonexistent_delegation() {
 }
 
 #[test]
+#[should_panic(expected: 'WRONG_RECIPIENT_OR_DELEGATE')]
 fn test_delegate_withdrawal_after_revocation() {
     // Setup
     let (token_address, sender, payment_stream) = setup();
@@ -582,19 +583,15 @@ fn test_delegate_withdrawal_after_revocation() {
     token_dispatcher.approve(payment_stream.contract_address, 5000_u256);
     stop_cheat_caller_address(token_address);
 
-    // Attempt withdrawal as revoked delegate (should fail)
+    // Attempt withdrawal as revoked delegate (should fail with WRONG_RECIPIENT_OR_DELEGATE)
     start_cheat_caller_address(payment_stream.contract_address, delegate);
-    let mut success = false;
-    match payment_stream.withdraw(stream_id, 1000_u256, recipient) {
-        Ok(_) => { success = true; },
-        Err(_) => { success = false; },
-    }
-    assert(!success, 'Revoked delegate should not withdraw');
+    // This should panic with the expected error since the delegate was revoked
+    payment_stream.withdraw(stream_id, 1000_u256, recipient);
     stop_cheat_caller_address(payment_stream.contract_address);
 }
 
 #[test]
-#[should_panic(expected: 'INVALID_RECIPIENT')]
+#[should_panic(expected: 'Error: Invalid recipient.')]
 fn test_delegate_to_zero_address() {
     // Setup
     let (token_address, sender, payment_stream) = setup();
