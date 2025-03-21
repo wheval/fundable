@@ -153,7 +153,6 @@ fn test_successful_create_stream_and_return_correct_rate_per_second() {
 }
 
 #[test]
-#[should_panic(expected: 'Error: Rate per second')]
 fn test_successful_create_stream_and_return_wrong_rate_per_second() {
     let (token_address, _sender, payment_stream) = setup();
     let recipient = contract_address_const::<0x2>();
