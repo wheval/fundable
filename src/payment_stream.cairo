@@ -449,7 +449,7 @@ mod PaymentStream {
             let refundable_amount = stream.total_amount - stream.withdrawn_amount;
             // Update Stream in State
             self.streams.write(stream_id, stream);
-            
+
             if refundable_amount > 0 {
                 self.withdraw_max(stream_id, recipient);
             }
