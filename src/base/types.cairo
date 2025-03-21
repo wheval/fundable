@@ -1,5 +1,5 @@
+use fp::UFixedPoint123x128;
 use starknet::ContractAddress;
-use fp::{ UFixedPoint123x128 };
 
 /// @notice Struct containing all data for a single stream
 #[derive(Drop, Serde, starknet::Store)]

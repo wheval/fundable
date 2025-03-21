@@ -2,7 +2,7 @@
 mod PaymentStream {
     use core::num::traits::Zero;
     use core::traits::Into;
-    use fp::{UFixedPoint123x128, UFixedPoint123x128PartialEq};
+    use fp::UFixedPoint123x128;
     use fundable::interfaces::IPaymentStream::IPaymentStream;
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
