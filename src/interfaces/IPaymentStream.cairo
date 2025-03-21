@@ -1,7 +1,6 @@
+use fp::UFixedPoint123x128;
 use starknet::ContractAddress;
 use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics};
-
-use fp::UFixedPoint123x128;
 
 /// @title IPaymentStream
 /// @notice Creates and manages payment streams with linear streaming functions.
