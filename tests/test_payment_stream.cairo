@@ -724,3 +724,49 @@ fn test_delegate_to_zero_address() {
     stop_cheat_caller_address(payment_stream.contract_address);
 }
 
+#[test]
+fn test_nft_transfer_and_withdrawal() {
+    let (token_address, sender, payment_stream, erc721) = setup();
+    let initial_owner = contract_address_const::<'initial_owner'>();
+    let new_owner = contract_address_const::<'new_owner'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create stream as sender
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(
+            initial_owner, total_amount, start_time, end_time, cancelable, token_address,
+        );
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Approve tokens for PaymentStream (sender funds the stream)
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    start_cheat_caller_address(token_address, sender);
+    token_dispatcher.approve(payment_stream.contract_address, total_amount);
+    stop_cheat_caller_address(token_address);
+
+    // Verify initial ownership
+    let owner = erc721.owner_of(stream_id);
+    assert!(owner == initial_owner, "Initial owner mismatch");
+
+    // Transfer NFT from initial_owner to new_owner
+    start_cheat_caller_address(payment_stream.contract_address, initial_owner);
+    erc721.transfer_from(initial_owner, new_owner, stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Verify new ownership
+    let new_owner_check = erc721.owner_of(stream_id);
+    assert!(new_owner_check == new_owner, "NFT ownership not transferred");
+
+    // New owner withdraws
+    start_cheat_caller_address(payment_stream.contract_address, new_owner);
+    let (withdrawn, fee) = payment_stream.withdraw(stream_id, 1000_u256, new_owner);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Basic withdrawal check
+    assert!(withdrawn.into() == 1000_u128, "Withdrawal amount incorrect");
+}
+
