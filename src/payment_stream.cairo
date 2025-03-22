@@ -510,14 +510,14 @@ mod PaymentStream {
             // Read the stream data from storage
             let mut stream = self.streams.read(stream_id);
 
-            // Make sure th owner is the one initiating the stream
-            assert(stream.sender == get_contract_address(), 'Not Your Stream');
+            //  // Ensure the caller Owner of the stream
+            assert((get_caller_address() == stream.sender), 'Not your stream');
+
+            // Check if the stream has been canceled before allowing a refund
+            assert(stream.status == StreamStatus::Active, 'Stream is still active');
 
             // Ensure the stream exists before proceeding
             self.assert_stream_exists(stream_id);
-
-            // Check if the stream has been canceled before allowing a refund
-            assert(stream.status == StreamStatus::Canceled, 'Stream is still active');
 
             // Ensure the requested refund amount does not exceed the available balance
             assert(
@@ -527,8 +527,10 @@ mod PaymentStream {
             // Update stream Time
             stream.end_time = get_block_timestamp();
 
+            let recipient = stream.sender;
+
             // Process the withdrawal to refund the specified amount to the contract address
-            self.withdraw(stream_id, amount, stream.sender);
+            self.withdraw(stream_id, amount, recipient);
 
             // Indicate that the refund was successful
             true
@@ -539,14 +541,11 @@ mod PaymentStream {
             // Read the stream data from storage
             let mut stream = self.streams.read(stream_id);
 
-            // Ensure that only the stream owner (sender) can initiate the refund
-            assert(stream.sender == get_contract_address(), 'Not Your Stream');
+            // Check if the stream has been canceled before allowing a refund
+            assert(stream.status == StreamStatus::Active, 'Stream is still active');
 
             // Calculate the maximum refundable amount
             let amount: u256 = stream.total_amount - stream.withdrawn_amount;
-
-            // Update stream Time
-            stream.end_time = get_block_timestamp();
 
             // Refund the maximum available amount from the stream
             self.refund(stream_id, amount);
@@ -559,28 +558,17 @@ mod PaymentStream {
             // Read the stream data from storage
             let mut stream = self.streams.read(stream_id);
 
-            // Make sure th owner is the one initiating the stream
-            assert(stream.sender == get_contract_address(), 'Not Your Stream');
-
-            // Ensure the stream exists before proceeding
-            self.assert_stream_exists(stream_id);
-
             // Check if the stream has been canceled before allowing a refund
             assert(stream.status == StreamStatus::Active, 'Stream is still active');
 
-            // Ensure the requested refund amount does not exceed the available balance
-            assert(
-                amount <= (stream.total_amount - stream.withdrawn_amount), 'Insufficient Balance',
-            );
+            // Calculate the maximum refundable amount
+            let amount: u256 = stream.total_amount - stream.withdrawn_amount;
 
-            //   Pause Stream
+            // Refund the maximum available amount from the stream
+            self.refund(stream_id, amount);
+
+            // Pause Stream
             self.pause(stream_id);
-
-            // Update stream Time
-            stream.end_time = get_block_timestamp();
-
-            // Process the withdrawal to refund the specified amount to the contract address
-            self.withdraw(stream_id, amount, stream.sender);
 
             // Indicate that the refund was successful
             true
