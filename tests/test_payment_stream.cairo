@@ -691,6 +691,7 @@ fn test_successful_create_stream_and_cancel() {
     let end_time = 200_u64;
     let cancelable = true;
 
+    start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
     println!("Stream ID: {}", stream_id);
@@ -698,7 +699,7 @@ fn test_successful_create_stream_and_cancel() {
     // This is the first Stream Created, so it will be 0.
     assert!(stream_id == 0_u256, "Stream creation failed");
     start_cheat_caller_address(payment_stream.contract_address, sender);
-    // payment_stream.cancel(stream_id);
+    payment_stream.cancel(stream_id);
 }
 // #[test]
 // #[should_panic]
