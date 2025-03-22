@@ -1,3 +1,4 @@
+use fp::UFixedPoint123x128;
 use starknet::ContractAddress;
 
 /// @notice Struct containing all data for a single stream
@@ -12,7 +13,7 @@ pub struct Stream {
     pub cancelable: bool,
     pub token: ContractAddress,
     pub status: StreamStatus,
-    pub rate_per_second: u256,
+    pub rate_per_second: UFixedPoint123x128,
     pub last_update_time: u64,
 }
 

@@ -1,4 +1,5 @@
 use core::traits::Into;
+use fp::UFixedPoint123x128;
 use fundable::base::types::{Stream, StreamStatus};
 use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
 use openzeppelin::access::accesscontrol::interface::{
@@ -135,6 +136,77 @@ fn test_zero_total_amount() {
         .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
 }
 
+#[test]
+fn test_successful_create_stream_and_return_correct_rate_per_second() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 100_u256;
+    let start_time = 0_u64;
+    let end_time = 10_u64;
+    let cancelable = false;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    let stream = payment_stream.get_stream(stream_id);
+    let rate_per_second: UFixedPoint123x128 = 10_u256.into();
+    assert!(stream.rate_per_second == rate_per_second, "Stream rate per second is invalid");
+}
+
+#[test]
+fn test_successful_create_stream_and_return_wrong_rate_per_second() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 100_u256;
+    let start_time = 0_u64;
+    let end_time = 10_u64;
+    let cancelable = false;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    let stream = payment_stream.get_stream(stream_id);
+    let rate_per_second: UFixedPoint123x128 = 1_u256.into();
+    assert!(stream.rate_per_second == rate_per_second, "Stream rate per second is invalid");
+}
+
+#[test]
+#[should_panic(expected: 'Error: Amount must be > 0.')]
+fn test_update_stream_with_zero_rate_per_second() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 100_u256;
+    let start_time = 0_u64;
+    let end_time = 10_u64;
+    let cancelable = false;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    let rate_per_second: UFixedPoint123x128 = 0_u256.into();
+    payment_stream.update_stream_rate(stream_id, rate_per_second);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Error: Not stream sender.')]
+fn test_only_creator_can_update_stream() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let unauthorized = contract_address_const::<'unauthorized'>();
+    let total_amount = 100_u256;
+    let start_time = 0_u64;
+    let end_time = 10_u64;
+    let cancelable = false;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    payment_stream.delegate_stream(stream_id, contract_address_const::<0x1>());
+    stop_cheat_caller_address(payment_stream.contract_address);
+    let rate_per_second: UFixedPoint123x128 = 1_u256.into();
+
+    // Unauthorized account to update stream.
+    start_cheat_caller_address(payment_stream.contract_address, unauthorized);
+    payment_stream.update_stream_rate(stream_id, rate_per_second);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
 
 #[test]
 fn test_update_fee_collector() {
@@ -383,7 +455,7 @@ fn test_restart_stream() {
     assert(stream.status == StreamStatus::Paused, 'Stream should be paused');
 
     // Restart the stream with a new rate
-    let new_rate = 100_u256; // Rate per second
+    let new_rate: UFixedPoint123x128 = 100_u256.into(); // Rate per second
     payment_stream.restart(stream_id, new_rate);
     stop_cheat_caller_address(payment_stream.contract_address);
 
