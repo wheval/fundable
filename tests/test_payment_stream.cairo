@@ -682,3 +682,178 @@ fn test_delegate_to_zero_address() {
     payment_stream.delegate_stream(stream_id, contract_address_const::<0x0>());
     stop_cheat_caller_address(payment_stream.contract_address);
 }
+#[test]
+fn test_successful_create_stream_and_cancel() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.cancel(stream_id);
+}
+
+#[test]
+#[should_panic]
+fn test_successful_create_stream_and_cancel_with_wrong_address() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let fake_admin = contract_address_const::<'recipient'>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+    start_cheat_caller_address(payment_stream.contract_address, fake_admin);
+    payment_stream.cancel(stream_id);
+}
+
+#[test]
+fn test_successful_refund() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.cancel(stream_id);
+
+    let success = payment_stream.refund(stream_id, 50);
+
+    assert!(success, "Refund wasn't Successful");
+}
+
+#[test]
+#[should_panic]
+fn test_refund_with_wrong_user() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let fake_admin = contract_address_const::<'recipient'>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+    start_cheat_caller_address(payment_stream.contract_address, fake_admin);
+    payment_stream.cancel(stream_id);
+    payment_stream.refund(stream_id, 50);
+}
+
+
+#[test]
+fn test_successful_refund_max() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.cancel(stream_id);
+
+    let success = payment_stream.refund_max(stream_id);
+
+    assert!(success, "Maximum Refund wasn't Successful");
+}
+
+#[test]
+#[should_panic]
+fn test_refund_max_with_wrong_user() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let fake_admin = contract_address_const::<'recipient'>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+    start_cheat_caller_address(payment_stream.contract_address, fake_admin);
+    payment_stream.cancel(stream_id);
+    payment_stream.refund_max(stream_id);
+}
+
+#[test]
+fn test_successful_refund_and_pause() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.cancel(stream_id);
+
+    let success = payment_stream.refund_and_pause(stream_id, total_amount);
+
+    assert!(success, "Maximum Refund wasn't Successful");
+}
+
+#[test]
+#[should_panic]
+fn test_refund_and_pause_with_wrong_user() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let fake_admin = contract_address_const::<'recipient'>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+    start_cheat_caller_address(payment_stream.contract_address, fake_admin);
+    payment_stream.cancel(stream_id);
+    payment_stream.refund_and_pause(stream_id, total_amount);
+}
