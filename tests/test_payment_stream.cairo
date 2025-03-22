@@ -12,9 +12,9 @@ use openzeppelin::token::erc721::interface::{
 };
 use snforge_std::{
     ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
-    start_cheat_caller_address_global, stop_cheat_caller_address, stop_cheat_caller_address_global,
+    stop_cheat_caller_address,
 };
-use starknet::{ContractAddress, contract_address_const, get_block_timestamp};
+use starknet::{ContractAddress, contract_address_const};
 
 // Constantes para roles
 const STREAM_ADMIN_ROLE: felt252 = selector!("STREAM_ADMIN");
