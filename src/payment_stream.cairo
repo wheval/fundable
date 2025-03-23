@@ -36,6 +36,8 @@ mod PaymentStream {
     const PROTOCOL_OWNER_ROLE: felt252 = selector!("PROTOCOL_OWNER");
     const STREAM_ADMIN_ROLE: felt252 = selector!("STREAM_ADMIN");
 
+    const MAX_FEE: u256 = 5000;
+
 
     #[storage]
     struct Storage {
@@ -45,6 +47,8 @@ mod PaymentStream {
         fee_collector: ContractAddress,
         protocol_owner: ContractAddress,
         accumulated_fees: Map<ContractAddress, u256>,
+        protocol_fees: Map<ContractAddress, u256>,
+        protocol_revenue: Map<ContractAddress, u256>,
         #[substorage(v0)]
         src5: SRC5Component::Storage,
         #[substorage(v0)]
@@ -76,6 +80,8 @@ mod PaymentStream {
         AccessControlEvent: AccessControlComponent::Event,
         DelegationGranted: DelegationGranted,
         DelegationRevoked: DelegationRevoked,
+        ProtocolFeeSet: ProtocolFeeSet,
+        ProtocolRevenueCollected: ProtocolRevenueCollected,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -161,6 +167,22 @@ mod PaymentStream {
         stream_id: u256,
         delegator: ContractAddress,
         delegate: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct ProtocolFeeSet {
+        #[key]
+        token: ContractAddress,
+        set_by: ContractAddress,
+        new_fee: u256,
+    }
+    #[derive(Drop, starknet::Event)]
+    struct ProtocolRevenueCollected {
+        #[key]
+        token: ContractAddress,
+        collected_by: ContractAddress,
+        sent_to: ContractAddress,
+        amount: u256,
     }
 
     #[constructor]
@@ -662,6 +684,43 @@ mod PaymentStream {
                         },
                     ),
                 );
+        }
+        fn protocol_fee(self: @ContractState, token: ContractAddress) -> u256 {
+            self.protocol_fees.read(token)
+        }
+        fn protocol_revenue(self: @ContractState, token: ContractAddress) -> u256 {
+            self.protocol_revenue.read(token)
+        }
+        fn collect_protocol_revenue(
+            ref self: ContractState, token: ContractAddress, to: ContractAddress,
+        ) {
+            self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
+            protocol_revenue = self.protocol_revenue.read(token);
+            self.protocol_revenue.write(token, 0_u256);
+            token_dispatcher = IERC20Dispatcher { contract_address: token };
+            token_dispatcher.transfer(to, protocol_revenue);
+            self
+                .emit(
+                    ProtocolRevenueCollected {
+                        token,
+                        collected_by: get_caller_address(),
+                        sent_to: to,
+                        amount: protocol_revenue,
+                    },
+                )
+        }
+        fn set_protocol_fee(
+            ref self: ContractState, token: ContractAddress, new_protocol_fee: u256,
+        ) {
+            self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
+            assert(new_protocol_fee <= MAX_FEE, 'fee too high');
+            self.protocol_fees.write(token, new_protocol_fee);
+            self
+                .emit(
+                    ProtocolFeeSet {
+                        token, set_by: get_caller_address(), new_fee: new_protocol_fee,
+                    },
+                )
         }
     }
 }

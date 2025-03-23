@@ -169,4 +169,26 @@ pub trait IPaymentStream<TContractState> {
     fn update_stream_rate(
         ref self: TContractState, stream_id: u256, new_rate_per_second: UFixedPoint123x128,
     );
+
+    /// @notice Gets the protocol fee of the token
+    /// @param token The ContractAddress of the token
+    /// @return u256 The fee of the token
+    fn protocol_fee(self: @TContractState, token: ContractAddress) -> u256;
+
+    /// @notice Get the protocol revenue / accumulated fees of the token
+    /// @param token The ContractAddress of the token
+    /// @@return u256 The accumulated fees of the token
+    fn protocol_revenue(self: @TContractState, token: ContractAddress) -> u256;
+
+    /// @notice Allow authorized addresses to collect revenue for a specific token.
+    /// @param token The ContractAddress of the token
+    /// @param to The ContractAddress that will receive the revenue
+    fn collect_protocol_revenue(
+        ref self: TContractState, token: ContractAddress, to: ContractAddress,
+    );
+
+    /// @notice Set the protocol fee of the token
+    /// @param token The ContractAddress of the token
+    /// @param new_protocol_fee The new protocol fee of the token
+    fn set_protocol_fee(ref self: TContractState, token: ContractAddress, new_protocol_fee: u256);
 }
