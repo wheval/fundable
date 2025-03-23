@@ -169,4 +169,48 @@ pub trait IPaymentStream<TContractState> {
     fn update_stream_rate(
         ref self: TContractState, stream_id: u256, new_rate_per_second: UFixedPoint123x128,
     );
+
+    /// @notice Check if a stream exists
+    /// @param stream_id The ID of the stream
+    /// @return Boolean indicating if the stream exists
+    fn is_stream(self: @TContractState, stream_id: u256) -> bool;
+
+    /// @notice Check if a stream is paused
+    /// @param stream_id The ID of the stream
+    /// @return Boolean indicating if the stream is paused
+    fn is_paused(self: @TContractState, stream_id: u256) -> bool;
+
+    /// @notice Check if a stream is voided
+    /// @param stream_id The ID of the stream
+    /// @return Boolean indicating if the stream is voided or not
+    // fn is_voided(self: @TContractState, stream_id: u256) -> bool;
+
+    /// @notice Check if a stream is transferable
+    /// @param stream_id The ID of the stream
+    /// @return Boolean indicating if the stream is transferable
+    // fn is_transferable(self: @TContractState, stream_id: u256) -> bool;
+
+
+    /// @notice gets sender of the stream
+    /// @param stream_id The ID of the stream
+    /// @return contract address of the sender
+    // fn get_sender(self: @TContractState, stream_id: u256) -> ContractAddress;
+
+
+    /// @notice get recipient of a stream
+    /// @param stream_id The ID of the stream
+    /// @return contract address of the recipient
+    // fn get_recipient(self: @TContractState, stream_id: u256) -> ContractAddress;
+
+
+    /// @notice gets the toke of a stream
+    /// @param stream_id The ID of the stream
+    /// @return token address of the stream
+    // fn get_token(self: @TContractState, stream_id: u256) -> ContractAddress;
+
+
+    /// @notice gets the rate per second of a stream
+    /// @param stream_id The ID of the stream
+    /// @return rate per second associated with the stream
+    // fn get_rate_per_second(self: @TContractState, stream_id: u256) -> u256;
 }

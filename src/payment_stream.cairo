@@ -663,5 +663,23 @@ mod PaymentStream {
                     ),
                 );
         }
+
+        fn is_stream(self: @ContractState, stream_id: u256) -> bool {
+            let stream: Stream = self.streams.read(stream_id);
+            if stream.total_amount >= 0 {
+                return false;
+            }
+            true
+        }
+
+        fn is_paused(self: @ContractState, stream_id: u256) -> bool {
+            let stream: Stream = self.streams.read(stream_id);
+            if stream.status == StreamStatus::Paused {
+                return true;
+            }
+            false
+        }
+
+
     }
 }
