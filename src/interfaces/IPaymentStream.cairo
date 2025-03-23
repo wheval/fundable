@@ -183,34 +183,34 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Check if a stream is voided
     /// @param stream_id The ID of the stream
     /// @return Boolean indicating if the stream is voided or not
-    // fn is_voided(self: @TContractState, stream_id: u256) -> bool;
+    fn is_voided(self: @TContractState, stream_id: u256) -> bool;
 
     /// @notice Check if a stream is transferable
     /// @param stream_id The ID of the stream
     /// @return Boolean indicating if the stream is transferable
-    // fn is_transferable(self: @TContractState, stream_id: u256) -> bool;
+    fn is_transferable(self: @TContractState, stream_id: u256) -> bool;
 
 
     /// @notice gets sender of the stream
     /// @param stream_id The ID of the stream
     /// @return contract address of the sender
-    // fn get_sender(self: @TContractState, stream_id: u256) -> ContractAddress;
+    fn get_sender(self: @TContractState, stream_id: u256) -> ContractAddress;
 
 
     /// @notice get recipient of a stream
     /// @param stream_id The ID of the stream
     /// @return contract address of the recipient
-    // fn get_recipient(self: @TContractState, stream_id: u256) -> ContractAddress;
+    fn get_recipient(self: @TContractState, stream_id: u256) -> ContractAddress;
 
 
     /// @notice gets the toke of a stream
     /// @param stream_id The ID of the stream
     /// @return token address of the stream
-    // fn get_token(self: @TContractState, stream_id: u256) -> ContractAddress;
+    fn get_token(self: @TContractState, stream_id: u256) -> ContractAddress;
 
 
     /// @notice gets the rate per second of a stream
     /// @param stream_id The ID of the stream
     /// @return rate per second associated with the stream
-    // fn get_rate_per_second(self: @TContractState, stream_id: u256) -> u256;
+    fn get_rate_per_second(self: @TContractState, stream_id: u256) -> UFixedPoint123x128;
 }
