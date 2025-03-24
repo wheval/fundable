@@ -980,6 +980,7 @@ fn test_successful_refund_and_pause_with_overdraft() {
     let get_let = payment_stream.refund(stream_id, 10000);
 
     assert(get_let == false, 'Refund failed');
+}
 #[test]
 fn test_six_decimals_store() {
     let test_decimals = 6_u8;
