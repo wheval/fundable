@@ -6,8 +6,14 @@ mod PaymentStream {
     use fundable::interfaces::IPaymentStream::IPaymentStream;
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+
     use openzeppelin::token::erc721::{ERC721Component, ERC721HooksEmptyImpl};
+
+    use openzeppelin::token::erc20::interface::{
+        IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
+        IERC20MetadataDispatcherTrait,
+    };
+
     use starknet::storage::{
         Map, MutableVecTrait, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
         Vec,
@@ -17,8 +23,11 @@ mod PaymentStream {
         get_contract_address,
     };
     use crate::base::errors::Errors::{
-        END_BEFORE_START, INSUFFICIENT_ALLOWANCE, INVALID_RECIPIENT, INVALID_TOKEN,
-        UNEXISTING_STREAM, WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
+
+        DECIMALS_TOO_HIGH, END_BEFORE_START, INSUFFICIENT_ALLOWANCE, INVALID_RECIPIENT,
+        INVALID_TOKEN, TOO_SHORT_DURATION, UNEXISTING_STREAM, WRONG_RECIPIENT,
+        WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
+
     };
     use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
 
@@ -248,19 +257,28 @@ mod PaymentStream {
             self.next_stream_id.write(stream_id + 1);
 
             let duration = end_time - start_time;
+            assert(duration >= 1, TOO_SHORT_DURATION);
             let rate_per_second = self.calculate_stream_rate(total_amount, duration);
+
+
+            let erc20_dispatcher = IERC20MetadataDispatcher { contract_address: token };
+            let token_decimals = erc20_dispatcher.decimals();
+            assert(token_decimals <= 18, DECIMALS_TOO_HIGH);
+
+            // Create new stream
 
             let stream = Stream {
                 sender: get_caller_address(),
                 token,
+                token_decimals,
                 total_amount,
                 start_time,
                 end_time,
                 withdrawn_amount: 0,
                 cancelable,
                 status: StreamStatus::Active,
-                rate_per_second: rate_per_second,
-                last_update_time: 0,
+                rate_per_second,
+                last_update_time: start_time,
             };
 
             self.accesscontrol._grant_role(STREAM_ADMIN_ROLE, stream.sender);
@@ -556,6 +574,10 @@ mod PaymentStream {
             0_u64
         }
 
+        fn get_token_decimals(self: @ContractState, stream_id: u256) -> u8 {
+            self.streams.read(stream_id).token_decimals
+        }
+
         fn get_total_debt(self: @ContractState, stream_id: u256) -> u256 {
             // Return dummy amount
             0_u256
@@ -637,6 +659,7 @@ mod PaymentStream {
                 rate_per_second: new_rate_per_second,
                 sender: stream.sender,
                 token: stream.token,
+                token_decimals: stream.token_decimals,
                 total_amount: stream.total_amount,
                 start_time: stream.start_time,
                 end_time: stream.end_time,

@@ -30,7 +30,7 @@ fn setup_access_control() -> (
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
     let erc20_class = declare("MockUsdc").unwrap().contract_class();
-    let mut calldata = array![sender.into(), sender.into()];
+    let mut calldata = array![sender.into(), sender.into(), 6];
     let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
 
     // Deploy Payment stream contract
@@ -52,7 +52,7 @@ fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher, IERC7
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
     let erc20_class = declare("MockUsdc").unwrap().contract_class();
-    let mut calldata = array![sender.into(), sender.into()];
+    let mut calldata = array![sender.into(), sender.into(), 6];
     let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
 
     // Deploy Payment stream contract
@@ -68,6 +68,7 @@ fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher, IERC7
         IERC721Dispatcher { contract_address: payment_stream_address },
     )
 }
+
 
 #[test]
 fn test_nft_metadata() {
@@ -92,6 +93,31 @@ fn test_nft_metadata() {
     assert!(name == "PaymentStream", "Incorrect NFT name");
     assert!(symbol == "STREAM", "Incorrect NFT symbol");
     assert!(token_uri == "https://paymentstream.io/0", "Incorrect token URI");
+
+
+#[test]
+fn setup_custom_decimals(
+    decimals: u8,
+) -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher) {
+    let sender: ContractAddress = contract_address_const::<'sender'>();
+
+    // Deploy mock ERC20 with custom decimals
+    let erc20_class = declare("MockUsdc").unwrap().contract_class();
+    let mut calldata = array![
+        sender.into(), // recipient
+        sender.into(), // owner
+        decimals.into() // custom decimals
+    ];
+    let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
+
+    // Deploy PaymentStream contract
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let payment_stream_class = declare("PaymentStream").unwrap().contract_class();
+    let mut ps_calldata = array![protocol_owner.into()];
+    let (payment_stream_address, _) = payment_stream_class.deploy(@ps_calldata).unwrap();
+
+    (erc20_address, sender, IPaymentStreamDispatcher { contract_address: payment_stream_address })
+
 }
 
 #[test]
@@ -725,6 +751,7 @@ fn test_delegate_to_zero_address() {
 }
 
 #[test]
+
 fn test_nft_transfer_and_withdrawal() {
     let (token_address, sender, payment_stream, erc721) = setup();
     let initial_owner = contract_address_const::<'initial_owner'>();
@@ -770,3 +797,101 @@ fn test_nft_transfer_and_withdrawal() {
     assert!(withdrawn.into() == 1000_u128, "Withdrawal amount incorrect");
 }
 
+#[test]
+fn test_six_decimals_store() {
+    let test_decimals = 6_u8;
+    let (token_address, sender, payment_stream) = setup_custom_decimals(test_decimals);
+
+    let stream_id = payment_stream
+        .create_stream(
+            sender, // recipient
+            1000000_u256, // amount (1 token in 6 decimals)
+            100_u64, // start_time
+            200_u64, // end_time
+            true, // cancelable
+            token_address // token with 6 decimals
+        );
+
+    let stored_decimals = payment_stream.get_token_decimals(stream_id);
+    assert(stored_decimals == test_decimals, 'Decimals not stored correctly');
+
+    let stream = payment_stream.get_stream(stream_id);
+    assert(stream.token_decimals == test_decimals, 'Stream decimals mismatch');
+}
+
+#[test]
+fn test_zero_decimals() {
+    let test_decimals = 0_u8;
+    let (token_address, sender, payment_stream) = setup_custom_decimals(test_decimals);
+
+    let stream_id = payment_stream
+        .create_stream(
+            sender, // recipient
+            100_u256, // 100 tokens (0 decimals)
+            100_u64, // start_time
+            200_u64, // end_time
+            true, // cancelable
+            token_address,
+        );
+
+    let stored_decimals = payment_stream.get_token_decimals(stream_id);
+    assert(stored_decimals == test_decimals, 'Zero decimals not stored');
+
+    let stream = payment_stream.get_stream(stream_id);
+    assert(stream.token_decimals == test_decimals, 'Stream decimals mismatch');
+}
+
+#[test]
+fn test_eighteen_decimals() {
+    let test_decimals = 18_u8;
+    let (token_address, sender, payment_stream) = setup_custom_decimals(test_decimals);
+
+    let stream_id = payment_stream
+        .create_stream(
+            sender, 1000000000000000000_u256, // 1 token
+            100_u64, 200_u64, true, token_address,
+        );
+
+    let stored_decimals = payment_stream.get_token_decimals(stream_id);
+    assert(stored_decimals == test_decimals, '18 decimals not stored');
+}
+
+#[test]
+#[should_panic(expected: 'Error: Decimals too high.')]
+fn test_nineteen_decimals_panic() {
+    let test_decimals = 19_u8;
+    let (token_address, sender, payment_stream) = setup_custom_decimals(test_decimals);
+
+    // should panic because decimals > 18
+    payment_stream
+        .create_stream(sender, 10000000000000000000_u256, 100_u64, 200_u64, true, token_address);
+}
+
+#[test]
+fn test_decimal_boundary_conditions() {
+    // Test max allowed decimals (18)
+    let (token18, sender18, ps18) = setup_custom_decimals(18);
+    let stream_id18 = ps18
+        .create_stream(
+            sender18, // recipient
+            1000000000000000000_u256, // 1 token in 18 decimals
+            100_u64, // start_time
+            200_u64, // end_time
+            true, // cancelable
+            token18 // token address
+        );
+    assert(ps18.get_token_decimals(stream_id18) == 18, 'Max decimals failed');
+
+    // Test min allowed decimals (0)
+    let (token0, sender0, ps0) = setup_custom_decimals(0);
+    let stream_id0 = ps0
+        .create_stream(
+            sender0, // recipient
+            100_u256, // 100 tokens in 0 decimals
+            100_u64, // start_time
+            200_u64, // end_time
+            true, // cancelable
+            token0 // token address
+        );
+    assert(ps0.get_token_decimals(stream_id0) == 0, 'Min decimals failed');
+}
