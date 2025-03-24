@@ -803,3 +803,44 @@ fn test_decimal_boundary_conditions() {
         );
     assert(ps0.get_token_decimals(stream_id0) == 0, 'Min decimals failed');
 }
+
+
+#[test]
+fn test_set_protocol_fee_successful(){
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let fee: u256 = 500; // 5%
+    let (token_address, sender, payment_stream) = setup();
+    // Set fee
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.set_protocol_fee(token_address, fee);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    assert(payment_stream.get_protocol_fee(token_address) == fee, 'invalid fee')
+
+}
+
+#[test]
+#[should_panic]
+fn test_set_protocol_fee_fail_if_more_than_max_fee(){
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let fee: u256 = 10000; // 100%. MAX_FEE = 50%
+    let (token_address, sender, payment_stream) = setup();
+    // Set fee
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.set_protocol_fee(token_address, fee); // should panic
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+}
+
+#[test]
+#[should_panic]
+fn test_set_protocol_fee_fail_if_invalid_caller(){
+    let random_caller: ContractAddress = contract_address_const::<'random'>();
+    let fee: u256 = 500; // 5%
+    let (token_address, sender, payment_stream) = setup();
+    // Set fee
+    start_cheat_caller_address(payment_stream.contract_address, random_caller);
+    payment_stream.set_protocol_fee(token_address, fee); // should panic
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+}
