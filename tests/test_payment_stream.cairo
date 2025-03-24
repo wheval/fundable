@@ -69,6 +69,29 @@ fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher, IERC7
     )
 }
 
+fn setup_custom_decimals(
+    decimals: u8,
+) -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher) {
+    let sender: ContractAddress = contract_address_const::<'sender'>();
+
+    // Deploy mock ERC20 with custom decimals
+    let erc20_class = declare("MockUsdc").unwrap().contract_class();
+    let mut calldata = array![
+        sender.into(), // recipient
+        sender.into(), // owner
+        decimals.into() // custom decimals
+    ];
+    let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
+
+    // Deploy PaymentStream contract
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let payment_stream_class = declare("PaymentStream").unwrap().contract_class();
+    let mut ps_calldata = array![protocol_owner.into()];
+    let (payment_stream_address, _) = payment_stream_class.deploy(@ps_calldata).unwrap();
+
+    (erc20_address, sender, IPaymentStreamDispatcher { contract_address: payment_stream_address })
+}
+
 
 #[test]
 fn test_nft_metadata() {
@@ -93,32 +116,8 @@ fn test_nft_metadata() {
     assert!(name == "PaymentStream", "Incorrect NFT name");
     assert!(symbol == "STREAM", "Incorrect NFT symbol");
     assert!(token_uri == "https://paymentstream.io/0", "Incorrect token URI");
-
-
-#[test]
-fn setup_custom_decimals(
-    decimals: u8,
-) -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher) {
-    let sender: ContractAddress = contract_address_const::<'sender'>();
-
-    // Deploy mock ERC20 with custom decimals
-    let erc20_class = declare("MockUsdc").unwrap().contract_class();
-    let mut calldata = array![
-        sender.into(), // recipient
-        sender.into(), // owner
-        decimals.into() // custom decimals
-    ];
-    let (erc20_address, _) = erc20_class.deploy(@calldata).unwrap();
-
-    // Deploy PaymentStream contract
-    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
-    let payment_stream_class = declare("PaymentStream").unwrap().contract_class();
-    let mut ps_calldata = array![protocol_owner.into()];
-    let (payment_stream_address, _) = payment_stream_class.deploy(@ps_calldata).unwrap();
-
-    (erc20_address, sender, IPaymentStreamDispatcher { contract_address: payment_stream_address })
-
 }
+
 
 #[test]
 fn test_successful_create_stream() {
@@ -751,7 +750,6 @@ fn test_delegate_to_zero_address() {
 }
 
 #[test]
-
 fn test_nft_transfer_and_withdrawal() {
     let (token_address, sender, payment_stream, erc721) = setup();
     let initial_owner = contract_address_const::<'initial_owner'>();
