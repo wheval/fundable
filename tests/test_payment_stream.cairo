@@ -803,3 +803,163 @@ fn test_decimal_boundary_conditions() {
         );
     assert(ps0.get_token_decimals(stream_id0) == 0, 'Min decimals failed');
 }
+
+
+#[test]
+fn test_successful_stream_check() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    let is_stream = payment_stream.is_stream(stream_id);
+    assert!(is_stream, "Stream is non existent");
+}
+
+#[test]
+fn test_successful_pause_check() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    let is_paused = payment_stream.is_paused(stream_id);
+    assert!(!is_paused, "Stream is paused");
+
+    payment_stream.pause(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let is_paused = payment_stream.is_paused(stream_id);
+    assert!(is_paused, "Stream is not paused");
+}
+
+#[test]
+fn test_successful_voided_check() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    let is_voided = payment_stream.is_voided(stream_id);
+    assert!(!is_voided, "Stream is voided");
+
+    payment_stream.void(stream_id);
+
+    let is_voided = payment_stream.is_voided(stream_id);
+    assert!(is_voided, "Stream is not voided");
+}
+
+
+#[test]
+fn test_successful_transferrable_check() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    let is_transferable = payment_stream.is_transferable(stream_id);
+    assert!(is_transferable, "Stream is not transferable");
+}
+
+#[test]
+fn test_successful_get_sender() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let get_sender = payment_stream.get_sender(stream_id);
+    assert!(get_sender == sender, "Stream is not transferable");
+}
+
+
+#[test]
+fn test_successful_get_recipient() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let get_recipient = payment_stream.get_recipient(stream_id);
+    assert!(get_recipient == recipient, "Stream is not transferable");
+}
+
+
+#[test]
+fn test_successful_get_token() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let get_token = payment_stream.get_token(stream_id);
+    assert!(get_token == token_address, "Stream is not transferable");
+}
+
+#[test]
+fn test_successful_get_rate_per_second() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let rate_per_second: UFixedPoint123x128 = 10_u256.into();
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let get_rate_per_second = payment_stream.get_rate_per_second(stream_id);
+    assert!(get_rate_per_second == rate_per_second, "Stream is not transferable");
+}

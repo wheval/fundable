@@ -667,9 +667,9 @@ mod PaymentStream {
         fn is_stream(self: @ContractState, stream_id: u256) -> bool {
             let stream: Stream = self.streams.read(stream_id);
             if stream.total_amount >= 0 {
-                return false;
+                return true;
             }
-            true
+            false
         }
 
         fn is_paused(self: @ContractState, stream_id: u256) -> bool {
@@ -691,10 +691,11 @@ mod PaymentStream {
         fn is_transferable(self: @ContractState, stream_id: u256) -> bool {
             let stream: Stream = self.streams.read(stream_id);
             if stream.total_amount >= 0 {
-                return false;
+                return true;
             }
-            true
+            false
         }
+
         fn get_sender(self: @ContractState, stream_id: u256) -> ContractAddress {
             let stream: Stream = self.streams.read(stream_id);
 
