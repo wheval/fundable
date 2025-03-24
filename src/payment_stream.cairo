@@ -335,9 +335,8 @@ mod PaymentStream {
             // Verify stream exists
             self.assert_stream_exists(stream_id);
             
-            // Verify the caller is the stream recipient
-            self.assert_is_recipient(stream_id);
-            self.assert_is_recipient(stream_id);
+            // Verify the caller is the stream owner (sender)
+            self.assert_is_sender(stream_id);
             
             // Verify the stream is transferable
             self.assert_is_transferable(stream_id);
@@ -366,7 +365,7 @@ mod PaymentStream {
             // Verify stream exists
             self.assert_stream_exists(stream_id);
             
-            // Verify the caller is the stream sender (creator)
+            // Verify the caller is the stream owner (sender)
             self.assert_is_sender(stream_id);
             
             // Get current stream details
@@ -381,7 +380,6 @@ mod PaymentStream {
             
             // Emit event about transferability change
             self.emit(StreamTransferabilitySet { stream_id, transferable });
-            
         }
 
         fn is_transferable(self: @ContractState, stream_id: u256) -> bool {
