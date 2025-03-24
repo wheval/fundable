@@ -232,14 +232,14 @@ mod PaymentStream {
     impl PaymentStreamImpl of IPaymentStream<ContractState> {
         fn create_stream(
             ref self: ContractState,
-            initial_owner: ContractAddress,
+            recipient: ContractAddress,
             total_amount: u256,
             start_time: u64,
             end_time: u64,
             cancelable: bool,
             token: ContractAddress,
         ) -> u256 {
-            assert(!initial_owner.is_zero(), INVALID_RECIPIENT);
+            assert(!recipient.is_zero(), INVALID_RECIPIENT);
             assert(total_amount > 0, ZERO_AMOUNT);
             assert(end_time > start_time, END_BEFORE_START);
             assert(!token.is_zero(), INVALID_TOKEN);
@@ -265,7 +265,7 @@ mod PaymentStream {
 
             self.accesscontrol._grant_role(STREAM_ADMIN_ROLE, stream.sender);
             self.streams.write(stream_id, stream);
-            self.erc721.mint(initial_owner, stream_id);
+            self.erc721.mint(recipient, stream_id);
 
             let protocol_metrics = self.protocol_metrics.read();
             self
@@ -286,7 +286,7 @@ mod PaymentStream {
                         StreamCreated {
                             stream_id,
                             sender: get_caller_address(),
-                            recipient: initial_owner,
+                            recipient: recipient,
                             total_amount,
                             token,
                         },
