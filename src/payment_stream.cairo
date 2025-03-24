@@ -685,19 +685,19 @@ mod PaymentStream {
                     ),
                 );
         }
-        fn protocol_fee(self: @ContractState, token: ContractAddress) -> u256 {
+        fn get_protocol_fee(self: @ContractState, token: ContractAddress) -> u256 {
             self.protocol_fees.read(token)
         }
-        fn protocol_revenue(self: @ContractState, token: ContractAddress) -> u256 {
+        fn get_protocol_revenue(self: @ContractState, token: ContractAddress) -> u256 {
             self.protocol_revenue.read(token)
         }
         fn collect_protocol_revenue(
             ref self: ContractState, token: ContractAddress, to: ContractAddress,
         ) {
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
-            protocol_revenue = self.protocol_revenue.read(token);
+            let protocol_revenue = self.protocol_revenue.read(token);
             self.protocol_revenue.write(token, 0_u256);
-            token_dispatcher = IERC20Dispatcher { contract_address: token };
+            let token_dispatcher = IERC20Dispatcher { contract_address: token };
             token_dispatcher.transfer(to, protocol_revenue);
             self
                 .emit(
