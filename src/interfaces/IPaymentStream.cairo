@@ -191,4 +191,63 @@ pub trait IPaymentStream<TContractState> {
     /// @param token The ContractAddress of the token
     /// @param new_protocol_fee The new protocol fee of the token
     fn set_protocol_fee(ref self: TContractState, token: ContractAddress, new_protocol_fee: u256);
+    /// @notice Check if a stream exists
+    /// @param stream_id The ID of the stream
+    /// @return Boolean indicating if the stream exists
+    fn is_stream(self: @TContractState, stream_id: u256) -> bool;
+
+    /// @notice Check if a stream is paused
+    /// @param stream_id The ID of the stream
+    /// @return Boolean indicating if the stream is paused
+    fn is_paused(self: @TContractState, stream_id: u256) -> bool;
+
+    /// @notice Check if a stream is voided
+    /// @param stream_id The ID of the stream
+    /// @return Boolean indicating if the stream is voided or not
+    fn is_voided(self: @TContractState, stream_id: u256) -> bool;
+
+    /// @notice Check if a stream is transferable
+    /// @param stream_id The ID of the stream
+    /// @return Boolean indicating if the stream is transferable
+    fn is_transferable(self: @TContractState, stream_id: u256) -> bool;
+
+
+    /// @notice gets sender of the stream
+    /// @param stream_id The ID of the stream
+    /// @return contract address of the sender
+    fn get_sender(self: @TContractState, stream_id: u256) -> ContractAddress;
+
+
+    /// @notice get recipient of a stream
+    /// @param stream_id The ID of the stream
+    /// @return contract address of the recipient
+    fn get_recipient(self: @TContractState, stream_id: u256) -> ContractAddress;
+
+
+    /// @notice gets the toke of a stream
+    /// @param stream_id The ID of the stream
+    /// @return token address of the stream
+    fn get_token(self: @TContractState, stream_id: u256) -> ContractAddress;
+
+
+    /// @notice gets the rate per second of a stream
+    /// @param stream_id The ID of the stream
+    /// @return rate per second associated with the stream
+    fn get_rate_per_second(self: @TContractState, stream_id: u256) -> UFixedPoint123x128;
+    /// @notice Refunds a specified amount from a stream
+    /// @param stream_id The ID of the stream from which to refund
+    /// @param amount The amount to refund from the stream
+    /// @return Boolean indicating if the refund was successful
+    fn refund(ref self: TContractState, stream_id: u256, amount: u256) -> bool;
+
+    /// @notice Refunds the maximum possible amount from a stream
+    /// @param stream_id The ID of the stream from which to refund
+    /// @return The maximum refundable amount from the stream
+    fn refund_max(ref self: TContractState, stream_id: u256) -> bool;
+
+    /// @notice Refunds a specified amount from a stream and pauses the stream
+    /// @param stream_id The ID of the stream from which to refund
+    /// @param amount The amount to refund from the stream
+    /// @return Boolean indicating if the refund and pause operation was successful
+    fn refund_and_pause(ref self: TContractState, stream_id: u256, amount: u256) -> bool;
 }
