@@ -23,11 +23,9 @@ mod PaymentStream {
         get_contract_address,
     };
     use crate::base::errors::Errors::{
-
         DECIMALS_TOO_HIGH, END_BEFORE_START, INSUFFICIENT_ALLOWANCE, INVALID_RECIPIENT,
         INVALID_TOKEN, TOO_SHORT_DURATION, UNEXISTING_STREAM, WRONG_RECIPIENT,
         WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
-
     };
     use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
 
@@ -259,7 +257,6 @@ mod PaymentStream {
             let duration = end_time - start_time;
             assert(duration >= 1, TOO_SHORT_DURATION);
             let rate_per_second = self.calculate_stream_rate(total_amount, duration);
-
 
             let erc20_dispatcher = IERC20MetadataDispatcher { contract_address: token };
             let token_decimals = erc20_dispatcher.decimals();
