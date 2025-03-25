@@ -666,7 +666,7 @@ mod PaymentStream {
 
         fn is_stream(self: @ContractState, stream_id: u256) -> bool {
             let stream: Stream = self.streams.read(stream_id);
-            if stream.total_amount >= 0 {
+            if stream.status == StreamStatus::Active {
                 return true;
             }
             false
