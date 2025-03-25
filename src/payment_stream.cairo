@@ -732,5 +732,61 @@ mod PaymentStream {
                     ),
                 );
         }
+
+        fn is_stream(self: @ContractState, stream_id: u256) -> bool {
+            let stream: Stream = self.streams.read(stream_id);
+            if stream.status == StreamStatus::Active {
+                return true;
+            }
+            false
+        }
+
+        fn is_paused(self: @ContractState, stream_id: u256) -> bool {
+            let stream: Stream = self.streams.read(stream_id);
+            if stream.status == StreamStatus::Paused {
+                return true;
+            }
+            false
+        }
+
+        fn is_voided(self: @ContractState, stream_id: u256) -> bool {
+            let stream: Stream = self.streams.read(stream_id);
+            if stream.status == StreamStatus::Voided {
+                return true;
+            }
+            false
+        }
+
+        fn is_transferable(self: @ContractState, stream_id: u256) -> bool {
+            let stream: Stream = self.streams.read(stream_id);
+            if stream.total_amount >= 0 {
+                return true;
+            }
+            false
+        }
+
+        fn get_sender(self: @ContractState, stream_id: u256) -> ContractAddress {
+            let stream: Stream = self.streams.read(stream_id);
+
+            return stream.sender;
+        }
+
+        fn get_recipient(self: @ContractState, stream_id: u256) -> ContractAddress {
+            let stream: Stream = self.streams.read(stream_id);
+
+            return stream.recipient;
+        }
+
+        fn get_token(self: @ContractState, stream_id: u256) -> ContractAddress {
+            let stream: Stream = self.streams.read(stream_id);
+
+            return stream.token;
+        }
+
+        fn get_rate_per_second(self: @ContractState, stream_id: u256) -> UFixedPoint123x128 {
+            let stream: Stream = self.streams.read(stream_id);
+
+            return stream.rate_per_second;
+        }
     }
 }
