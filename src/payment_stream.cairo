@@ -6,14 +6,11 @@ mod PaymentStream {
     use fundable::interfaces::IPaymentStream::IPaymentStream;
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
-
-    use openzeppelin::token::erc721::{ERC721Component, ERC721HooksEmptyImpl};
-
     use openzeppelin::token::erc20::interface::{
         IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
         IERC20MetadataDispatcherTrait,
     };
-
+    use openzeppelin::token::erc721::{ERC721Component, ERC721HooksEmptyImpl};
     use starknet::storage::{
         Map, MutableVecTrait, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
         Vec,
