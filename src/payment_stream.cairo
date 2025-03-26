@@ -59,6 +59,7 @@ mod PaymentStream {
         protocol_metrics: ProtocolMetrics,
         stream_delegates: Map<u256, ContractAddress>,
         delegation_history: Map<u256, Vec<ContractAddress>>,
+        aggregate_balance: Map<ContractAddress, u256>,
     }
 
 
@@ -295,6 +296,9 @@ mod PaymentStream {
             self.accesscontrol._grant_role(STREAM_ADMIN_ROLE, stream.sender);
             self.streams.write(stream_id, stream);
 
+            let aggregate_balance = self.aggregate_balance.read(token) + total_amount;
+            self.aggregate_balance.write(token, aggregate_balance);
+
             let protocol_metrics = self.protocol_metrics.read();
             self
                 .protocol_metrics
@@ -343,6 +347,9 @@ mod PaymentStream {
 
             self.collect_protocol_fee(sender, token_address, fee);
 
+            let aggregate_balance = self.aggregate_balance.read(token_address) - net_amount;
+            self.aggregate_balance.write(token_address, aggregate_balance);
+
             self
                 .emit(
                     StreamWithdrawn {
@@ -375,6 +382,9 @@ mod PaymentStream {
                 .transfer_from(sender, to, net_amount); // todo: check if this is correct
             self.collect_protocol_fee(sender, token_address, fee);
 
+            let aggregate_balance = self.aggregate_balance.read(token_address) - net_amount;
+            self.aggregate_balance.write(token_address, aggregate_balance);
+
             self
                 .emit(
                     StreamWithdrawn {
@@ -403,6 +413,9 @@ mod PaymentStream {
             let accumulated_fees = self.accumulated_fees.read(token);
             self.accumulated_fees.write(token, accumulated_fees - amount);
 
+            let accumulated_fees = self.accumulated_fees.read(token);
+            self.accumulated_fees.write(token, accumulated_fees - amount);
+
             self.emit(WithdrawalSuccessful { token, amount, recipient });
         }
 
@@ -424,6 +437,9 @@ mod PaymentStream {
 
             let accumulated_fees = self.accumulated_fees.read(token);
             self.accumulated_fees.write(token, accumulated_fees - max_amount);
+
+            let aggregate_balance = self.aggregate_balance.read(token) - max_amount;
+            self.aggregate_balance.write(token, aggregate_balance);
 
             self.emit(WithdrawalSuccessful { token, amount: max_amount, recipient });
         }
@@ -768,6 +784,10 @@ mod PaymentStream {
             self.protocol_revenue.write(token, 0_u256);
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
             token_dispatcher.transfer(to, protocol_revenue);
+
+            let aggregate_balance = self.aggregate_balance.read(token) - protocol_revenue;
+            self.aggregate_balance.write(token, aggregate_balance);
+
             self
                 .emit(
                     ProtocolRevenueCollected {
@@ -846,6 +866,10 @@ mod PaymentStream {
             let stream: Stream = self.streams.read(stream_id);
 
             return stream.rate_per_second;
+        }
+
+        fn aggregate_balance(self: @ContractState, token: ContractAddress) -> u256 {
+            self.aggregate_balance.read(token)
         }
     }
 }
