@@ -23,7 +23,7 @@ pub trait IPaymentStream<TContractState> {
         end_time: u64,
         cancelable: bool,
         token: ContractAddress,
-        transferable: bool
+        transferable: bool,
     ) -> u256;
 
     /// @notice Withdraws the provided amount minus the protocol fee to the provided address

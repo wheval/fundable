@@ -20,8 +20,8 @@ mod PaymentStream {
     };
     use crate::base::errors::Errors::{
         DECIMALS_TOO_HIGH, END_BEFORE_START, INSUFFICIENT_ALLOWANCE, INVALID_RECIPIENT,
-        INVALID_TOKEN, TOO_SHORT_DURATION, UNEXISTING_STREAM, WRONG_RECIPIENT,
-        WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT, NON_TRANSFERABLE_STREAM,
+        INVALID_TOKEN, NON_TRANSFERABLE_STREAM, TOO_SHORT_DURATION, UNEXISTING_STREAM,
+        WRONG_RECIPIENT, WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
     };
     use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
 
@@ -257,7 +257,7 @@ mod PaymentStream {
             end_time: u64,
             cancelable: bool,
             token: ContractAddress,
-            transferable: bool
+            transferable: bool,
         ) -> u256 {
             // Validate inputs
             assert(!recipient.is_zero(), INVALID_RECIPIENT);
@@ -314,10 +314,10 @@ mod PaymentStream {
                 .emit(
                     Event::StreamCreated(
                         StreamCreated {
-                            stream_id, 
-                            sender: get_caller_address(), 
-                            recipient, 
-                            total_amount, 
+                            stream_id,
+                            sender: get_caller_address(),
+                            recipient,
+                            total_amount,
                             token,
                             transferable,
                         },
@@ -328,28 +328,26 @@ mod PaymentStream {
         }
 
         fn transfer_stream(
-            ref self: ContractState,
-            stream_id: u256,
-            new_recipient: ContractAddress,
+            ref self: ContractState, stream_id: u256, new_recipient: ContractAddress,
         ) {
             // Verify stream exists
             self.assert_stream_exists(stream_id);
-            
+
             // Verify the caller is the stream owner (sender)
             self.assert_is_sender(stream_id);
-            
+
             // Verify the stream is transferable
             self.assert_is_transferable(stream_id);
-            
+
             // Verify valid new recipient
             assert(new_recipient.is_non_zero(), INVALID_RECIPIENT);
-            
+
             // Get current stream details
             let mut stream = self.streams.read(stream_id);
-            
+
             // Update recipient
             stream.recipient = new_recipient;
-            
+
             // Save updated stream
             self.streams.write(stream_id, stream);
 
@@ -357,27 +355,23 @@ mod PaymentStream {
             self.emit(StreamTransferred { stream_id, new_recipient });
         }
 
-        fn set_transferability(
-            ref self: ContractState,
-            stream_id: u256,
-            transferable: bool,
-        ) {
+        fn set_transferability(ref self: ContractState, stream_id: u256, transferable: bool) {
             // Verify stream exists
             self.assert_stream_exists(stream_id);
-            
+
             // Verify the caller is the stream owner (sender)
             self.assert_is_sender(stream_id);
-            
+
             // Get current stream details
             let mut stream = self.streams.read(stream_id);
-            
+
             // Update transferability if it's different from current setting
             if stream.transferable != transferable {
                 stream.transferable = transferable;
             }
             // Save updated stream
             self.streams.write(stream_id, stream);
-            
+
             // Emit event about transferability change
             self.emit(StreamTransferabilitySet { stream_id, transferable });
         }
@@ -385,7 +379,7 @@ mod PaymentStream {
         fn is_transferable(self: @ContractState, stream_id: u256) -> bool {
             // Get stream details
             let stream = self.streams.read(stream_id);
-            
+
             // Return transferability status
             stream.transferable
         }
