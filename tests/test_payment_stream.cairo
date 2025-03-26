@@ -6,18 +6,26 @@ use openzeppelin::access::accesscontrol::interface::{
     IAccessControlDispatcher, IAccessControlDispatcherTrait,
 };
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc721::interface::{
+    IERC721Dispatcher, IERC721DispatcherTrait, IERC721MetadataDispatcher,
+    IERC721MetadataDispatcherTrait,
+};
 use snforge_std::{
     ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
-    start_cheat_caller_address_global, stop_cheat_caller_address, stop_cheat_caller_address_global,
+    stop_cheat_caller_address,
 };
-use starknet::{ContractAddress, contract_address_const, get_block_timestamp};
+use starknet::{ContractAddress, contract_address_const};
 
 // Constantes para roles
 const STREAM_ADMIN_ROLE: felt252 = selector!("STREAM_ADMIN");
 const PROTOCOL_OWNER_ROLE: felt252 = selector!("PROTOCOL_OWNER");
 
 fn setup_access_control() -> (
-    ContractAddress, ContractAddress, IPaymentStreamDispatcher, IAccessControlDispatcher,
+    ContractAddress,
+    ContractAddress,
+    IPaymentStreamDispatcher,
+    IAccessControlDispatcher,
+    IERC721Dispatcher,
 ) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
@@ -36,10 +44,11 @@ fn setup_access_control() -> (
         sender,
         IPaymentStreamDispatcher { contract_address: payment_stream_address },
         IAccessControlDispatcher { contract_address: payment_stream_address },
+        IERC721Dispatcher { contract_address: payment_stream_address },
     )
 }
 
-fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher) {
+fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher, IERC721Dispatcher) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
     let erc20_class = declare("MockUsdc").unwrap().contract_class();
@@ -52,7 +61,12 @@ fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher) {
     let mut calldata = array![protocol_owner.into()];
     let (payment_stream_address, _) = payment_stream_class.deploy(@calldata).unwrap();
 
-    (erc20_address, sender, IPaymentStreamDispatcher { contract_address: payment_stream_address })
+    (
+        erc20_address,
+        sender,
+        IPaymentStreamDispatcher { contract_address: payment_stream_address },
+        IERC721Dispatcher { contract_address: payment_stream_address },
+    )
 }
 
 fn setup_custom_decimals(
@@ -78,9 +92,36 @@ fn setup_custom_decimals(
     (erc20_address, sender, IPaymentStreamDispatcher { contract_address: payment_stream_address })
 }
 
+
+#[test]
+fn test_nft_metadata() {
+    let (token_address, sender, payment_stream, _erc721) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let metadata = IERC721MetadataDispatcher { contract_address: payment_stream.contract_address };
+
+    let name = metadata.name();
+    let symbol = metadata.symbol();
+    let token_uri = metadata.token_uri(stream_id);
+
+    assert!(name == "PaymentStream", "Incorrect NFT name");
+    assert!(symbol == "STREAM", "Incorrect NFT symbol");
+    assert!(token_uri == "https://paymentstream.io/0", "Incorrect token URI");
+}
+
+
 #[test]
 fn test_successful_create_stream() {
-    let (token_address, _sender, payment_stream) = setup();
+    let (token_address, _sender, payment_stream, erc721) = setup();
     let recipient = contract_address_const::<0x2>();
     let total_amount = 1000_u256;
     let start_time = 100_u64;
@@ -95,12 +136,13 @@ fn test_successful_create_stream() {
 
     // This is the first Stream Created, so it will be 0.
     assert!(stream_id == 0_u256, "Stream creation failed");
+    let owner = erc721.owner_of(stream_id);
+    assert!(owner == initial_owner, "NFT not minted to initial owner");
 }
-
 #[test]
 #[should_panic(expected: 'Error: End time < start time.')]
 fn test_invalid_end_time() {
-    let (token_address, _sender, payment_stream) = setup();
+    let (token_address, _sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<0x2>();
     let total_amount = 1000_u256;
     let start_time = 100_u64;
@@ -117,8 +159,8 @@ fn test_invalid_end_time() {
 #[test]
 #[should_panic(expected: 'Error: Invalid recipient.')]
 fn test_zero_recipient_address() {
-    let (token_address, _sender, payment_stream) = setup();
-    let recipient = contract_address_const::<0x0>(); // Invalid zero address
+    let (token_address, _sender, payment_stream, _erc721) = setup();
+    let recipient = contract_address_const::<0x0>(); // Invalid ro address
     let total_amount = 1000_u256;
     let start_time = 100_u64;
     let end_time = 200_u64;
@@ -134,7 +176,7 @@ fn test_zero_recipient_address() {
 #[test]
 #[should_panic(expected: 'Error: Invalid token address.')]
 fn test_zero_token_address() {
-    let (_token_address, _sender, payment_stream) = setup();
+    let (_token_address, _sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<0x2>();
     let total_amount = 1000_u256;
     let start_time = 100_u64;
@@ -153,11 +195,10 @@ fn test_zero_token_address() {
             transferable,
         );
 }
-
 #[test]
 #[should_panic(expected: 'Error: Amount must be > 0.')]
 fn test_zero_total_amount() {
-    let (token_address, _sender, payment_stream) = setup();
+    let (token_address, _sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<0x2>();
     let total_amount = 0_u256;
     let start_time = 100_u64;
@@ -173,7 +214,7 @@ fn test_zero_total_amount() {
 
 #[test]
 fn test_successful_create_stream_and_return_correct_rate_per_second() {
-    let (token_address, _sender, payment_stream) = setup();
+    let (token_address, _sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = 100_u256;
     let start_time = 0_u64;
@@ -192,7 +233,7 @@ fn test_successful_create_stream_and_return_correct_rate_per_second() {
 
 #[test]
 fn test_successful_create_stream_and_return_wrong_rate_per_second() {
-    let (token_address, _sender, payment_stream) = setup();
+    let (token_address, _sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = 100_u256;
     let start_time = 0_u64;
@@ -212,7 +253,7 @@ fn test_successful_create_stream_and_return_wrong_rate_per_second() {
 #[test]
 #[should_panic(expected: 'Error: Amount must be > 0.')]
 fn test_update_stream_with_zero_rate_per_second() {
-    let (token_address, _sender, payment_stream) = setup();
+    let (token_address, _sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = 100_u256;
     let start_time = 0_u64;
@@ -232,7 +273,7 @@ fn test_update_stream_with_zero_rate_per_second() {
 #[test]
 #[should_panic(expected: 'Error: Not stream sender.')]
 fn test_only_creator_can_update_stream() {
-    let (token_address, _sender, payment_stream) = setup();
+    let (token_address, _sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let unauthorized = contract_address_const::<'unauthorized'>();
     let total_amount = 100_u256;
@@ -259,7 +300,7 @@ fn test_update_fee_collector() {
     let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
     let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
 
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
 
     start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
     payment_stream.update_fee_collector(new_fee_collector);
@@ -270,7 +311,7 @@ fn test_update_fee_collector() {
 
 #[test]
 fn test_update_percentage_protocol_fee() {
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
 
     start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
@@ -279,7 +320,7 @@ fn test_update_percentage_protocol_fee() {
 
 #[test]
 fn test_withdraw() {
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = 10000_u256;
     let start_time = 100_u64;
@@ -330,7 +371,7 @@ fn test_withdraw() {
 
 #[test]
 fn test_successful_stream_cancellation() {
-    let (token_address, _sender, payment_stream) = setup();
+    let (token_address, _sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<0x2>();
     let total_amount = 1000_u256;
     let start_time = 100_u64;
@@ -356,13 +397,13 @@ fn test_successful_stream_cancellation() {
     payment_stream.cancel(stream_id);
     let get_let = payment_stream.is_stream_active(stream_id);
 
-    assert(get_let == false, 'Cancelation failed');
+    assert(!get_let, 'Cancelation failed');
 }
 
 #[test]
 fn test_withdraw_by_delegate() {
     // Setup: deploy contracts and define test addresses.
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let delegate = contract_address_const::<'delegate'>();
     let total_amount = 10000_u256;
@@ -406,7 +447,7 @@ fn test_withdraw_by_delegate() {
 #[should_panic(expected: 'WRONG_RECIPIENT_OR_DELEGATE')]
 fn test_withdraw_by_unauthorized() {
     // Setup: deploy contracts and define test addresses.
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let unauthorized = contract_address_const::<'unauthorized'>();
     let total_amount = 10000_u256;
@@ -428,11 +469,10 @@ fn test_withdraw_by_unauthorized() {
     stop_cheat_caller_address(payment_stream.contract_address);
 }
 
-
 #[test]
 #[should_panic(expected: ('Caller is missing role',))]
 fn test_unauthorized_cancel() {
-    let (token_address, sender, payment_stream, access_control) = setup_access_control();
+    let (token_address, sender, payment_stream, access_control, _erc721) = setup_access_control();
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = 10000_u256;
     let start_time = 100_u64;
@@ -465,7 +505,7 @@ fn test_unauthorized_cancel() {
 
 #[test]
 fn test_pause_stream() {
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = 10000_u256;
     let start_time = 100_u64;
@@ -490,7 +530,7 @@ fn test_pause_stream() {
 
 #[test]
 fn test_restart_stream() {
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = 10000_u256;
     let start_time = 100_u64;
@@ -521,10 +561,9 @@ fn test_restart_stream() {
     assert(stream.status == StreamStatus::Active, 'Stream should be active');
     assert(stream.rate_per_second == new_rate, 'Rate should be updated');
 }
-
 #[test]
 fn test_void_stream() {
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = 10000_u256;
     let start_time = 100_u64;
@@ -550,7 +589,7 @@ fn test_void_stream() {
 #[test]
 fn test_delegate_assignment_and_verification() {
     // Setup
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let delegate = contract_address_const::<'delegate'>();
     let total_amount = 10000_u256;
@@ -578,7 +617,7 @@ fn test_delegate_assignment_and_verification() {
 #[test]
 fn test_multiple_delegations() {
     // Setup
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let delegate1 = contract_address_const::<'delegate1'>();
     let delegate2 = contract_address_const::<'delegate2'>();
@@ -609,7 +648,7 @@ fn test_multiple_delegations() {
 #[test]
 fn test_delegation_revocation() {
     // Setup
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let delegate = contract_address_const::<'delegate'>();
     let total_amount = 10000_u256;
@@ -643,7 +682,7 @@ fn test_delegation_revocation() {
 #[should_panic(expected: 'Error: Not stream sender.')]
 fn test_unauthorized_delegation() {
     // Setup
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let delegate = contract_address_const::<'delegate'>();
     let unauthorized = contract_address_const::<'unauthorized'>();
@@ -670,7 +709,7 @@ fn test_unauthorized_delegation() {
 #[should_panic(expected: 'Error: Stream does not exist.')]
 fn test_revoke_nonexistent_delegation() {
     // Setup
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = 10000_u256;
     let start_time = 100_u64;
@@ -693,7 +732,7 @@ fn test_revoke_nonexistent_delegation() {
 #[should_panic(expected: 'WRONG_RECIPIENT_OR_DELEGATE')]
 fn test_delegate_withdrawal_after_revocation() {
     // Setup
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let delegate = contract_address_const::<'delegate'>();
     let total_amount = 10000_u256;
@@ -737,7 +776,7 @@ fn test_delegate_withdrawal_after_revocation() {
 #[should_panic(expected: 'Error: Invalid recipient.')]
 fn test_delegate_to_zero_address() {
     // Setup
-    let (token_address, sender, payment_stream) = setup();
+    let (token_address, sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = 10000_u256;
     let start_time = 100_u64;
@@ -1033,6 +1072,52 @@ fn test_successful_refund_and_pause_with_overdraft() {
     assert(get_let == false, 'Refund failed');
 }
 #[test]
+fn test_nft_transfer_and_withdrawal() {
+    let (token_address, sender, payment_stream, erc721) = setup();
+    let initial_owner = contract_address_const::<'initial_owner'>();
+    let new_owner = contract_address_const::<'new_owner'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create stream as sender
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(
+            initial_owner, total_amount, start_time, end_time, cancelable, token_address,
+        );
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Approve tokens for PaymentStream (sender funds the stream)
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    start_cheat_caller_address(token_address, sender);
+    token_dispatcher.approve(payment_stream.contract_address, total_amount);
+    stop_cheat_caller_address(token_address);
+
+    // Verify initial ownership
+    let owner = erc721.owner_of(stream_id);
+    assert!(owner == initial_owner, "Initial owner mismatch");
+
+    // Transfer NFT from initial_owner to new_owner
+    start_cheat_caller_address(payment_stream.contract_address, initial_owner);
+    erc721.transfer_from(initial_owner, new_owner, stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Verify new ownership
+    let new_owner_check = erc721.owner_of(stream_id);
+    assert!(new_owner_check == new_owner, "NFT ownership not transferred");
+
+    // New owner withdraws
+    start_cheat_caller_address(payment_stream.contract_address, new_owner);
+    let (withdrawn, fee) = payment_stream.withdraw(stream_id, 1000_u256, new_owner);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Basic withdrawal check
+    assert!(withdrawn.into() == 1000_u128, "Withdrawal amount incorrect");
+}
+
+#[test]
 fn test_six_decimals_store() {
     let test_decimals = 6_u8;
     let (token_address, sender, payment_stream) = setup_custom_decimals(test_decimals);
@@ -1201,6 +1286,41 @@ fn test_is_transferable() {
 }
 
 #[test]
+fn test_set_protocol_fee_successful() {
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let fee: u256 = 500; // 5%
+    let (token_address, sender, payment_stream) = setup();
+    // Set fee
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.set_protocol_fee(token_address, fee);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    assert(payment_stream.get_protocol_fee(token_address) == fee, 'invalid fee')
+}
+
+#[test]
+#[should_panic]
+fn test_set_protocol_fee_fail_if_more_than_max_fee() {
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let fee: u256 = 10000; // 100%. MAX_FEE = 50%
+    let (token_address, sender, payment_stream) = setup();
+    // Set fee
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.set_protocol_fee(token_address, fee); // should panic
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+#[should_panic]
+fn test_set_protocol_fee_fail_if_invalid_caller() {
+    let random_caller: ContractAddress = contract_address_const::<'random'>();
+    let fee: u256 = 500; // 5%
+    let (token_address, sender, payment_stream) = setup();
+    // Set fee
+    start_cheat_caller_address(payment_stream.contract_address, random_caller);
+    payment_stream.set_protocol_fee(token_address, fee); // should panic
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
 fn test_successful_stream_check() {
     let (token_address, _sender, payment_stream) = setup();
     let recipient = contract_address_const::<0x2>();

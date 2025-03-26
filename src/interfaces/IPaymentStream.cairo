@@ -186,6 +186,27 @@ pub trait IPaymentStream<TContractState> {
     /// @param stream_id The ID of the stream to check
     /// @return Boolean indicating if the stream is transferable
     fn is_transferable(self: @TContractState, stream_id: u256) -> bool;
+    /// @notice Gets the protocol fee of the token
+    /// @param token The ContractAddress of the token
+    /// @return u256 The fee of the token
+    fn get_protocol_fee(self: @TContractState, token: ContractAddress) -> u256;
+
+    /// @notice Get the protocol revenue / accumulated fees of the token
+    /// @param token The ContractAddress of the token
+    /// @return u256 The accumulated fees of the token
+    fn get_protocol_revenue(self: @TContractState, token: ContractAddress) -> u256;
+
+    /// @notice Allow authorized addresses to collect revenue for a specific token.
+    /// @param token The ContractAddress of the token
+    /// @param to The ContractAddress that will receive the revenue
+    fn collect_protocol_revenue(
+        ref self: TContractState, token: ContractAddress, to: ContractAddress,
+    );
+
+    /// @notice Set the protocol fee of the token
+    /// @param token The ContractAddress of the token
+    /// @param new_protocol_fee The new protocol fee of the token
+    fn set_protocol_fee(ref self: TContractState, token: ContractAddress, new_protocol_fee: u256);
     /// @notice Check if a stream exists
     /// @param stream_id The ID of the stream
     /// @return Boolean indicating if the stream exists
