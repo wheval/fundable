@@ -756,6 +756,282 @@ fn test_delegate_to_zero_address() {
     stop_cheat_caller_address(payment_stream.contract_address);
 }
 
+
+#[test]
+fn test_successful_refund() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let delegate = contract_address_const::<'delegate'>();
+
+    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_fee_collector(new_fee_collector);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    // Sender assigns a delegate.
+    payment_stream.delegate_stream(stream_id, sender);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    let sender_initial_balance = token_dispatcher.balance_of(sender);
+    println!("Initial balance of sender: {}", sender_initial_balance);
+
+    // Simulate delegate's approval:
+    start_cheat_caller_address(token_address, sender);
+    token_dispatcher.approve(payment_stream.contract_address, total_amount);
+    stop_cheat_caller_address(token_address);
+
+    let allowance = token_dispatcher.allowance(sender, payment_stream.contract_address);
+    assert(allowance >= total_amount, 'Allowance not set correctly');
+    println!("Allowance for withdrawal: {}", allowance);
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let success = payment_stream.refund(stream_id, 10);
+    stop_cheat_caller_address(payment_stream.contract_address);
+    let sender_final_balance = token_dispatcher.balance_of(sender);
+    assert(success, 'Refund failed');
+    println!("Final Bal: {}", sender_final_balance);
+    assert(sender_final_balance == sender_initial_balance, 'Balance Refund failed');
+}
+
+#[test]
+#[should_panic(expected: 'WRONG_RECIPIENT_OR_DELEGATE')]
+fn test_successful_refund_with_wrong_address() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create Stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Check sender's initial balance
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    let sender_initial_balance = token_dispatcher.balance_of(sender);
+    println!("Initial balance of sender: {}", sender_initial_balance);
+
+    // Refund execution
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let success = payment_stream.refund(stream_id, 10);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Insufficient Balance')]
+fn test_successful_refund_with_overdraft() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
+
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_fee_collector(new_fee_collector);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+
+    let get_let = payment_stream.refund(stream_id, 10000);
+
+    assert(get_let == false, 'Refund failed');
+}
+
+#[test]
+fn test_successful_refund_max() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let delegate = contract_address_const::<'delegate'>();
+
+    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_fee_collector(new_fee_collector);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    // Sender assigns a delegate.
+    payment_stream.delegate_stream(stream_id, sender);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    let sender_initial_balance = token_dispatcher.balance_of(sender);
+    println!("Initial balance of sender: {}", sender_initial_balance);
+
+    // Simulate delegate's approval:
+    start_cheat_caller_address(token_address, sender);
+    token_dispatcher.approve(payment_stream.contract_address, total_amount);
+    stop_cheat_caller_address(token_address);
+
+    let allowance = token_dispatcher.allowance(sender, payment_stream.contract_address);
+    assert(allowance >= total_amount, 'Allowance not set correctly');
+    println!("Allowance for withdrawal: {}", allowance);
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let success = payment_stream.refund_max(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+    let sender_final_balance = token_dispatcher.balance_of(sender);
+    assert(success, 'Refund failed');
+    assert(sender_final_balance == sender_initial_balance, 'Balance Refund failed');
+    // println!("Final Bal: {}", sender_final_balance);
+}
+#[test]
+#[should_panic(expected: 'WRONG_RECIPIENT_OR_DELEGATE')]
+fn test_successful_refund_max_with_wrong_address() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create Stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Check sender's initial balance
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    let sender_initial_balance = token_dispatcher.balance_of(sender);
+    println!("Initial balance of sender: {}", sender_initial_balance);
+
+    // Refund execution
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let _success = payment_stream.refund_max(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+fn test_successful_refund_and_pause() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let delegate = contract_address_const::<'delegate'>();
+
+    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_fee_collector(new_fee_collector);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    // Sender assigns a delegate.
+    payment_stream.delegate_stream(stream_id, sender);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    let sender_initial_balance = token_dispatcher.balance_of(sender);
+    println!("Initial balance of sender: {}", sender_initial_balance);
+
+    // Simulate delegate's approval:
+    start_cheat_caller_address(token_address, sender);
+    token_dispatcher.approve(payment_stream.contract_address, total_amount);
+    stop_cheat_caller_address(token_address);
+
+    let allowance = token_dispatcher.allowance(sender, payment_stream.contract_address);
+    assert(allowance >= total_amount, 'Allowance not set correctly');
+    println!("Allowance for withdrawal: {}", allowance);
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let success = payment_stream.refund_and_pause(stream_id, 10);
+    stop_cheat_caller_address(payment_stream.contract_address);
+    let sender_final_balance = token_dispatcher.balance_of(sender);
+    assert(success, 'Refund failed');
+    println!("Final Bal: {}", sender_final_balance);
+    assert(sender_final_balance == sender_initial_balance, 'Balance Refund failed');
+    // Verify that the stream was paused
+    let stream = payment_stream.get_stream(stream_id);
+    assert(stream.status == StreamStatus::Paused, 'Stream should be paused');
+}
+
+#[test]
+#[should_panic(expected: 'WRONG_RECIPIENT_OR_DELEGATE')]
+fn test_successful_refund_and_pause_with_wrong_address() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    // Create Stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Check sender's initial balance
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    let sender_initial_balance = token_dispatcher.balance_of(sender);
+    println!("Initial balance of sender: {}", sender_initial_balance);
+
+    // Refund execution
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let success = payment_stream.refund_and_pause(stream_id, 10);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Insufficient Balance')]
+fn test_successful_refund_and_pause_with_overdraft() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
+
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_fee_collector(new_fee_collector);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    // This is the first Stream Created, so it will be 0.
+    assert!(stream_id == 0_u256, "Stream creation failed");
+
+    let get_let = payment_stream.refund(stream_id, 10000);
+
+    assert(get_let == false, 'Refund failed');
+}
 #[test]
 fn test_six_decimals_store() {
     let test_decimals = 6_u8;
@@ -922,4 +1198,163 @@ fn test_is_transferable() {
 
     let is_transferable = payment_stream.is_transferable(stream_id);
     assert(is_transferable, 'Stream should be transferable');
+}
+
+#[test]
+fn test_successful_stream_check() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    let is_stream = payment_stream.is_stream(stream_id);
+    assert!(is_stream, "Stream is non existent");
+}
+
+#[test]
+fn test_successful_pause_check() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    let is_paused = payment_stream.is_paused(stream_id);
+    assert!(!is_paused, "Stream is paused");
+
+    payment_stream.pause(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let is_paused = payment_stream.is_paused(stream_id);
+    assert!(is_paused, "Stream is not paused");
+}
+
+#[test]
+fn test_successful_voided_check() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    let is_voided = payment_stream.is_voided(stream_id);
+    assert!(!is_voided, "Stream is voided");
+
+    payment_stream.void(stream_id);
+
+    let is_voided = payment_stream.is_voided(stream_id);
+    assert!(is_voided, "Stream is not voided");
+}
+
+
+#[test]
+fn test_successful_transferrable_check() {
+    let (token_address, _sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+
+    let is_transferable = payment_stream.is_transferable(stream_id);
+    assert!(is_transferable, "Stream is not transferable");
+}
+
+#[test]
+fn test_successful_get_sender() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let get_sender = payment_stream.get_sender(stream_id);
+    assert!(get_sender == sender, "Stream is not transferable");
+}
+
+
+#[test]
+fn test_successful_get_recipient() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let get_recipient = payment_stream.get_recipient(stream_id);
+    assert!(get_recipient == recipient, "Stream is not transferable");
+}
+
+
+#[test]
+fn test_successful_get_token() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let get_token = payment_stream.get_token(stream_id);
+    assert!(get_token == token_address, "Stream is not transferable");
+}
+
+#[test]
+fn test_successful_get_rate_per_second() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let rate_per_second: UFixedPoint123x128 = 10_u256.into();
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    println!("Stream ID: {}", stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let get_rate_per_second = payment_stream.get_rate_per_second(stream_id);
+    assert!(get_rate_per_second == rate_per_second, "Stream is not transferable");
 }
