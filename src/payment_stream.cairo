@@ -15,14 +15,11 @@ mod PaymentStream {
         Map, MutableVecTrait, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
         Vec,
     };
-    use starknet::{
-        ContractAddress, contract_address_const, get_block_timestamp, get_caller_address,
-        get_contract_address,
-    };
+    use starknet::{ContractAddress, get_block_timestamp, get_caller_address, get_contract_address};
     use crate::base::errors::Errors::{
         DECIMALS_TOO_HIGH, END_BEFORE_START, INSUFFICIENT_ALLOWANCE, INVALID_RECIPIENT,
-        INVALID_TOKEN, TOO_SHORT_DURATION, UNEXISTING_STREAM, WRONG_RECIPIENT,
-        WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
+        INVALID_TOKEN, TOO_SHORT_DURATION, UNEXISTING_STREAM, WRONG_RECIPIENT_OR_DELEGATE,
+        WRONG_SENDER, ZERO_AMOUNT,
     };
     use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
 
@@ -706,7 +703,7 @@ mod PaymentStream {
             self.assert_is_sender(stream_id);
             assert(delegate.is_non_zero(), INVALID_RECIPIENT);
             self.stream_delegates.write(stream_id, delegate);
-            self.delegation_history.entry(stream_id).append().write(delegate);
+            self.delegation_history.entry(stream_id).push(delegate);
             self.emit(DelegationGranted { stream_id, delegator: get_caller_address(), delegate });
             true
         }
@@ -716,7 +713,7 @@ mod PaymentStream {
             self.assert_is_sender(stream_id);
             let delegate = self.stream_delegates.read(stream_id);
             assert(delegate.is_non_zero(), UNEXISTING_STREAM);
-            self.stream_delegates.write(stream_id, contract_address_const::<0x0>());
+            self.stream_delegates.write(stream_id, 0.try_into().unwrap());
             self.emit(DelegationRevoked { stream_id, delegator: get_caller_address(), delegate });
             true
         }
