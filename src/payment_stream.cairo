@@ -1,5 +1,5 @@
 #[starknet::contract]
-mod PaymentStream {
+pub mod PaymentStream {
     use core::num::traits::Zero;
     use core::traits::Into;
     use fp::UFixedPoint123x128;
@@ -65,7 +65,7 @@ mod PaymentStream {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         StreamRateUpdated: StreamRateUpdated,
         StreamCreated: StreamCreated,
         StreamWithdrawn: StreamWithdrawn,
@@ -83,6 +83,7 @@ mod PaymentStream {
         DelegationRevoked: DelegationRevoked,
         ProtocolFeeSet: ProtocolFeeSet,
         ProtocolRevenueCollected: ProtocolRevenueCollected,
+        Recover: Recover,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -177,6 +178,7 @@ mod PaymentStream {
         set_by: ContractAddress,
         new_fee: u256,
     }
+
     #[derive(Drop, starknet::Event)]
     struct ProtocolRevenueCollected {
         #[key]
@@ -184,6 +186,14 @@ mod PaymentStream {
         collected_by: ContractAddress,
         sent_to: ContractAddress,
         amount: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub struct Recover {
+        #[key]
+        pub sender: ContractAddress,
+        pub to: ContractAddress,
+        pub surplus: u256,
     }
 
     #[constructor]
@@ -870,6 +880,24 @@ mod PaymentStream {
 
         fn aggregate_balance(self: @ContractState, token: ContractAddress) -> u256 {
             self.aggregate_balance.read(token)
+        }
+
+        fn recover(ref self: ContractState, token: ContractAddress, to: ContractAddress) -> u256 {
+            assert(!to.is_zero(), INVALID_RECIPIENT);
+            assert(!token.is_zero(), INVALID_TOKEN);
+            self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
+
+            let token_dispatcher = IERC20Dispatcher { contract_address: token };
+            let surplus = token_dispatcher.balance_of(get_contract_address())
+                - self.aggregate_balance.read(token);
+
+            assert(surplus > 0, ZERO_AMOUNT);
+
+            token_dispatcher.transfer(to, surplus);
+
+            self.emit(Recover { sender: get_contract_address(), to, surplus });
+
+            surplus
         }
     }
 }

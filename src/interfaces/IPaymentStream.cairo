@@ -255,4 +255,10 @@ pub trait IPaymentStream<TContractState> {
     /// @param token The ERC-20 token to query
     /// @return The aggregated balance across all streams
     fn aggregate_balance(self: @TContractState, token: ContractAddress) -> u256;
+
+    /// @notice Emitted when the contract admin recovers the surplus amount of token
+    /// @param token The address of the token the surplus amount has been recovered for
+    /// @param to The address the surplus amount has been sent to
+    /// @return surplus The amount of surplus tokens recovered
+    fn recover(ref self: TContractState, token: ContractAddress, to: ContractAddress) -> u256;
 }
