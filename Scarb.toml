@@ -7,16 +7,22 @@ edition = "2023_11"
 
 [dependencies]
 fp = "0.1.4"
-openzeppelin = { git = "https://github.com/OpenZeppelin/cairo-contracts.git", tag = "v0.20.0" }
-starknet = ">=2.11.2"
+openzeppelin = "1.0.0"
+starknet = "2.11.2"
 
 [dev-dependencies]
-snforge_std = "0.38.3"
-assert_macros = "2.9.2"
+snforge_std = "0.40.0"
+assert_macros = "2.11.2"
 
 [[target.starknet-contract]]
 casm = true
 sierra = true
+
+[scripts]
+test = "snforge test"
+
+[tool.scarb]
+allow-prebuilt-plugins = ["snforge_std"]
 
 [[tool.snforge.fork]]
 name = "MAINNET"
