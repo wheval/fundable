@@ -767,24 +767,24 @@ fn test_successful_refund() {
 
     // Deposit to the stream
     payment_stream.deposit(stream_id, total_amount);
-    
+
     // Cancel the stream first (required for refund)
     payment_stream.cancel(stream_id);
-    
+
     // Verify stream is canceled and can be refunded
     let stream = payment_stream.get_stream(stream_id);
     assert(stream.status == StreamStatus::Canceled, 'Stream should be canceled');
-    
+
     // Get available amount for refund
     let refundable_amount = total_amount - stream.withdrawn_amount;
     println!("Refundable amount: {}", refundable_amount);
-    
+
     // Perform the refund (still as the sender)
     let refund_success = payment_stream.refund(stream_id, refundable_amount);
-    
+
     // Verify refund was successful
     assert(refund_success, 'Refund should be successful');
-    
+
     stop_cheat_caller_address(payment_stream.contract_address);
 }
 
