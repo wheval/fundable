@@ -273,4 +273,15 @@ pub trait IPaymentStream<TContractState> {
     /// @param amount The amount to refund from the stream
     /// @return Boolean indicating if the refund and pause operation was successful
     fn refund_and_pause(ref self: TContractState, stream_id: u256, amount: u256) -> bool;
+
+    /// @notice Retrieves the sum of balances of all streams
+    /// @param token The ERC-20 token to query
+    /// @return The aggregated balance across all streams
+    fn aggregate_balance(self: @TContractState, token: ContractAddress) -> u256;
+
+    /// @notice Emitted when the contract admin recovers the surplus amount of token
+    /// @param token The address of the token the surplus amount has been recovered for
+    /// @param to The address the surplus amount has been sent to
+    /// @return surplus The amount of surplus tokens recovered
+    fn recover(ref self: TContractState, token: ContractAddress, to: ContractAddress) -> u256;
 }

@@ -2,6 +2,7 @@ use core::traits::Into;
 use fp::UFixedPoint123x128;
 use fundable::base::types::{Stream, StreamStatus};
 use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
+use fundable::payment_stream::PaymentStream;
 use openzeppelin::access::accesscontrol::interface::{
     IAccessControlDispatcher, IAccessControlDispatcherTrait,
 };
@@ -11,8 +12,9 @@ use openzeppelin::token::erc721::interface::{
     IERC721MetadataDispatcherTrait,
 };
 use snforge_std::{
-    ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
-    stop_cheat_caller_address, test_address,
+    ContractClassTrait, DeclareResultTrait, EventSpyAssertionsTrait, declare, spy_events,
+    start_cheat_caller_address, stop_cheat_caller_address,
+    test_address,
 };
 use starknet::{ContractAddress, contract_address_const};
 
@@ -1697,4 +1699,143 @@ fn test_deposit_by_non_sender() {
     // Verify stream amount was updated (anyone can deposit)
     let stream = payment_stream.get_stream(stream_id);
     assert(stream.total_amount == total_amount + deposit_amount, 'Deposit amount not added');
+}
+
+#[test]
+fn test_aggregate_balance_on_stream_creation() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Verify that the aggregated balance match the total amount of the first stream
+    let token_balance = payment_stream.aggregate_balance(token_address);
+    assert!(
+        token_balance == total_amount,
+        "Aggregated balance does not match the expected value after the first stream creation",
+    );
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Verify that the aggregated balance match the sum of the two streams
+    let token_balance = payment_stream.aggregate_balance(token_address);
+    assert!(
+        token_balance == (total_amount * 2),
+        "Aggregated balance does not match the expected value after the second stream creation",
+    );
+}
+
+#[test]
+fn test_aggregate_balance_on_withdraw() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<'recipient'>();
+    let total_amount = 10000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let delegate = contract_address_const::<'delegate'>();
+
+    let new_fee_collector: ContractAddress = contract_address_const::<'new_fee_collector'>();
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.update_fee_collector(new_fee_collector);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let stream_id = payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    payment_stream.delegate_stream(stream_id, delegate);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+
+    start_cheat_caller_address(token_address, delegate);
+    token_dispatcher.approve(payment_stream.contract_address, total_amount);
+    stop_cheat_caller_address(token_address);
+
+    let allowance = token_dispatcher.allowance(delegate, payment_stream.contract_address);
+    assert(allowance >= total_amount, 'Allowance not set correctly');
+
+    let withdraw_amount: u256 = 100;
+    start_cheat_caller_address(payment_stream.contract_address, delegate);
+    payment_stream.withdraw(stream_id, withdraw_amount, recipient);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Verify that the withdraw amount has been deducted from the aggregated balance
+    let token_balance = payment_stream.aggregate_balance(token_address);
+    let expected_token_balance = total_amount - withdraw_amount;
+    assert!(
+        token_balance == expected_token_balance,
+        "Aggregated balance does not match the expected value after withdrawal",
+    );
+}
+
+#[test]
+fn test_recover() {
+    let (token_address, sender, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 10000_u256;
+    let surplus = 10_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+
+    start_cheat_caller_address(token_address, sender);
+    token_dispatcher.approve(payment_stream.contract_address, total_amount + surplus);
+    token_dispatcher.transfer(payment_stream.contract_address, total_amount + surplus);
+    stop_cheat_caller_address(token_address);
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream
+        .create_stream(recipient, total_amount, start_time, end_time, cancelable, token_address);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    let mut spy = spy_events();
+
+    payment_stream.recover(token_address, recipient);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    assert!(token_dispatcher.balance_of(recipient) == surplus, "Invalid surplus amount received");
+
+    let expected_event = PaymentStream::Event::Recover(
+        PaymentStream::Recover { sender: payment_stream.contract_address, to: recipient, surplus },
+    );
+    spy.assert_emitted(@array![(payment_stream.contract_address, expected_event)]);
+}
+
+#[test]
+#[should_panic]
+fn test_recover_when_caller_not_admin() {
+    let (token_address, _, payment_stream) = setup();
+    let recipient = contract_address_const::<0x2>();
+
+    start_cheat_caller_address(payment_stream.contract_address, recipient);
+    payment_stream.recover(token_address, recipient);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+#[should_panic]
+fn test_recover_when_nothing_to_recover() {
+    let (token_address, _, payment_stream) = setup();
+    let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
+    let recipient = contract_address_const::<0x2>();
+
+    start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
+    payment_stream.recover(token_address, recipient);
+    stop_cheat_caller_address(payment_stream.contract_address);
 }

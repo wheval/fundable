@@ -1,5 +1,5 @@
 #[starknet::contract]
-mod PaymentStream {
+pub mod PaymentStream {
     use core::num::traits::Zero;
     use core::traits::Into;
     use fp::UFixedPoint123x128;
@@ -64,12 +64,13 @@ mod PaymentStream {
         protocol_metrics: ProtocolMetrics,
         stream_delegates: Map<u256, ContractAddress>,
         delegation_history: Map<u256, Vec<ContractAddress>>,
+        aggregate_balance: Map<ContractAddress, u256>,
     }
 
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         StreamRateUpdated: StreamRateUpdated,
         StreamCreated: StreamCreated,
         StreamWithdrawn: StreamWithdrawn,
@@ -92,6 +93,7 @@ mod PaymentStream {
         ProtocolFeeSet: ProtocolFeeSet,
         ProtocolRevenueCollected: ProtocolRevenueCollected,
         StreamDeposit: StreamDeposit,
+        Recover: Recover,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -215,6 +217,14 @@ mod PaymentStream {
         stream_id: u256,
         funder: ContractAddress,
         amount: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub struct Recover {
+        #[key]
+        pub sender: ContractAddress,
+        pub to: ContractAddress,
+        pub surplus: u256,
     }
 
     #[constructor]
@@ -366,6 +376,9 @@ mod PaymentStream {
             self.streams.write(stream_id, stream);
             self.erc721.mint(recipient, stream_id);
 
+            let aggregate_balance = self.aggregate_balance.read(token) + total_amount;
+            self.aggregate_balance.write(token, aggregate_balance);
+
             let protocol_metrics = self.protocol_metrics.read();
             self
                 .protocol_metrics
@@ -494,6 +507,9 @@ mod PaymentStream {
             token_dispatcher
                 .transfer_from(sender, to, net_amount); // Transfer net amount to 'toAddress'
 
+            let aggregate_balance = self.aggregate_balance.read(token_address) - net_amount;
+            self.aggregate_balance.write(token_address, aggregate_balance);
+
             self
                 .emit(
                     StreamWithdrawn {
@@ -530,6 +546,9 @@ mod PaymentStream {
                 .transfer_from(sender, to, net_amount); // todo: check if this is correct
             self.collect_protocol_fee(sender, token_address, fee);
 
+            let aggregate_balance = self.aggregate_balance.read(token_address) - net_amount;
+            self.aggregate_balance.write(token_address, aggregate_balance);
+
             self
                 .emit(
                     StreamWithdrawn {
@@ -558,6 +577,9 @@ mod PaymentStream {
             let accumulated_fees = self.accumulated_fees.read(token);
             self.accumulated_fees.write(token, accumulated_fees - amount);
 
+            let accumulated_fees = self.accumulated_fees.read(token);
+            self.accumulated_fees.write(token, accumulated_fees - amount);
+
             self.emit(WithdrawalSuccessful { token, amount, recipient });
         }
 
@@ -579,6 +601,9 @@ mod PaymentStream {
 
             let accumulated_fees = self.accumulated_fees.read(token);
             self.accumulated_fees.write(token, accumulated_fees - max_amount);
+
+            let aggregate_balance = self.aggregate_balance.read(token) - max_amount;
+            self.aggregate_balance.write(token, aggregate_balance);
 
             self.emit(WithdrawalSuccessful { token, amount: max_amount, recipient });
         }
@@ -930,6 +955,10 @@ mod PaymentStream {
             self.protocol_revenue.write(token, 0_u256);
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
             token_dispatcher.transfer(to, protocol_revenue);
+
+            let aggregate_balance = self.aggregate_balance.read(token) - protocol_revenue;
+            self.aggregate_balance.write(token, aggregate_balance);
+
             self
                 .emit(
                     ProtocolRevenueCollected {
@@ -999,6 +1028,28 @@ mod PaymentStream {
             let stream: Stream = self.streams.read(stream_id);
 
             return stream.rate_per_second;
+        }
+
+        fn aggregate_balance(self: @ContractState, token: ContractAddress) -> u256 {
+            self.aggregate_balance.read(token)
+        }
+
+        fn recover(ref self: ContractState, token: ContractAddress, to: ContractAddress) -> u256 {
+            assert(!to.is_zero(), INVALID_RECIPIENT);
+            assert(!token.is_zero(), INVALID_TOKEN);
+            self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
+
+            let token_dispatcher = IERC20Dispatcher { contract_address: token };
+            let surplus = token_dispatcher.balance_of(get_contract_address())
+                - self.aggregate_balance.read(token);
+
+            assert(surplus > 0, ZERO_AMOUNT);
+
+            token_dispatcher.transfer(to, surplus);
+
+            self.emit(Recover { sender: get_contract_address(), to, surplus });
+
+            surplus
         }
     }
 }
