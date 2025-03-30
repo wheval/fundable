@@ -351,6 +351,7 @@ mod PaymentStream {
                 token_decimals,
                 total_amount,
                 balance: 0,
+                recipient,
                 start_time,
                 end_time,
                 withdrawn_amount: 0,
@@ -886,6 +887,7 @@ mod PaymentStream {
             let new_stream = Stream {
                 rate_per_second: new_rate_per_second,
                 sender: stream.sender,
+                recipient: stream.recipient,
                 token: stream.token,
                 token_decimals: stream.token_decimals,
                 total_amount: stream.total_amount,
