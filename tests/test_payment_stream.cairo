@@ -13,8 +13,7 @@ use openzeppelin::token::erc721::interface::{
 };
 use snforge_std::{
     ContractClassTrait, DeclareResultTrait, EventSpyAssertionsTrait, declare, spy_events,
-    start_cheat_caller_address, stop_cheat_caller_address,
-    test_address,
+    start_cheat_caller_address, stop_cheat_caller_address, test_address,
 };
 use starknet::{ContractAddress, contract_address_const};
 
@@ -141,6 +140,42 @@ fn test_successful_create_stream() {
     let owner = erc721.owner_of(stream_id);
     assert!(owner == initial_owner, "NFT not minted to initial owner");
 }
+
+#[test]
+fn test_create_stream_with_deposit() {
+    let (token_address, sender, payment_stream, erc721) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let transferable = true;
+
+    // Approve the Payment Stream contract to spend tokens
+    let token = IERC20Dispatcher { contract_address: token_address };
+    token.approve(payment_stream.contract_address, total_amount);
+
+    // Create the stream with deposit in a single transaction
+    let stream_id = payment_stream
+        .create_stream_with_deposit(
+            recipient, total_amount, start_time, end_time, cancelable, token_address, transferable,
+        );
+
+    // Verify stream was created successfully
+    assert!(stream_id == 0_u256, "Stream creation failed");
+
+    // Verify NFT ownership
+    let owner = erc721.owner_of(stream_id);
+    assert!(owner == recipient, "NFT not minted to recipient");
+
+    // Verify stream data
+    let stream = payment_stream.get_stream(stream_id);
+    assert!(stream.sender == sender, "Wrong sender");
+    assert!(stream.total_amount == total_amount, "Wrong total amount");
+    assert!(stream.balance == total_amount, "Wrong balance - deposit failed");
+    assert!(stream.status == StreamStatus::Active, "Stream not active");
+}
+
 #[test]
 #[should_panic(expected: 'Error: End time < start time.')]
 fn test_invalid_end_time() {
@@ -1837,5 +1872,218 @@ fn test_recover_when_nothing_to_recover() {
 
     start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
     payment_stream.recover(token_address, recipient);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+fn test_pause_and_restart_stream() {
+    let (token_address, sender, payment_stream, _erc721) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let transferable = true;
+
+    // Create the stream
+    let stream_id = payment_stream
+        .create_stream(
+            recipient, total_amount, start_time, end_time, cancelable, token_address, transferable,
+        );
+
+    // Pause the stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.pause(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Check stream is paused
+    let is_paused = payment_stream.is_paused(stream_id);
+    assert!(is_paused, "Stream not paused");
+
+    // Set new rate
+    let new_rate: UFixedPoint123x128 = 2_u64.into();
+
+    // Restart the stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.restart(stream_id, new_rate);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Check stream is active
+    let is_active = payment_stream.is_stream_active(stream_id);
+    assert!(is_active, "Stream not active after restart");
+
+    // Check new rate
+    let updated_rate = payment_stream.get_rate_per_second(stream_id);
+    assert!(updated_rate == new_rate, "Rate not updated");
+}
+
+#[test]
+fn test_restart_and_deposit() {
+    let (token_address, sender, payment_stream, _erc721) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let transferable = true;
+
+    // Create the stream
+    let stream_id = payment_stream
+        .create_stream(
+            recipient, total_amount, start_time, end_time, cancelable, token_address, transferable,
+        );
+
+    // Pause the stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.pause(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Verify stream is paused
+    let is_paused = payment_stream.is_paused(stream_id);
+    assert!(is_paused, "Stream not paused");
+
+    // Setup for restart and deposit
+    let additional_amount = 500_u256;
+    let new_rate: UFixedPoint123x128 = 2_u64.into();
+
+    // Approve the Payment Stream contract to spend tokens
+    let token = IERC20Dispatcher { contract_address: token_address };
+    token.approve(payment_stream.contract_address, additional_amount);
+
+    // Use restart_and_deposit to restart the stream and add funds
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    let success = payment_stream.restart_and_deposit(stream_id, new_rate, additional_amount);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Verify operation was successful
+    assert!(success, "Restart and deposit failed");
+
+    // Verify stream is active
+    let is_active = payment_stream.is_stream_active(stream_id);
+    assert!(is_active, "Stream not active after restart");
+
+    // Verify rate was updated
+    let updated_rate = payment_stream.get_rate_per_second(stream_id);
+    assert!(updated_rate == new_rate, "Rate not updated");
+
+    // Verify total amount was updated
+    let stream = payment_stream.get_stream(stream_id);
+    assert!(
+        stream.total_amount == total_amount + additional_amount,
+        "Total amount not updated correctly",
+    );
+}
+
+#[test]
+#[should_panic(expected: 'Stream is not paused')]
+fn test_restart_and_deposit_active_stream() {
+    let (token_address, sender, payment_stream, _erc721) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let transferable = true;
+
+    // Create the stream (active by default)
+    let stream_id = payment_stream
+        .create_stream(
+            recipient, total_amount, start_time, end_time, cancelable, token_address, transferable,
+        );
+
+    // Attempt to restart an already active stream
+    let additional_amount = 500_u256;
+    let new_rate: UFixedPoint123x128 = 2_u64.into();
+
+    // Approve token spending
+    let token = IERC20Dispatcher { contract_address: token_address };
+    token.approve(payment_stream.contract_address, additional_amount);
+
+    // This should fail because the stream is not paused
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.restart_and_deposit(stream_id, new_rate, additional_amount);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Error: Amount must be > 0')]
+fn test_restart_and_deposit_zero_amount() {
+    let (token_address, sender, payment_stream, _erc721) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let transferable = true;
+
+    // Create the stream
+    let stream_id = payment_stream
+        .create_stream(
+            recipient, total_amount, start_time, end_time, cancelable, token_address, transferable,
+        );
+
+    // Pause the stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.pause(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Try to restart with zero deposit amount
+    let zero_amount = 0_u256;
+    let new_rate: UFixedPoint123x128 = 2_u64.into();
+
+    // This should fail because amount is zero
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.restart_and_deposit(stream_id, new_rate, zero_amount);
+    stop_cheat_caller_address(payment_stream.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Error: Insufficient allowance')]
+fn test_create_stream_with_deposit_insufficient_allowance() {
+    let (token_address, _sender, payment_stream, _erc721) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let transferable = true;
+
+    // Try to create stream with deposit without approving tokens first
+    // This should fail due to insufficient allowance
+    payment_stream
+        .create_stream_with_deposit(
+            recipient, total_amount, start_time, end_time, cancelable, token_address, transferable,
+        );
+}
+
+#[test]
+#[should_panic(expected: 'Error: Insufficient allowance')]
+fn test_restart_and_deposit_insufficient_allowance() {
+    let (token_address, sender, payment_stream, _erc721) = setup();
+    let recipient = contract_address_const::<0x2>();
+    let total_amount = 1000_u256;
+    let start_time = 100_u64;
+    let end_time = 200_u64;
+    let cancelable = true;
+    let transferable = true;
+
+    // Create the stream
+    let stream_id = payment_stream
+        .create_stream(
+            recipient, total_amount, start_time, end_time, cancelable, token_address, transferable,
+        );
+
+    // Pause the stream
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.pause(stream_id);
+    stop_cheat_caller_address(payment_stream.contract_address);
+
+    // Try to restart with deposit without approving tokens
+    let additional_amount = 500_u256;
+    let new_rate: UFixedPoint123x128 = 2_u64.into();
+
+    // This should fail because of insufficient allowance
+    start_cheat_caller_address(payment_stream.contract_address, sender);
+    payment_stream.restart_and_deposit(stream_id, new_rate, additional_amount);
     stop_cheat_caller_address(payment_stream.contract_address);
 }
