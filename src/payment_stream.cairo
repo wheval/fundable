@@ -425,40 +425,32 @@ pub mod PaymentStream {
             let caller = get_caller_address();
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
             let allowance = token_dispatcher.allowance(caller, get_contract_address());
-            
+
             // Ensure we have enough allowance for the deposit
             assert(allowance >= total_amount, INSUFFICIENT_ALLOWANCE);
-            
+
             // Now create the stream as we know we have sufficient allowance
-            let stream_id = self.create_stream(
-                recipient, 
-                total_amount, 
-                start_time, 
-                end_time, 
-                cancelable, 
-                token, 
-                transferable
-            );
-            
+            let stream_id = self
+                .create_stream(
+                    recipient, total_amount, start_time, end_time, cancelable, token, transferable,
+                );
+
             // Transfer the tokens from the sender to the contract
             token_dispatcher.transfer_from(caller, get_contract_address(), total_amount);
-            
+
             // Update stream balance
             let mut stream = self.streams.read(stream_id);
             stream.balance = total_amount;
             self.streams.write(stream_id, stream);
-            
+
             // Emit deposit event
-            self.emit(
-                Event::StreamDeposit(
-                    StreamDeposit { 
-                        stream_id, 
-                        funder: caller, 
-                        amount: total_amount 
-                    }
-                )
-            );
-            
+            self
+                .emit(
+                    Event::StreamDeposit(
+                        StreamDeposit { stream_id, funder: caller, amount: total_amount },
+                    ),
+                );
+
             stream_id
         }
 
@@ -767,66 +759,58 @@ pub mod PaymentStream {
         /// @param amount The amount to deposit into the stream
         /// @return Boolean indicating if the operation was successful
         fn restart_and_deposit(
-            ref self: ContractState, 
-            stream_id: u256, 
-            rate_per_second: UFixedPoint123x128, 
-            amount: u256
+            ref self: ContractState,
+            stream_id: u256,
+            rate_per_second: UFixedPoint123x128,
+            amount: u256,
         ) -> bool {
             // First verify the stream exists and can be restarted
             self.assert_stream_exists(stream_id);
-            
+
             // Get the current stream
             let mut stream = self.streams.read(stream_id);
-            
+
             // Check that the stream is not canceled and is paused
             assert(stream.status != StreamStatus::Canceled, 'Stream is canceled');
             assert(stream.status == StreamStatus::Paused, 'Stream is not paused');
-            
+
             // Check that the caller is the stream sender
             let caller = get_caller_address();
             assert(caller == stream.sender, WRONG_SENDER);
-            
+
             // Check valid deposit amount
             assert(amount > 0, ZERO_AMOUNT);
-            
+
             // Check token allowance before proceeding
             let token_address = stream.token;
             let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
             let allowance = token_dispatcher.allowance(caller, get_contract_address());
             assert(allowance >= amount, INSUFFICIENT_ALLOWANCE);
-            
+
             // Restart the stream by setting status to active and updating rate
             stream.status = StreamStatus::Active;
             stream.rate_per_second = rate_per_second;
             stream.last_update_time = starknet::get_block_timestamp();
-            
+
             // Update the total amount
             stream.total_amount += amount;
-            
+
             // Save the updated stream
             self.streams.write(stream_id, stream);
-            
+
             // Transfer the tokens from the sender to the contract
             token_dispatcher.transfer_from(caller, get_contract_address(), amount);
-            
+
             // Update aggregate balance
             let aggregate_balance = self.aggregate_balance.read(token_address) + amount;
             self.aggregate_balance.write(token_address, aggregate_balance);
-            
+
             // Emit the restart event
             self.emit(StreamRestarted { stream_id, rate_per_second });
-            
+
             // Emit the deposit event
-            self.emit(
-                Event::StreamDeposit(
-                    StreamDeposit { 
-                        stream_id, 
-                        funder: caller, 
-                        amount 
-                    }
-                )
-            );
-            
+            self.emit(Event::StreamDeposit(StreamDeposit { stream_id, funder: caller, amount }));
+
             true
         }
 
