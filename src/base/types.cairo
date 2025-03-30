@@ -5,6 +5,7 @@ use starknet::ContractAddress;
 #[derive(Drop, Serde, starknet::Store)]
 pub struct Stream {
     pub sender: ContractAddress,
+    pub recipient: ContractAddress,
     pub total_amount: u256,
     pub withdrawn_amount: u256,
     pub start_time: u64,
@@ -16,6 +17,7 @@ pub struct Stream {
     pub status: StreamStatus,
     pub rate_per_second: UFixedPoint123x128,
     pub last_update_time: u64,
+    pub transferable: bool,
 }
 
 #[derive(Drop, starknet::Event)]
