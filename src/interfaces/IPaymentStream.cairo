@@ -162,7 +162,7 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Delegate a contract address to a stream
     /// @param stream_id The stream ID for the query
     /// @param delegate The address to delegate a stream to
-    /// @return Boolean indicating if the stream delegation is successful
+    /// @return Boolean indicating if the stream delegation is successsful
     fn delegate_stream(
         ref self: TContractState, stream_id: u256, delegate: ContractAddress,
     ) -> bool;
@@ -217,7 +217,6 @@ pub trait IPaymentStream<TContractState> {
     /// @param token The ContractAddress of the token
     /// @param new_protocol_fee The new protocol fee of the token
     fn set_protocol_fee(ref self: TContractState, token: ContractAddress, new_protocol_fee: u256);
-
     /// @notice Check if a stream exists
     /// @param stream_id The ID of the stream
     /// @return Boolean indicating if the stream exists
@@ -232,6 +231,11 @@ pub trait IPaymentStream<TContractState> {
     /// @param stream_id The ID of the stream
     /// @return Boolean indicating if the stream is voided or not
     fn is_voided(self: @TContractState, stream_id: u256) -> bool;
+
+    /// @notice Check if a stream is transferable
+    /// @param stream_id The ID of the stream
+    /// @return Boolean indicating if the stream is transferable
+    fn is_transferable(self: @TContractState, stream_id: u256) -> bool;
 
 
     /// @notice gets sender of the stream
@@ -256,6 +260,38 @@ pub trait IPaymentStream<TContractState> {
     /// @param stream_id The ID of the stream
     /// @return rate per second associated with the stream
     fn get_rate_per_second(self: @TContractState, stream_id: u256) -> UFixedPoint123x128;
+
+    /// @notice Create a new stream and fund it with tokens in a single transaction
+    /// @param recipient The address receiving the tokens
+    /// @param total_amount The total amount to be streamed
+    /// @param start_time The timestamp when the stream starts
+    /// @param end_time The timestamp when the stream ends
+    /// @param cancelable Boolean indicating if the stream can be canceled
+    /// @param token The contract address of the ERC-20 token to be streamed
+    /// @param transferable Boolean indicating if the stream can be transferred
+    /// @return The ID of the newly created stream
+    fn create_stream_with_deposit(
+        ref self: TContractState,
+        recipient: ContractAddress,
+        total_amount: u256,
+        start_time: u64,
+        end_time: u64,
+        cancelable: bool,
+        token: ContractAddress,
+        transferable: bool
+    ) -> u256;
+
+    /// @notice Restart a paused stream and deposit funds to it in a single transaction
+    /// @param stream_id The ID of the stream to restart and fund
+    /// @param rate_per_second The new rate per second for the stream
+    /// @param amount The amount to deposit into the stream
+    /// @return Boolean indicating if the operation was successful
+    fn restart_and_deposit(
+        ref self: TContractState, 
+        stream_id: u256, 
+        rate_per_second: UFixedPoint123x128, 
+        amount: u256
+    ) -> bool;
 
     /// @notice Refunds a specified amount from a stream
     /// @param stream_id The ID of the stream from which to refund
