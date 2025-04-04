@@ -195,6 +195,8 @@ pub mod PaymentStream {
         stream_id: u256,
         new_recipient: ContractAddress,
     }
+
+    #[derive(Drop, starknet::Event)]
     struct ProtocolFeeSet {
         #[key]
         token: ContractAddress,
@@ -259,7 +261,11 @@ pub mod PaymentStream {
                 return 0_u64.into();
             }
             let num: UFixedPoint123x128 = total_amount.into();
-            let divisor: UFixedPoint123x128 = duration.into();
+            // Convert duration from days to seconds (86400 seconds in a day)
+            let duration_in_seconds: UFixedPoint123x128 = (duration * 86400).into();
+            let divisor: UFixedPoint123x128 = duration_in_seconds;
+            // Calculate the rate by dividing the total amount by the duration in seconds
+            // This gives us the rate of tokens per second for the stream
             let rate = num / divisor;
             return rate;
         }
@@ -331,22 +337,19 @@ pub mod PaymentStream {
             ref self: ContractState,
             recipient: ContractAddress,
             total_amount: u256,
-            start_time: u64,
-            end_time: u64,
+            duration: u64,
             cancelable: bool,
             token: ContractAddress,
             transferable: bool,
         ) -> u256 {
             assert(!recipient.is_zero(), INVALID_RECIPIENT);
             assert(total_amount > 0, ZERO_AMOUNT);
-            assert(end_time > start_time, END_BEFORE_START);
+            assert(duration >= 1, TOO_SHORT_DURATION);
             assert(!token.is_zero(), INVALID_TOKEN);
 
             let stream_id = self.next_stream_id.read();
             self.next_stream_id.write(stream_id + 1);
 
-            let duration = end_time - start_time;
-            assert(duration >= 1, TOO_SHORT_DURATION);
             let rate_per_second = self.calculate_stream_rate(total_amount, duration);
 
             let erc20_dispatcher = IERC20MetadataDispatcher { contract_address: token };
@@ -362,13 +365,12 @@ pub mod PaymentStream {
                 total_amount,
                 balance: 0,
                 recipient,
-                start_time,
-                end_time,
+                duration,
                 withdrawn_amount: 0,
                 cancelable,
                 status: StreamStatus::Active,
                 rate_per_second,
-                last_update_time: start_time,
+                last_update_time: get_block_timestamp(),
                 transferable,
             };
 
@@ -385,10 +387,10 @@ pub mod PaymentStream {
                 .write(
                     ProtocolMetrics {
                         total_active_streams: protocol_metrics.total_active_streams + 1,
-                        total_tokens_distributed: protocol_metrics.total_tokens_distributed
+                        total_tokens_to_stream: protocol_metrics.total_tokens_to_stream
                             + total_amount,
                         total_streams_created: protocol_metrics.total_streams_created + 1,
-                        total_delegations: protocol_metrics.total_delegations + 1,
+                        total_delegations: protocol_metrics.total_delegations,
                     },
                 );
 
@@ -415,8 +417,7 @@ pub mod PaymentStream {
             ref self: ContractState,
             recipient: ContractAddress,
             total_amount: u256,
-            start_time: u64,
-            end_time: u64,
+            duration: u64,
             cancelable: bool,
             token: ContractAddress,
             transferable: bool,
@@ -431,25 +432,10 @@ pub mod PaymentStream {
 
             // Now create the stream as we know we have sufficient allowance
             let stream_id = self
-                .create_stream(
-                    recipient, total_amount, start_time, end_time, cancelable, token, transferable,
-                );
+                .create_stream(recipient, total_amount, duration, cancelable, token, transferable);
 
             // Transfer the tokens from the sender to the contract
-            token_dispatcher.transfer_from(caller, get_contract_address(), total_amount);
-
-            // Update stream balance
-            let mut stream = self.streams.read(stream_id);
-            stream.balance = total_amount;
-            self.streams.write(stream_id, stream);
-
-            // Emit deposit event
-            self
-                .emit(
-                    Event::StreamDeposit(
-                        StreamDeposit { stream_id, funder: caller, amount: total_amount },
-                    ),
-                );
+            self._deposit(stream_id, total_amount);
 
             stream_id
         }
@@ -708,9 +694,6 @@ pub mod PaymentStream {
             // Update the stream status to canceled
             stream.status = StreamStatus::Canceled;
 
-            // Update the stream end time
-            stream.end_time = get_block_timestamp();
-
             // Update Stream in State
             self.streams.write(stream_id, stream);
 
@@ -847,9 +830,6 @@ pub mod PaymentStream {
 
             let token_address = stream.token;
             let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
-
-            // Update stream Time
-            stream.end_time = get_block_timestamp();
 
             let recipient = stream.sender;
 
@@ -1024,8 +1004,7 @@ pub mod PaymentStream {
                 token_decimals: stream.token_decimals,
                 total_amount: stream.total_amount,
                 balance: stream.balance,
-                start_time: stream.start_time,
-                end_time: stream.end_time,
+                duration: stream.duration,
                 withdrawn_amount: stream.withdrawn_amount,
                 cancelable: stream.cancelable,
                 status: stream.status,
