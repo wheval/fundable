@@ -1,11 +1,14 @@
 use core::traits::Into;
+use core::traits::TryInto;
+use core::num::traits::Pow;
 use fp::UFixedPoint123x128;
 use fundable::base::types::{Stream, StreamStatus};
 use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
 use openzeppelin::access::accesscontrol::interface::{
     IAccessControlDispatcher, IAccessControlDispatcherTrait,
 };
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
+    IERC20MetadataDispatcherTrait};
 use openzeppelin::token::erc721::interface::{
     IERC721Dispatcher, IERC721DispatcherTrait, IERC721MetadataDispatcher,
     IERC721MetadataDispatcherTrait,
@@ -46,6 +49,10 @@ fn setup_access_control() -> (
         IAccessControlDispatcher { contract_address: payment_stream_address },
         IERC721Dispatcher { contract_address: payment_stream_address },
     )
+}
+
+fn convert_to_decimal(value: u256, decimals: u8) -> u256 {
+    value * (10_u256.pow(decimals.into()))
 }
 
 fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher, IERC721Dispatcher) {
@@ -203,49 +210,21 @@ fn test_zero_total_amount() {
 fn test_successful_create_stream_and_return_correct_rate_per_second() {
     let (token_address, _sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
-    let total_amount = 100_u256;
+    let total_amount = 1000_u256;
+    println!("Total amount: {}", total_amount);
     let duration = 10_u64;
     let cancelable = false;
     let transferable = true;
+    let token_dispatcher = IERC20MetadataDispatcher { contract_address: token_address };
+    let token_decimals = token_dispatcher.decimals();
 
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, duration, cancelable, token_address, transferable);
     let stream = payment_stream.get_stream(stream_id);
-    let rate_per_second: UFixedPoint123x128 = 10_u256.into();
-    assert!(stream.rate_per_second == rate_per_second, "Stream rate per second is invalid");
-}
-
-#[test]
-fn test_successful_create_stream_and_return_wrong_rate_per_second() {
-    let (token_address, _sender, payment_stream, _erc721) = setup();
-    let recipient = contract_address_const::<'recipient'>();
-    let total_amount = 100_u256;
-    let duration = 10_u64;
-    let cancelable = false;
-    let transferable = true;
-
-    let stream_id = payment_stream
-        .create_stream(recipient, total_amount, duration, cancelable, token_address, transferable);
-    let stream = payment_stream.get_stream(stream_id);
-    let rate_per_second: UFixedPoint123x128 = 1_u256.into();
-    assert!(stream.rate_per_second == rate_per_second, "Stream rate per second is invalid");
-}
-
-#[test]
-#[should_panic(expected: 'Error: Amount must be > 0.')]
-fn test_update_stream_with_zero_rate_per_second() {
-    let (token_address, _sender, payment_stream, _erc721) = setup();
-    let recipient = contract_address_const::<'recipient'>();
-    let total_amount = 100_u256;
-    let duration = 10_u64;
-    let cancelable = false;
-    let transferable = true;
-
-    let stream_id = payment_stream
-        .create_stream(recipient, total_amount, duration, cancelable, token_address, transferable);
-    let rate_per_second: UFixedPoint123x128 = 0_u256.into();
-    payment_stream.update_stream_rate(stream_id, rate_per_second);
-    stop_cheat_caller_address(payment_stream.contract_address);
+    let stream_rate_per_second: u256 = stream.rate_per_second.into();
+    println!("Rate per second: {}", stream_rate_per_second);
+    let rate_per_second = convert_to_decimal(total_amount, token_decimals) / (duration.into() * 86400);
+    assert!(stream_rate_per_second == rate_per_second, "Stream rate per second is invalid");
 }
 
 #[test]

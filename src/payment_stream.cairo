@@ -1,6 +1,6 @@
 #[starknet::contract]
 pub mod PaymentStream {
-    use core::num::traits::Zero;
+    use core::num::traits::{Zero, Pow};
     use core::traits::Into;
     use fp::UFixedPoint123x128;
     use fundable::interfaces::IPaymentStream::IPaymentStream;
@@ -255,14 +255,15 @@ pub mod PaymentStream {
         }
 
         fn calculate_stream_rate(
-            self: @ContractState, total_amount: u256, duration: u64,
+            self: @ContractState, total_amount: u256, duration: u64, decimals: u8,
         ) -> UFixedPoint123x128 {
             if duration == 0 {
                 return 0_u64.into();
             }
-            let num: UFixedPoint123x128 = total_amount.into();
+            let num: UFixedPoint123x128 = (total_amount * 10_u256.pow(decimals.into())).into();
             // Convert duration from days to seconds (86400 seconds in a day)
-            let duration_in_seconds: UFixedPoint123x128 = (duration * 86400).into();
+            let seconds_per_day: u64 = 86400;
+            let duration_in_seconds: UFixedPoint123x128 = (duration * seconds_per_day).try_into().unwrap();
             let divisor: UFixedPoint123x128 = duration_in_seconds;
             // Calculate the rate by dividing the total amount by the duration in seconds
             // This gives us the rate of tokens per second for the stream
@@ -350,11 +351,11 @@ pub mod PaymentStream {
             let stream_id = self.next_stream_id.read();
             self.next_stream_id.write(stream_id + 1);
 
-            let rate_per_second = self.calculate_stream_rate(total_amount, duration);
-
             let erc20_dispatcher = IERC20MetadataDispatcher { contract_address: token };
             let token_decimals = erc20_dispatcher.decimals();
             assert(token_decimals <= 18, DECIMALS_TOO_HIGH);
+
+            let rate_per_second = self.calculate_stream_rate(total_amount, duration, token_decimals);
 
             // Create new stream
 
