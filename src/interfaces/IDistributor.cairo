@@ -6,7 +6,7 @@ use crate::base::types::{DistributionHistory, TokenStats, UserStats};
 pub trait IDistributor<TContractState> {
     /// @notice Distributes equal amounts of tokens to multiple recipients
     /// @param amount The total amount to distribute
-    /// @param recipients Array of recipient addresses
+    /// @param recipients Array of recipient addresses to distribute to
     /// @param token The ERC20 token to distribute
     fn distribute(
         ref self: TContractState,

@@ -210,20 +210,20 @@ fn test_zero_total_amount() {
 fn test_successful_create_stream_and_return_correct_rate_per_second() {
     let (token_address, _sender, payment_stream, _erc721) = setup();
     let recipient = contract_address_const::<'recipient'>();
-    let total_amount = 1000_u256;
+    let token_dispatcher = IERC20MetadataDispatcher { contract_address: token_address };
+    let token_decimals = token_dispatcher.decimals();
+    let total_amount = convert_to_decimal(1000_u256, token_decimals);  
     println!("Total amount: {}", total_amount);
     let duration = 10_u64;
     let cancelable = false;
     let transferable = true;
-    let token_dispatcher = IERC20MetadataDispatcher { contract_address: token_address };
-    let token_decimals = token_dispatcher.decimals();
 
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, duration, cancelable, token_address, transferable);
     let stream = payment_stream.get_stream(stream_id);
     let stream_rate_per_second: u256 = stream.rate_per_second.into();
     println!("Rate per second: {}", stream_rate_per_second);
-    let rate_per_second = convert_to_decimal(total_amount, token_decimals) / (duration.into() * 86400);
+    let rate_per_second = total_amount / (duration.into() * 86400);
     assert!(stream_rate_per_second == rate_per_second, "Stream rate per second is invalid");
 }
 
@@ -1367,7 +1367,7 @@ fn test_successful_get_rate_per_second() {
     let duration = 100_u64;
     let cancelable = true;
     let transferable = true;
-    let rate_per_second: UFixedPoint123x128 = 10_u256.into();
+    let rate_per_second: u256 = 10_u256.into();
 
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
@@ -1375,6 +1375,7 @@ fn test_successful_get_rate_per_second() {
     println!("Stream ID: {}", stream_id);
     stop_cheat_caller_address(payment_stream.contract_address);
 
-    let get_rate_per_second = payment_stream.get_rate_per_second(stream_id);
+    let get_rate_per_second: u256 = payment_stream.get_rate_per_second(stream_id).into();
+    println!("Rate per second: {}", get_rate_per_second);
     assert!(get_rate_per_second == rate_per_second, "Stream is not transferable");
 }

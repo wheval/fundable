@@ -30,7 +30,7 @@ mod Distributor {
 
     #[storage]
     struct Storage {
-        balance: u256,
+        balance: u256, // 2 slots
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
         #[substorage(v0)]
@@ -115,6 +115,7 @@ mod Distributor {
             let protocol_fee = (*total_amount * fee_percent) / 10000;
             protocol_fee
         }
+
         fn validate_token(self: @ContractState, token: ContractAddress) {
             assert(!token.is_zero(), INVALID_TOKEN);
             let token_dispatcher = IERC20Dispatcher { contract_address: token };

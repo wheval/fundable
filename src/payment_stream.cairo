@@ -237,6 +237,26 @@ pub mod PaymentStream {
         self.erc721.initializer("PaymentStream", "STREAM", "https://paymentstream.io/");
     }
 
+    /// @notice Calculates the rate of tokens per second for a stream
+    /// @param total_amount The total amount of tokens to be streamed
+    /// @param duration The duration of the stream in days
+    /// @return The rate of tokens per second for the stream
+    fn calculate_stream_rate(total_amount: u256, duration: u64
+    ) -> UFixedPoint123x128 {
+        if duration == 0 {
+            return 0_u64.into();
+        }
+        let num: UFixedPoint123x128 = total_amount.into();
+        // Convert duration from days to seconds (86400 seconds in a day)
+        let seconds_per_day: u64 = 86400;
+        let duration_in_seconds: UFixedPoint123x128 = (duration * seconds_per_day).try_into().unwrap();
+        let divisor: UFixedPoint123x128 = duration_in_seconds;
+        // Calculate the rate by dividing the total amount by the duration in seconds
+        // This gives us the rate of tokens per second for the stream
+        let rate = num / divisor;
+        return rate;
+    }
+
     #[generate_trait]
     impl InternalImpl of InternalTrait {
         fn assert_stream_exists(self: @ContractState, stream_id: u256) {
@@ -249,26 +269,14 @@ pub mod PaymentStream {
             assert(get_caller_address() == stream.sender, WRONG_SENDER);
         }
 
+        fn assert_is_recipient(self: @ContractState, stream_id: u256) {
+            let recipient = self.erc721.owner_of(stream_id);
+            assert(get_caller_address() == recipient, WRONG_RECIPIENT);
+        }
+
         fn assert_is_transferable(self: @ContractState, stream_id: u256) {
             let stream = self.streams.read(stream_id);
             assert(stream.transferable, NON_TRANSFERABLE_STREAM);
-        }
-
-        fn calculate_stream_rate(
-            self: @ContractState, total_amount: u256, duration: u64, decimals: u8,
-        ) -> UFixedPoint123x128 {
-            if duration == 0 {
-                return 0_u64.into();
-            }
-            let num: UFixedPoint123x128 = (total_amount * 10_u256.pow(decimals.into())).into();
-            // Convert duration from days to seconds (86400 seconds in a day)
-            let seconds_per_day: u64 = 86400;
-            let duration_in_seconds: UFixedPoint123x128 = (duration * seconds_per_day).try_into().unwrap();
-            let divisor: UFixedPoint123x128 = duration_in_seconds;
-            // Calculate the rate by dividing the total amount by the duration in seconds
-            // This gives us the rate of tokens per second for the stream
-            let rate = num / divisor;
-            return rate;
         }
 
         /// @notice points basis: 100pbs = 1%
@@ -330,6 +338,38 @@ pub mod PaymentStream {
                     ),
                 );
         }
+
+        fn transfer_stream(
+            ref self: ContractState, stream_id: u256, new_recipient: ContractAddress,
+        ) {
+            // Verify stream exists
+            self.assert_stream_exists(stream_id);
+
+            // Verify the caller is the stream recipient
+            self.assert_is_recipient(stream_id);
+
+            // Verify the stream is transferable
+            self.assert_is_transferable(stream_id);
+
+            // Verify valid new recipient
+            assert(new_recipient.is_non_zero(), INVALID_RECIPIENT);
+
+            // Get current stream details
+            let mut stream = self.streams.read(stream_id);
+
+            // Update recipient
+            stream.recipient = new_recipient;
+
+            // Save updated stream
+            self.streams.write(stream_id, stream);
+
+            // Transfer the NFT to the new recipient
+            let current_owner = self.erc721.owner_of(stream_id);
+            self.erc721.transfer(current_owner, new_recipient, stream_id);
+
+            // Emit event about stream transfer
+            self.emit(StreamTransferred { stream_id, new_recipient });
+        }
     }
 
     #[abi(embed_v0)]
@@ -355,7 +395,7 @@ pub mod PaymentStream {
             let token_decimals = erc20_dispatcher.decimals();
             assert(token_decimals <= 18, DECIMALS_TOO_HIGH);
 
-            let rate_per_second = self.calculate_stream_rate(total_amount, duration, token_decimals);
+            let rate_per_second = calculate_stream_rate(total_amount, duration);
 
             // Create new stream
 
@@ -453,14 +493,15 @@ pub mod PaymentStream {
             // Then pause the stream
             self.pause(stream_id);
         }
+        
         fn transfer_stream(
             ref self: ContractState, stream_id: u256, new_recipient: ContractAddress,
         ) {
             // Verify stream exists
             self.assert_stream_exists(stream_id);
 
-            // Verify the caller is the stream owner (sender)
-            self.assert_is_sender(stream_id);
+            // Verify the caller is the stream recipient
+            self.assert_is_recipient(stream_id);
 
             // Verify the stream is transferable
             self.assert_is_transferable(stream_id);
@@ -476,6 +517,10 @@ pub mod PaymentStream {
 
             // Save updated stream
             self.streams.write(stream_id, stream);
+
+            // Transfer the NFT to the new recipient
+            let current_owner = self.erc721.owner_of(stream_id);
+            self.erc721.transfer(current_owner, new_recipient, stream_id);
 
             // Emit event about stream transfer
             self.emit(StreamTransferred { stream_id, new_recipient });
@@ -879,21 +924,6 @@ pub mod PaymentStream {
         }
 
         fn get_stream(self: @ContractState, stream_id: u256) -> Stream {
-            // Return dummy stream
-            // Stream {
-            //     sender: starknet::contract_address_const::<0>(),
-            //     recipient: starknet::contract_address_const::<0>(),
-            //     token: starknet::contract_address_const::<0>(),
-            //     total_amount: 0_u256,
-            //     start_time: 0_u64,
-            //     end_time: 0_u64,
-            //     withdrawn_amount: 0_u256,
-            //     cancelable: false,
-            //     status: StreamStatus::Active,
-            //     rate_per_second: 0,
-            //     last_update_time: 0,
-            // }
-
             self.streams.read(stream_id)
         }
 
