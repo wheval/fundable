@@ -195,6 +195,8 @@ pub mod PaymentStream {
         stream_id: u256,
         new_recipient: ContractAddress,
     }
+
+    #[derive(Drop, starknet::Event)]
     struct ProtocolFeeSet {
         #[key]
         token: ContractAddress,
