@@ -592,7 +592,10 @@ pub mod PaymentStream {
             self
                 .emit(
                     StreamWithdrawn {
-                        stream_id, recipient: to, amount: net_amount, protocol_fee: fee.try_into().unwrap(),
+                        stream_id,
+                        recipient: to,
+                        amount: net_amount,
+                        protocol_fee: fee.try_into().unwrap(),
                     },
                 );
 
@@ -628,7 +631,10 @@ pub mod PaymentStream {
             self
                 .emit(
                     StreamWithdrawn {
-                        stream_id, recipient: to, amount: net_amount, protocol_fee: fee.try_into().unwrap(),
+                        stream_id,
+                        recipient: to,
+                        amount: net_amount,
+                        protocol_fee: fee.try_into().unwrap(),
                     },
                 );
 
