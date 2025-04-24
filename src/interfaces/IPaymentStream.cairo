@@ -195,7 +195,7 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Checks if the stream is transferable
     /// @param stream_id The ID of the stream to check
     /// @return Boolean indicating if the stream is transferable
-    fn is_transferable(self: @TContractState, stream_id: u256) -> bool;
+    /// fn is_transferable(self: @TContractState, stream_id: u256) -> bool;
     /// @notice Gets the protocol fee of the token
     /// @param token The ContractAddress of the token
     /// @return u256 The fee of the token
