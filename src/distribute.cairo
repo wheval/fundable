@@ -150,9 +150,11 @@ mod Distributor {
             assert(allowance >= total_amount, INSUFFICIENT_ALLOWANCE);
 
             // transfer protocol fee
-            let protocol_address = self.protocol_fee_address.read();
-            assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
-            token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
+            if protocol_fee > 0 {
+                let protocol_address = self.protocol_fee_address.read();
+                assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
+                token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
+            }
 
             // Perform distribution
             let recipients_list = recipients.span();
@@ -224,9 +226,11 @@ mod Distributor {
             assert(allowance >= total_amount, INSUFFICIENT_ALLOWANCE);
 
             // transfer protocol fee
-            let protocol_address = self.protocol_fee_address.read();
-            assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
-            token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
+            if protocol_fee > 0 {
+                let protocol_address = self.protocol_fee_address.read();
+                assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
+                token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
+            }
 
             // Transfer tokens from sender to recipients
             i = 0;

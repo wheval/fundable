@@ -1,14 +1,15 @@
-use core::traits::Into;
-use core::traits::TryInto;
 use core::num::traits::Pow;
+use core::traits::{Into, TryInto};
 use fp::UFixedPoint123x128;
 use fundable::base::types::{Stream, StreamStatus};
 use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
 use openzeppelin::access::accesscontrol::interface::{
     IAccessControlDispatcher, IAccessControlDispatcherTrait,
 };
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
-    IERC20MetadataDispatcherTrait};
+use openzeppelin::token::erc20::interface::{
+    IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
+    IERC20MetadataDispatcherTrait,
+};
 use openzeppelin::token::erc721::interface::{
     IERC721Dispatcher, IERC721DispatcherTrait, IERC721MetadataDispatcher,
     IERC721MetadataDispatcherTrait,
@@ -212,7 +213,7 @@ fn test_successful_create_stream_and_return_correct_rate_per_second() {
     let recipient = contract_address_const::<'recipient'>();
     let token_dispatcher = IERC20MetadataDispatcher { contract_address: token_address };
     let token_decimals = token_dispatcher.decimals();
-    let total_amount = convert_to_decimal(1000_u256, token_decimals);  
+    let total_amount = convert_to_decimal(1000_u256, token_decimals);
     println!("Total amount: {}", total_amount);
     let duration = 10_u64;
     let cancelable = false;
