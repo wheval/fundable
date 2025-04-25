@@ -536,14 +536,6 @@ pub mod PaymentStream {
             self.emit(StreamTransferabilitySet { stream_id, transferable });
         }
 
-        fn is_transferable(self: @ContractState, stream_id: u256) -> bool {
-            // Get stream details
-            let stream = self.streams.read(stream_id);
-
-            // Return transferability status
-            stream.transferable
-        }
-
         fn withdraw(
             ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
         ) -> (u128, u128) {
