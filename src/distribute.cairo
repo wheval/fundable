@@ -30,7 +30,7 @@ mod Distributor {
 
     #[storage]
     struct Storage {
-        balance: u256,
+        balance: u256, // 2 slots
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
         #[substorage(v0)]
@@ -115,6 +115,7 @@ mod Distributor {
             let protocol_fee = (*total_amount * fee_percent) / 10000;
             protocol_fee
         }
+
         fn validate_token(self: @ContractState, token: ContractAddress) {
             assert(!token.is_zero(), INVALID_TOKEN);
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
@@ -149,9 +150,11 @@ mod Distributor {
             assert(allowance >= total_amount, INSUFFICIENT_ALLOWANCE);
 
             // transfer protocol fee
-            let protocol_address = self.protocol_fee_address.read();
-            assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
-            token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
+            if protocol_fee > 0 {
+                let protocol_address = self.protocol_fee_address.read();
+                assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
+                token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
+            }
 
             // Perform distribution
             let recipients_list = recipients.span();
@@ -223,9 +226,11 @@ mod Distributor {
             assert(allowance >= total_amount, INSUFFICIENT_ALLOWANCE);
 
             // transfer protocol fee
-            let protocol_address = self.protocol_fee_address.read();
-            assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
-            token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
+            if protocol_fee > 0 {
+                let protocol_address = self.protocol_fee_address.read();
+                assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
+                token_dispatcher.transfer_from(caller, protocol_address, protocol_fee);
+            }
 
             // Transfer tokens from sender to recipients
             i = 0;
