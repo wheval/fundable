@@ -14,7 +14,7 @@ pub mod CampaignDonation {
     use starknet::{
         ClassHash, ContractAddress, get_block_timestamp, get_caller_address, get_contract_address,
     };
-    use crate::base::errors::Errors::ZERO_AMOUNT;
+    use crate::base::errors::Errors::{CAMPAIGN_REF_EMPTY, CAMPAIGN_REF_EXISTS, ZERO_AMOUNT};
     use crate::base::types::{Campaigns, Donations};
 
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
@@ -39,7 +39,9 @@ pub mod CampaignDonation {
         >, // map(<donor_address, campaign_id>, Donation)
         cmapaign_withdrawal: Map<
             (ContractAddress, u256), CampaignWithdrawal,
-        > // map<(campaign_owner, campaign_id), CampaignWithdrawal>
+        >, // map<(campaign_owner, campaign_id), CampaignWithdrawal>
+        // Track existing campaign refs
+        campaign_refs: Map<felt252, bool> // All campaign ref to use for is_campaign_ref_exists
     }
 
 
@@ -107,6 +109,8 @@ pub mod CampaignDonation {
         fn create_campaign(
             ref self: ContractState, campaign_ref: felt252, target_amount: u256, asset: felt252,
         ) -> u256 {
+            assert(campaign_ref != '', CAMPAIGN_REF_EMPTY);
+            assert(!self.campaign_refs.read(campaign_ref), CAMPAIGN_REF_EXISTS);
             assert(target_amount > 0, ZERO_AMOUNT);
             let campaign_id: u256 = self.campaign_counts.read() + 1;
             let caller = get_caller_address();
@@ -125,6 +129,7 @@ pub mod CampaignDonation {
 
             self.campaigns.write(campaign_id, campaign);
             self.campaign_counts.write(campaign_id);
+            self.campaign_refs.write(campaign_ref, true);
 
             self
                 .emit(

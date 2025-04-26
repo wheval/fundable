@@ -41,7 +41,6 @@ fn setup() -> (ContractAddress, ContractAddress, ICampaignDonationDispatcher, IE
     )
 }
 
-
 #[test]
 fn test_successful_create_campaign() {
     let (_token_address, _sender, campaign_donation, _erc721) = setup();
@@ -74,6 +73,33 @@ fn test_create_campaign_invalid_zero_amount() {
     let target_amount = 0_u256;
     let asset = 'Test';
     let campaign_ref = 'Test';
+    let owner = contract_address_const::<'owner'>();
+    start_cheat_caller_address(campaign_donation.contract_address, owner);
+    campaign_donation.create_campaign(campaign_ref, target_amount, asset);
+    stop_cheat_caller_address(campaign_donation.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Error: Campaign Ref Exists')]
+fn test_create_campaign_duplicate_campaign_refs() {
+    let (_token_address, _sender, campaign_donation, _erc721) = setup();
+    let target_amount = 50_u256;
+    let asset = 'Test';
+    let campaign_ref = 'Test';
+    let owner = contract_address_const::<'owner'>();
+    start_cheat_caller_address(campaign_donation.contract_address, owner);
+    campaign_donation.create_campaign(campaign_ref, target_amount, asset);
+    campaign_donation.create_campaign(campaign_ref, target_amount, asset);
+    stop_cheat_caller_address(campaign_donation.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Error: Campaign Ref Is Required')]
+fn test_create_campaign_empty_campaign_refs() {
+    let (_token_address, _sender, campaign_donation, _erc721) = setup();
+    let target_amount = 100_u256;
+    let asset = 'Test';
+    let campaign_ref = '';
     let owner = contract_address_const::<'owner'>();
     start_cheat_caller_address(campaign_donation.contract_address, owner);
     campaign_donation.create_campaign(campaign_ref, target_amount, asset);
