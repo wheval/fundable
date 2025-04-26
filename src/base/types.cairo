@@ -8,8 +8,7 @@ pub struct Stream {
     pub recipient: ContractAddress,
     pub total_amount: u256,
     pub withdrawn_amount: u256,
-    pub start_time: u64,
-    pub end_time: u64,
+    pub duration: u64,
     pub cancelable: bool,
     pub token: ContractAddress,
     pub token_decimals: u8,
@@ -96,7 +95,7 @@ pub struct StreamMetrics {
 #[derive(Drop, Serde, starknet::Store)]
 pub struct ProtocolMetrics {
     pub total_active_streams: u256,
-    pub total_tokens_distributed: u256,
+    pub total_tokens_to_stream: u256,
     pub total_streams_created: u256,
     pub total_delegations: u64,
 }

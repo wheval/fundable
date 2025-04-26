@@ -3,6 +3,9 @@ pub mod Errors {
     /// Thrown when attempting to create a stream or distribution with an empty recipients array
     pub const EMPTY_RECIPIENTS: felt252 = 'Error: Recipients array empty.';
 
+    /// Thrown when amount is not enough
+    pub const INSUFFICIENT_AMOUNT: felt252 = 'Error: Insufficient amount.';
+
     /// Thrown when the provided recipient address is invalid (e.g. zero address)
     pub const INVALID_RECIPIENT: felt252 = 'Error: Invalid recipient.';
 

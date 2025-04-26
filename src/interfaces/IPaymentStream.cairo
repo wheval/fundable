@@ -19,8 +19,7 @@ pub trait IPaymentStream<TContractState> {
         ref self: TContractState,
         recipient: ContractAddress,
         total_amount: u256,
-        start_time: u64,
-        end_time: u64,
+        duration: u64,
         cancelable: bool,
         token: ContractAddress,
         transferable: bool,
@@ -232,12 +231,6 @@ pub trait IPaymentStream<TContractState> {
     /// @return Boolean indicating if the stream is voided or not
     fn is_voided(self: @TContractState, stream_id: u256) -> bool;
 
-    /// @notice Check if a stream is transferable
-    /// @param stream_id The ID of the stream
-    /// @return Boolean indicating if the stream is transferable
-    fn is_transferable(self: @TContractState, stream_id: u256) -> bool;
-
-
     /// @notice gets sender of the stream
     /// @param stream_id The ID of the stream
     /// @return contract address of the sender
@@ -274,8 +267,7 @@ pub trait IPaymentStream<TContractState> {
         ref self: TContractState,
         recipient: ContractAddress,
         total_amount: u256,
-        start_time: u64,
-        end_time: u64,
+        duration: u64,
         cancelable: bool,
         token: ContractAddress,
         transferable: bool,
