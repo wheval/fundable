@@ -50,5 +50,11 @@ pub mod Errors {
 
     /// Thrown when wrong recipient or delegate
     pub const WRONG_RECIPIENT_OR_DELEGATE: felt252 = 'WRONG_RECIPIENT_OR_DELEGATE';
+
+    /// Thrown when campaign ref exists
+    pub const CAMPAIGN_REF_EXISTS: felt252 = 'Error: Campaign Ref Exists';
+
+    /// Thrown when campaign ref is emptu
+    pub const CAMPAIGN_REF_EMPTY: felt252 = 'Error: Campaign Ref Is Required';
 }
 
