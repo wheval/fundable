@@ -9,8 +9,8 @@ pub mod CampaignDonation {
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
     use starknet::storage::{
-        Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess,
-        StoragePointerWriteAccess,
+        Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePathEntry,
+        StoragePointerReadAccess, StoragePointerWriteAccess,
     };
     use starknet::{
         ClassHash, ContractAddress, get_block_timestamp, get_caller_address, get_contract_address,
@@ -39,8 +39,10 @@ pub mod CampaignDonation {
         //     (ContractAddress, u256), Donation,
         // >,
         // map(<donor_address, campaign_id>, Donation)
-        donations: Map<(u256, u256), Donations>,
+        // donations: Map<(u256, u256), Donations>,
+        donations: Map<u256, Map<u256, Donations>>,
         donation_counts: Map<u256, u256>,
+        donation_count: u256,
         // cmapaign_withdrawal: Map<
         //     (ContractAddress, u256), CampaignWithdrawal,
         // >, // map<(campaign_owner, campaign_id), CampaignWithdrawal>
@@ -154,13 +156,15 @@ pub mod CampaignDonation {
 
         fn donate_to_campaign(
             ref self: ContractState, campaign_id: u256, amount: u256, token: ContractAddress,
-        ) {
+        ) -> u256 {
             assert(amount > 0, 'Cannot donate nothing');
             let donor = get_caller_address();
             let mut campaign = self.get_campaign(campaign_id);
             let contract_address = get_contract_address();
             let timestamp = get_block_timestamp();
-            let asset = campaign.asset.into();
+            let asset = campaign.asset;
+            // Fetch current count and write to (campaign_id, index)
+            let donation_id = self.donation_count.read() + 1;
 
             // Ensure the campaign is still accepting donations
             assert(!campaign.is_goal_reached, 'Target Reached');
@@ -183,20 +187,25 @@ pub mod CampaignDonation {
             self.campaigns.write(campaign_id, campaign);
 
             // Create donation record
-            let donation = Donations { donor, campaign_id, amount, asset };
+            let donation = Donations { donation_id, donor, campaign_id, amount, asset };
 
-            // Fetch current count and write to (campaign_id, index)
-            let count = self.donation_counts.read(campaign_id);
-            self.donations.write((campaign_id, count), donation);
-            self.donation_counts.write(campaign_id, count + 1);
+            self.donations.entry(campaign_id).entry(donation_id).write(donation);
+
+            self.donation_count.write(donation_id);
 
             // Emit donation event
             self.emit(Event::Donation(Donation { donor, campaign_id, amount, timestamp }));
+
+            donation_id
         }
 
 
         fn withdraw_from_campaign(ref self: ContractState, campaign_id: u256) {}
 
+        fn get_donation(self: @ContractState, camapign_id: u256, donation_id: u256) -> Donations {
+            let donations: Donations = self.donations.entry(camapign_id).entry(donation_id).read();
+            donations
+        }
         fn get_campaigns(self: @ContractState) -> Array<Campaigns> {
             let campaigns = self._get_campaigns();
             campaigns
