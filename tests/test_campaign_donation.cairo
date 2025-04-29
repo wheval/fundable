@@ -256,7 +256,7 @@ fn test_successful_multiple_users_donating_to_a_campaign() {
     let other_user_balance_after = token_dispatcher.balance_of(another_user);
     let contract_balance_after = token_dispatcher.balance_of(campaign_donation.contract_address);
     assert((contract_balance_before == 0) && (contract_balance_after == 800), 'transfer failed');
-    // assert(other_user_balance_after == other_user_balance_before - 300, ' USR transfer failed');
+    assert(other_user_balance_after == other_user_balance_before - 300, ' USR transfer failed');
 }
 #[test]
 fn test_target_met_successful() {

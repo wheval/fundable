@@ -193,6 +193,10 @@ pub mod CampaignDonation {
 
             self.donation_count.write(donation_id);
 
+             // Update the per-campaign donation count
+         let campaign_donation_count = self.donation_counts.read(campaign_id);
+          self.donation_counts.write(campaign_id, campaign_donation_count + 1);
+
             // Emit donation event
             self.emit(Event::Donation(Donation { donor, campaign_id, amount, timestamp }));
 
@@ -202,8 +206,8 @@ pub mod CampaignDonation {
 
         fn withdraw_from_campaign(ref self: ContractState, campaign_id: u256) {}
 
-        fn get_donation(self: @ContractState, camapign_id: u256, donation_id: u256) -> Donations {
-            let donations: Donations = self.donations.entry(camapign_id).entry(donation_id).read();
+        fn get_donation(self: @ContractState, campaign_id: u256, donation_id: u256) -> Donations {
+            let donations: Donations = self.donations.entry(campaign_id).entry(donation_id).read();
             donations
         }
         fn get_campaigns(self: @ContractState) -> Array<Campaigns> {
