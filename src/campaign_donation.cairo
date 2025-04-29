@@ -193,9 +193,9 @@ pub mod CampaignDonation {
 
             self.donation_count.write(donation_id);
 
-             // Update the per-campaign donation count
-         let campaign_donation_count = self.donation_counts.read(campaign_id);
-          self.donation_counts.write(campaign_id, campaign_donation_count + 1);
+            // Update the per-campaign donation count
+            let campaign_donation_count = self.donation_counts.read(campaign_id);
+            self.donation_counts.write(campaign_id, campaign_donation_count + 1);
 
             // Emit donation event
             self.emit(Event::Donation(Donation { donor, campaign_id, amount, timestamp }));
