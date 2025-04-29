@@ -2,8 +2,10 @@
 use starknet::ContractAddress;
 
 #[starknet::interface]
-trait IExternal<ContractState> {
+pub trait IExternal<ContractState> {
     fn mint(ref self: ContractState, recipient: ContractAddress, amount: u256);
+    fn approvee(ref self: ContractState, recipient: ContractAddress, amount: u256);
+    fn bal(ref self: ContractState, recipient: ContractAddress) -> u256;
 }
 #[starknet::contract]
 pub mod MockUsdc {
@@ -71,6 +73,13 @@ pub mod MockUsdc {
     impl ExternalImpl of super::IExternal<ContractState> {
         fn mint(ref self: ContractState, recipient: ContractAddress, amount: u256) {
             self.erc20.mint(recipient, amount);
+        }
+
+        fn approvee(ref self: ContractState, recipient: ContractAddress, amount: u256) {
+            self.erc20.approve(recipient, amount);
+        }
+        fn bal(ref self: ContractState, recipient: ContractAddress) -> u256 {
+            self.erc20.balance_of(recipient)
         }
     }
 }

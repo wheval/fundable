@@ -5,6 +5,7 @@ use fundable::campaign_donation::CampaignDonation;
 use fundable::interfaces::ICampaignDonation::{
     ICampaignDonationDispatcher, ICampaignDonationDispatcherTrait,
 };
+use fundable::usdc::{IExternalDispatcher, IExternalDispatcherTrait};
 use openzeppelin::access::accesscontrol::interface::{
     IAccessControlDispatcher, IAccessControlDispatcherTrait,
 };
@@ -40,6 +41,7 @@ fn setup() -> (ContractAddress, ContractAddress, ICampaignDonationDispatcher, IE
         IERC721Dispatcher { contract_address: campaign_donation_address },
     )
 }
+
 
 #[test]
 fn test_successful_create_campaign() {
@@ -104,4 +106,44 @@ fn test_create_campaign_empty_campaign_refs() {
     start_cheat_caller_address(campaign_donation.contract_address, owner);
     campaign_donation.create_campaign(campaign_ref, target_amount, asset);
     stop_cheat_caller_address(campaign_donation.contract_address);
+}
+#[test]
+fn test_successful_campaign_donation() {
+    let (token_address, _sender, campaign_donation, _erc721) = setup();
+    let target_amount = 1000_u256;
+    let asset = 'Test';
+    let campaign_ref = 'Test';
+    let owner = contract_address_const::<'owner'>();
+
+    start_cheat_caller_address(campaign_donation.contract_address, owner);
+    let campaign_id = campaign_donation.create_campaign(campaign_ref, target_amount, asset);
+    stop_cheat_caller_address(campaign_donation.contract_address);
+
+
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+        let sender_initial_balance = token_dispatcher.balance_of(owner);
+        println!("Initial balance of sender: {}", sender_initial_balance);
+    // This is the first Campaign Created, so it will be 1.
+    assert!(campaign_id == 1_u256, "Campaign creation failed");
+
+    // let token_dispatcher = IExternalDispatcher { contract_address: token_address };
+
+    // start_cheat_caller_address(token_address, owner);
+    // // // Make sure approve_user sets the allowance mapping for (owner, contract_address) to
+    // 10000.
+    // token_dispatcher.mint(owner, 500);
+    // // token_dispatcher.approvee(token_address, 500);
+    // let balance = token_dispatcher.bal(owner);
+    println!("balance: {}", sender_initial_balance);
+
+    stop_cheat_caller_address(token_address);
+    // let campaign = campaign_donation.get_campaign(campaign_id);
+// assert(campaign.campaign_id == campaign_id, 'Campaign ID mismatch');
+// assert(campaign.owner == owner, 'Owner mismatch');
+// assert(campaign.target_amount == target_amount, 'Target amount mismatch');
+// assert(campaign.current_amount == 0.into(), 'Current amount should be 0');
+// assert(campaign.asset == asset, 'Asset mismatch');
+// assert(campaign.campaign_reference == campaign_ref, 'Reference mismatch');
+// assert(!campaign.is_closed, 'Campaign should not be closed');
+// assert(!campaign.is_goal_reached, 'Goal should not be reached');
 }

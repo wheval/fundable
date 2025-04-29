@@ -15,7 +15,9 @@ pub trait ICampaignDonation<TContractState> {
     ) -> u256;
 
 
-    fn donate_to_campaign(ref self: TContractState, campaign_id: u256, amount: u256);
+    fn donate_to_campaign(
+        ref self: TContractState, campaign_id: u256, amount: u256, token: ContractAddress,
+    );
 
     fn withdraw_from_campaign(ref self: TContractState, campaign_id: u256);
 

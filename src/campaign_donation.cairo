@@ -5,6 +5,7 @@ pub mod CampaignDonation {
     use core::traits::Into;
     use fundable::interfaces::ICampaignDonation::ICampaignDonation;
     use openzeppelin::access::ownable::OwnableComponent;
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
     use starknet::storage::{
@@ -34,12 +35,15 @@ pub mod CampaignDonation {
         upgradeable: UpgradeableComponent::Storage,
         campaign_counts: u256,
         campaigns: Map<u256, Campaigns>, // (campaign_id, Campaigns)
-        campaign_donation: Map<
-            (ContractAddress, u256), Donation,
-        >, // map(<donor_address, campaign_id>, Donation)
-        cmapaign_withdrawal: Map<
-            (ContractAddress, u256), CampaignWithdrawal,
-        >, // map<(campaign_owner, campaign_id), CampaignWithdrawal>
+        // campaign_donation: Map<
+        //     (ContractAddress, u256), Donation,
+        // >,
+        // map(<donor_address, campaign_id>, Donation)
+        donations: Map<(u256, u256), Donations>,
+        donation_counts: Map<u256, u256>,
+        // cmapaign_withdrawal: Map<
+        //     (ContractAddress, u256), CampaignWithdrawal,
+        // >, // map<(campaign_owner, campaign_id), CampaignWithdrawal>
         // Track existing campaign refs
         campaign_refs: Map<felt252, bool> // All campaign ref to use for is_campaign_ref_exists
     }
@@ -148,7 +152,48 @@ pub mod CampaignDonation {
             campaign_id
         }
 
-        fn donate_to_campaign(ref self: ContractState, campaign_id: u256, amount: u256) {}
+        fn donate_to_campaign(
+            ref self: ContractState, campaign_id: u256, amount: u256, token: ContractAddress,
+        ) {
+            assert(amount > 0, 'Cannot donate nothing');
+            let donor = get_caller_address();
+            let mut campaign = self.get_campaign(campaign_id);
+            let contract_address = get_contract_address();
+            let timestamp = get_block_timestamp();
+            let asset = campaign.asset.into();
+
+            // Ensure the campaign is still accepting donations
+            assert(!campaign.is_goal_reached, 'Target Reached');
+
+            // Prepare the ERC20 interface
+            let token_dispatcher = IERC20Dispatcher { contract_address: token };
+
+            // Transfer funds to contract — requires prior approval
+            token_dispatcher.transfer_from(donor, contract_address, amount);
+
+            // Update campaign amount
+            campaign.current_amount += amount;
+
+            // If goal reached, mark as closed
+            if (campaign.current_amount >= campaign.target_amount) {
+                campaign.is_goal_reached = true;
+                campaign.is_closed = true;
+            }
+
+            self.campaigns.write(campaign_id, campaign);
+
+            // Create donation record
+            let donation = Donations { donor, campaign_id, amount, asset };
+
+            // Fetch current count and write to (campaign_id, index)
+            let count = self.donation_counts.read(campaign_id);
+            self.donations.write((campaign_id, count), donation);
+            self.donation_counts.write(campaign_id, count + 1);
+
+            // Emit donation event
+            self.emit(Event::Donation(Donation { donor, campaign_id, amount, timestamp }));
+        }
+
 
         fn withdraw_from_campaign(ref self: ContractState, campaign_id: u256) {}
 
