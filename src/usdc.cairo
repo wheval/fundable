@@ -2,7 +2,7 @@
 use starknet::ContractAddress;
 
 #[starknet::interface]
-trait IExternal<ContractState> {
+pub trait IExternal<ContractState> {
     fn mint(ref self: ContractState, recipient: ContractAddress, amount: u256);
 }
 #[starknet::contract]

@@ -114,10 +114,11 @@ pub struct Campaigns {
 
 #[derive(Drop, Serde, starknet::Store)]
 pub struct Donations {
+    pub donation_id: u256,
     pub donor: ContractAddress,
     pub campaign_id: u256,
     pub amount: u256,
-    pub asset: u256,
+    pub asset: felt252,
 }
 
 #[derive(Drop, Serde, starknet::Store)]
