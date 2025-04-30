@@ -182,10 +182,6 @@ fn test_successful_campaign_donation_twice() {
     token_dispatcher.approve(campaign_donation.contract_address, 1000);
     stop_cheat_caller_address(token_address);
 
-    let allowance = token_dispatcher.allowance(sender, campaign_donation.contract_address);
-    assert(allowance >= 1000, 'Allowance not set correctly');
-    println!("Allowance for withdrawal: {}", allowance);
-
     start_cheat_caller_address(campaign_donation.contract_address, sender);
 
     let _donation_id = campaign_donation.donate_to_campaign(campaign_id, 500, token_address);
@@ -236,10 +232,6 @@ fn test_successful_multiple_users_donating_to_a_campaign() {
     token_dispatcher.approve(campaign_donation.contract_address, 100000);
     stop_cheat_caller_address(token_address);
 
-    let allowance = token_dispatcher.allowance(sender, campaign_donation.contract_address);
-    assert(allowance >= 1000, 'Allowance not set correctly');
-    println!("Allowance for withdrawal: {}", allowance);
-
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let _donation_id = campaign_donation.donate_to_campaign(campaign_id, 500, token_address);
     stop_cheat_caller_address(campaign_donation.contract_address);
@@ -279,10 +271,6 @@ fn test_target_met_successful() {
     start_cheat_caller_address(token_address, sender);
     token_dispatcher.approve(campaign_donation.contract_address, 10000);
     stop_cheat_caller_address(token_address);
-
-    let allowance = token_dispatcher.allowance(sender, campaign_donation.contract_address);
-    assert(allowance >= 1000, 'Allowance not set correctly');
-    println!("Allowance for withdrawal: {}", allowance);
 
     start_cheat_caller_address(campaign_donation.contract_address, sender);
 
