@@ -225,16 +225,37 @@ pub mod CampaignDonation {
             
             campaigns
         }
-        
-        fn get_campagin_donations(self: @ContractState, campaign_id: u256) -> Array<Donations> {
+
+        fn get_campagin_donations(self: @ContractState, camapign_id: u256) -> Array<Donations> {
             let mut donations = ArrayTrait::new();
-            let donation_count = self.donation_counts.read(campaign_id);
-        
-            let mut i: u256 = 1;
-            while i <= donation_count {
-                let donation = self.donations.entry(campaign_id).entry(i).read();
-                donations.append(donation);
-                i += 1;
+            
+            // Get the total number of donations expected for this campaign
+            let campaign_donation_count = self.donation_counts.read(camapign_id);
+            
+            // Early return if no donations exist
+            if campaign_donation_count == 0 {
+                return donations;
+            }
+            
+            // Get the maximum global donation ID
+            let max_donation_id = self.donation_count.read();
+            
+            // Track found donations
+            let mut found_count: u256 = 0;
+            
+            // Check each possible donation ID
+            let mut id: u256 = 1;
+            while id <= max_donation_id && found_count < campaign_donation_count {
+                // Try to read the donation
+                let donation = self.donations.entry(camapign_id).entry(id).read();
+                
+                // Only add valid donations for this campaign
+                if donation.campaign_id == camapign_id && donation.donation_id == id {
+                    donations.append(donation);
+                    found_count += 1;
+                }
+                
+                id += 1;
             }
             
             donations
