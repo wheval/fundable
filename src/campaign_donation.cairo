@@ -210,31 +210,60 @@ pub mod CampaignDonation {
             let donations: Donations = self.donations.entry(campaign_id).entry(donation_id).read();
             donations
         }
+
         fn get_campaigns(self: @ContractState) -> Array<Campaigns> {
-            let campaigns = self._get_campaigns();
+            let mut campaigns = ArrayTrait::new();
+            let campaigns_count = self.campaign_counts.read();
+
+            // Iterate through all campaign IDs (1 to campaigns_count)
+            let mut i: u256 = 1;
+            while i <= campaigns_count {
+                let campaign = self.campaigns.read(i);
+                campaigns.append(campaign);
+                i += 1;
+            }
+
             campaigns
+        }
+
+        fn get_campagin_donations(self: @ContractState, camapign_id: u256) -> Array<Donations> {
+            let mut donations = ArrayTrait::new();
+
+            // Get the total number of donations expected for this campaign
+            let campaign_donation_count = self.donation_counts.read(camapign_id);
+
+            // Early return if no donations exist
+            if campaign_donation_count == 0 {
+                return donations;
+            }
+
+            // Get the maximum global donation ID
+            let max_donation_id = self.donation_count.read();
+
+            // Track found donations
+            let mut found_count: u256 = 0;
+
+            // Check each possible donation ID
+            let mut id: u256 = 1;
+            while id <= max_donation_id && found_count < campaign_donation_count {
+                // Try to read the donation
+                let donation = self.donations.entry(camapign_id).entry(id).read();
+
+                // Only add valid donations for this campaign
+                if donation.campaign_id == camapign_id && donation.donation_id == id {
+                    donations.append(donation);
+                    found_count += 1;
+                }
+
+                id += 1;
+            }
+
+            donations
         }
 
         fn get_campaign(self: @ContractState, camapign_id: u256) -> Campaigns {
             let campaign: Campaigns = self.campaigns.read(camapign_id);
             campaign
-        }
-
-        fn get_campagin_donations(self: @ContractState, camapign_id: u256) -> Array<Donations> {
-            let campaign_donations = self._get_campaign_donations();
-            campaign_donations
-        }
-    }
-
-    #[generate_trait]
-    impl InternalFunctions of InternalFunctionsTrait {
-        fn _get_campaigns(self: @ContractState) -> Array<Campaigns> {
-            let mut campaigns = ArrayTrait::new();
-            campaigns
-        }
-        fn _get_campaign_donations(self: @ContractState) -> Array<Donations> {
-            let mut donations = ArrayTrait::new();
-            donations
         }
     }
 }
