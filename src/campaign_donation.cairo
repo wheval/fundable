@@ -210,31 +210,39 @@ pub mod CampaignDonation {
             let donations: Donations = self.donations.entry(campaign_id).entry(donation_id).read();
             donations
         }
+
         fn get_campaigns(self: @ContractState) -> Array<Campaigns> {
-            let campaigns = self._get_campaigns();
+            let mut campaigns = ArrayTrait::new();
+            let campaigns_count = self.campaign_counts.read();
+            
+            // Iterate through all campaign IDs (1 to campaigns_count)
+            let mut i: u256 = 1;
+            while i <= campaigns_count {
+                let campaign = self.campaigns.read(i);
+                campaigns.append(campaign);
+                i += 1;
+            }
+            
             campaigns
+        }
+        
+        fn get_campagin_donations(self: @ContractState, campaign_id: u256) -> Array<Donations> {
+            let mut donations = ArrayTrait::new();
+            let donation_count = self.donation_counts.read(campaign_id);
+        
+            let mut i: u256 = 1;
+            while i <= donation_count {
+                let donation = self.donations.entry(campaign_id).entry(i).read();
+                donations.append(donation);
+                i += 1;
+            }
+            
+            donations
         }
 
         fn get_campaign(self: @ContractState, camapign_id: u256) -> Campaigns {
             let campaign: Campaigns = self.campaigns.read(camapign_id);
             campaign
-        }
-
-        fn get_campagin_donations(self: @ContractState, camapign_id: u256) -> Array<Donations> {
-            let campaign_donations = self._get_campaign_donations();
-            campaign_donations
-        }
-    }
-
-    #[generate_trait]
-    impl InternalFunctions of InternalFunctionsTrait {
-        fn _get_campaigns(self: @ContractState) -> Array<Campaigns> {
-            let mut campaigns = ArrayTrait::new();
-            campaigns
-        }
-        fn _get_campaign_donations(self: @ContractState) -> Array<Donations> {
-            let mut donations = ArrayTrait::new();
-            donations
         }
     }
 }
