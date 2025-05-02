@@ -660,8 +660,9 @@ fn test_aggregate_balance_tracking() {
     stop_cheat_caller_address(payment_stream.contract_address);
 
     // Check balance after withdrawal
+    let balance_removed = withdrawn + fee;
     let balance_after_withdrawal = payment_stream.aggregate_balance(token_address);
-    assert(balance_after_withdrawal == total_amount - withdrawn.into(), 'Decrease after withdrawal');
+    assert(balance_after_withdrawal == total_amount - balance_removed.into(), 'Decrease after withdrawal');
     stop_cheat_block_timestamp(payment_stream.contract_address);
 }
 
