@@ -41,7 +41,6 @@ pub mod Errors {
     /// Thrown when a too low duration is provided.
     pub const TOO_SHORT_DURATION: felt252 = 'Error: Duration is too short';
 
-
     /// Thrown when token decimals > 18
     pub const DECIMALS_TOO_HIGH: felt252 = 'Error: Decimals too high.';
 
@@ -50,5 +49,32 @@ pub mod Errors {
 
     /// Thrown when wrong recipient or delegate
     pub const WRONG_RECIPIENT_OR_DELEGATE: felt252 = 'WRONG_RECIPIENT_OR_DELEGATE';
+
+    /// Thrown when stream is not active
+    pub const STREAM_NOT_ACTIVE: felt252 = 'Stream is not active';
+
+    /// Thrown when stream is voided
+    pub const STREAM_VOIDED: felt252 = 'Stream is voided';
+
+    /// Thrown when stream is canceled
+    pub const STREAM_CANCELED: felt252 = 'Stream is canceled';
+
+    /// Thrown when fee is too high
+    pub const FEE_TOO_HIGH: felt252 = 'fee too high';
+
+    /// Thrown when fee percentage is invalid
+    pub const INVALID_FEE_PERCENTAGE: felt252 = 'invalid fee percentage';
+
+    /// Thrown when collector address is the same
+    pub const SAME_COLLECTOR_ADDRESS: felt252 = 'same collector address';
+
+    /// Thrown when current owner is the same as new owner
+    pub const SAME_OWNER: felt252 = 'current owner == new_owner';
+
+    /// Thrown when only NFT owner can delegate
+    pub const ONLY_NFT_OWNER_CAN_DELEGATE: felt252 = 'Only the NFT owner can delegate';
+
+    /// Thrown when stream already has a delegate
+    pub const STREAM_HAS_DELEGATE: felt252 = 'Stream already has a delegate';
 }
 
