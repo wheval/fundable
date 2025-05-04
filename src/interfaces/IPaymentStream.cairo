@@ -236,11 +236,7 @@ pub trait IPaymentStream<TContractState> {
     /// @param rate_per_second The new rate per second for the stream
     /// @param amount The amount to deposit into the stream
     /// @return Boolean indicating if the operation was successful
-    fn restart_and_deposit(
-        ref self: TContractState,
-        stream_id: u256,
-        amount: u256,
-    ) -> bool;
+    fn restart_and_deposit(ref self: TContractState, stream_id: u256, amount: u256) -> bool;
 
     /// @notice Retrieves the sum of balances of all streams
     /// @param token The ERC-20 token to query
@@ -256,17 +252,10 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Sets the protocol fee rate for a specific token
     /// @param token The token address to set the fee rate for
     /// @param new_fee_rate The new fee rate in fixed-point (e.g., 0.01 for 1%)
-    fn set_protocol_fee_rate(
-        ref self: TContractState,
-        token: ContractAddress,
-        new_fee_rate: u256
-    );
+    fn set_protocol_fee_rate(ref self: TContractState, token: ContractAddress, new_fee_rate: u256);
 
     /// @notice Gets the protocol fee rate for a specific token
     /// @param token The token address to get the fee rate for
     /// @return The current fee rate in fixed-point
-    fn get_protocol_fee_rate(
-        self: @TContractState,
-        token: ContractAddress
-    ) -> u256;
+    fn get_protocol_fee_rate(self: @TContractState, token: ContractAddress) -> u256;
 }

@@ -23,7 +23,7 @@ use core::num::traits::{Pow, Zero};
         DECIMALS_TOO_HIGH, INSUFFICIENT_ALLOWANCE, INSUFFICIENT_AMOUNT, INVALID_RECIPIENT,
         INVALID_TOKEN, NON_TRANSFERABLE_STREAM, TOO_SHORT_DURATION, UNEXISTING_STREAM,
         WRONG_RECIPIENT, WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
-        STREAM_NOT_ACTIVE, STREAM_VOIDED, STREAM_CANCELED, FEE_TOO_HIGH, INVALID_FEE_PERCENTAGE,
+        STREAM_NOT_ACTIVE, STREAM_VOIDED, STREAM_CANCELED, FEE_TOO_HIGH, STREAM_NOT_PAUSED,
         SAME_COLLECTOR_ADDRESS, SAME_OWNER, ONLY_NFT_OWNER_CAN_DELEGATE, STREAM_HAS_DELEGATE,
     };
     use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
@@ -401,6 +401,20 @@ use core::num::traits::{Pow, Zero};
         /// @param stream_id The ID of the stream
         /// @return The total debt in token decimals
         fn _total_debt(self: @ContractState, stream_id: u256) -> u256 {
+            // duration ended. 
+            // return stream_balance
+            // compare the current timestamp with the duration
+            // let duration_in_seconds = 30 * 82400
+            // let duration_passed = stream.first_update_time - current timestamp
+            // duration passed > duration_in_seconds
+            let stream = self.streams.read(stream_id);
+            let duration_in_seconds = stream.duration * 82400;
+            let duration_passed = stream.first_update_time - get_block_timestamp();
+
+            if duration_passed > duration_in_seconds {
+                return stream.balance;
+            }
+
             let ongoing_debt_scaled = self._ongoing_debt_scaled(stream_id);
             let snapshot_debt_scaled = self.snapshot_debt.read(stream_id);
             
@@ -431,30 +445,25 @@ use core::num::traits::{Pow, Zero};
             
             // For paused streams, calculate debt up to the pause time
             if stream.status == StreamStatus::Paused {
-                let pause_time = stream.last_update_time;
-                let snapshot_time = self.snapshot_time.read(stream_id);
+                // first_updated_time - last_updated_time
+                let pause_time = stream.last_update_time - stream.first_update_time;
                 
                 // Calculate elapsed time from last snapshot to pause time
-                let elapsed_time = if pause_time > snapshot_time {
-                    pause_time - snapshot_time
-                } else {
-                    0_u64
-                };
+                let elapsed_time = pause_time;
                 
                 // Calculate debt up to pause time
                 let rate_per_second: u256 = stream.rate_per_second.into();
                 let pause_debt: u256 = elapsed_time.into() * rate_per_second;
-                let total_pause_debt: u256 = pause_debt + self.snapshot_debt.read(stream_id);
                 
                 // The withdrawable amount is the minimum of stream balance and total pause debt
-                if stream.balance < total_pause_debt {
+                if stream.balance < pause_debt {
                     stream.balance
                 } else {
-                    total_pause_debt
+                    pause_debt
                 }
             } else {
                 // For active streams, the withdrawable amount is the minimum of stream balance and total debt
-                if stream.balance < total_debt {
+                if stream.balance <= total_debt {
                     stream.balance
                 } else {
                     total_debt
@@ -618,7 +627,10 @@ use core::num::traits::{Pow, Zero};
                 rate_per_second,
                 last_update_time: get_block_timestamp(),
                 transferable,
+                first_update_time: get_block_timestamp(),
             };
+
+            self.snapshot_time.write(stream_id, get_block_timestamp());
 
             // Initialize stream metrics
             let metrics = StreamMetrics {
@@ -910,17 +922,17 @@ use core::num::traits::{Pow, Zero};
             assert(stream.status != StreamStatus::Canceled, STREAM_NOT_ACTIVE);
 
             // Only increment counter if stream was paused
-            if stream.status == StreamStatus::Paused {
-                let protocol_metrics = self.protocol_metrics.read();
-                self.protocol_metrics.write(
-                    ProtocolMetrics {
-                        total_active_streams: protocol_metrics.total_active_streams + 1,
-                        total_tokens_to_stream: protocol_metrics.total_tokens_to_stream,
-                        total_streams_created: protocol_metrics.total_streams_created,
-                        total_delegations: protocol_metrics.total_delegations,
-                    },
-                );
-            }
+            assert(stream.status == StreamStatus::Paused, STREAM_NOT_PAUSED);
+
+            let protocol_metrics = self.protocol_metrics.read();
+            self.protocol_metrics.write(
+                ProtocolMetrics {
+                    total_active_streams: protocol_metrics.total_active_streams + 1,
+                    total_tokens_to_stream: protocol_metrics.total_tokens_to_stream,
+                    total_streams_created: protocol_metrics.total_streams_created,
+                    total_delegations: protocol_metrics.total_delegations,
+                },
+            );
 
             // Get the stored rate from when the stream was paused
             let stored_rate = self.paused_rates.read(stream_id);

@@ -76,5 +76,8 @@ pub mod Errors {
 
     /// Thrown when stream already has a delegate
     pub const STREAM_HAS_DELEGATE: felt252 = 'Stream already has a delegate';
+
+    // Thrown when stream is not paused
+    pub const STREAM_NOT_PAUSED: felt252 = 'Stream is not paused';
 }
 

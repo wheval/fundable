@@ -15,8 +15,9 @@ use openzeppelin::token::erc721::interface::{
     IERC721MetadataDispatcherTrait,
 };
 use snforge_std::{
-    ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
-    stop_cheat_caller_address, start_cheat_block_timestamp, stop_cheat_block_timestamp, start_cheat_block_timestamp_global, stop_cheat_block_timestamp_global
+    ContractClassTrait, DeclareResultTrait, declare, start_cheat_block_timestamp,
+    start_cheat_block_timestamp_global, start_cheat_caller_address, stop_cheat_block_timestamp,
+    stop_cheat_block_timestamp_global, stop_cheat_caller_address,
 };
 use starknet::{ContractAddress, contract_address_const, get_block_timestamp};
 
@@ -57,7 +58,9 @@ fn convert_to_decimal(value: u256, decimals: u8) -> u256 {
     value * (10_u256.pow(decimals.into()))
 }
 
-fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher, IERC721Dispatcher, IERC20Dispatcher) {
+fn setup() -> (
+    ContractAddress, ContractAddress, IPaymentStreamDispatcher, IERC721Dispatcher, IERC20Dispatcher,
+) {
     let sender: ContractAddress = contract_address_const::<'sender'>();
     // Deploy mock ERC20
     let erc20_class = declare("MockUsdc").unwrap().contract_class();
@@ -69,7 +72,9 @@ fn setup() -> (ContractAddress, ContractAddress, IPaymentStreamDispatcher, IERC7
     let payment_stream_class = declare("PaymentStream").unwrap().contract_class();
     let mut calldata = array![protocol_owner.into()];
     let (payment_stream_address, _) = payment_stream_class.deploy(@calldata).unwrap();
-    let payment_stream_contract = IPaymentStreamDispatcher { contract_address: payment_stream_address };
+    let payment_stream_contract = IPaymentStreamDispatcher {
+        contract_address: payment_stream_address,
+    };
     start_cheat_caller_address(payment_stream_address, protocol_owner);
     payment_stream_contract.set_protocol_fee_rate(erc20_address, 300);
     payment_stream_contract.update_fee_collector(protocol_owner);
@@ -313,7 +318,10 @@ fn test_protocol_metrics_accuracy() {
     // Check metrics after second stream
     let metrics_after_second = payment_stream.get_protocol_metrics();
     assert(metrics_after_second.total_active_streams == 2, 'Active streams should be 2');
-    assert(metrics_after_second.total_tokens_to_stream == total_amount * 2, 'Total tokens should be doubled');
+    assert(
+        metrics_after_second.total_tokens_to_stream == total_amount * 2,
+        'Total tokens should be doubled',
+    );
     assert(metrics_after_second.total_streams_created == 2, 'Created streams should be 2');
 
     // Cancel first stream
@@ -324,7 +332,10 @@ fn test_protocol_metrics_accuracy() {
     // Check metrics after cancellation
     let metrics_after_cancel = payment_stream.get_protocol_metrics();
     assert(metrics_after_cancel.total_active_streams == 1, '1 Active streams after cancel');
-    assert(metrics_after_cancel.total_tokens_to_stream == total_amount * 2, 'Total tokens should remain same');
+    assert(
+        metrics_after_cancel.total_tokens_to_stream == total_amount * 2,
+        'Total tokens should remain same',
+    );
     assert(metrics_after_cancel.total_streams_created == 2, 'Created streams should remain 2');
 }
 
@@ -345,12 +356,12 @@ fn test_stream_metrics_accuracy() {
 
     // Get initial metrics
     let initial_metrics = payment_stream.get_stream_metrics(stream_id);
-    
+
     // Deposit funds
     let sender_balance = erc20.balance_of(sender);
     println!("Sender balance: {}", sender_balance);
     println!("Current timestamp: {}", get_block_timestamp());
-    
+
     // Approve the payment stream to spend the sender's balance
     start_cheat_caller_address(token_address, sender);
     erc20.approve(payment_stream.contract_address, total_amount);
@@ -386,12 +397,18 @@ fn test_stream_metrics_accuracy() {
 
     // Get updated metrics
     let updated_metrics = payment_stream.get_stream_metrics(stream_id);
-    
+
     // Verify metrics reflect the operations
-    assert(updated_metrics.total_deposited >= initial_metrics.total_deposited, 'Deposits not increased');
-    assert(updated_metrics.total_withdrawn >= initial_metrics.total_withdrawn, 'Withdrawals not increased');
+    assert(
+        updated_metrics.total_deposited >= initial_metrics.total_deposited,
+        'Deposits not increased',
+    );
+    assert(
+        updated_metrics.total_withdrawn >= initial_metrics.total_withdrawn,
+        'Withdrawals not increased',
+    );
     assert(updated_metrics.total_withdrawn == expected_withdrawable, 'Wrong withdrawal amount');
-    
+
     stop_cheat_block_timestamp_global();
 }
 
@@ -399,7 +416,7 @@ fn test_stream_metrics_accuracy() {
 fn test_protocol_fee_rate_management() {
     let (token_address, sender, payment_stream, _, erc20) = setup();
     let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
-    
+
     // Test setting fee rate
     start_cheat_caller_address(payment_stream.contract_address, protocol_owner);
     let new_fee_rate = 100_u256; // 1%
@@ -416,7 +433,7 @@ fn test_recovery_functionality() {
     let (token_address, sender, payment_stream, _, erc20) = setup();
     let protocol_owner: ContractAddress = contract_address_const::<'protocol_owner'>();
     let recovery_address: ContractAddress = contract_address_const::<'recovery'>();
-    
+
     // Create and fund a stream
     let recipient = contract_address_const::<'recipient'>();
     let total_amount = TOTAL_AMOUNT;
@@ -473,13 +490,17 @@ fn test_debt_calculations() {
     // Verify debt calculations
     assert(initial_total_debt >= 0, 'Total debt non-negative');
     assert(initial_covered_debt <= initial_total_debt, 'Covered debt > total debt');
-    assert(initial_uncovered_debt == initial_total_debt - initial_covered_debt, 'Incorrect debt calculation');
+    assert(
+        initial_uncovered_debt == initial_total_debt - initial_covered_debt,
+        'Incorrect debt calculation',
+    );
 
     // Warp time forward by 30 seconds
     start_cheat_block_timestamp(payment_stream.contract_address, 30_u64);
-    
+
     // Check debt after time warp
     let debt_after_30s = payment_stream.get_total_debt(stream_id);
+    println!("Debt after 30s: {}", debt_after_30s);
     assert(debt_after_30s > initial_total_debt, 'Debt should increase with time');
 
     // Withdraw some funds
@@ -539,7 +560,7 @@ fn test_depletion_time_calculation() {
 
     // Warp time forward by 30 seconds
     start_cheat_block_timestamp(payment_stream.contract_address, 30_u64);
-    
+
     // Check depletion time after time warp
     let depletion_time_after_30s = payment_stream.get_depletion_time(stream_id);
     println!("Depletion time after 30s: {}", depletion_time_after_30s);
@@ -595,7 +616,7 @@ fn test_refundable_amount_calculation() {
 
     // Warp time forward by 30 seconds
     start_cheat_block_timestamp(payment_stream.contract_address, 30_u64);
-    
+
     // Check refundable amount after time warp
     let refundable_after_30s = payment_stream.get_refundable_amount(stream_id);
     assert(refundable_after_30s < initial_refundable, 'Should decrease with time');
@@ -662,7 +683,10 @@ fn test_aggregate_balance_tracking() {
     // Check balance after withdrawal
     let balance_removed = withdrawn + fee;
     let balance_after_withdrawal = payment_stream.aggregate_balance(token_address);
-    assert(balance_after_withdrawal == total_amount - balance_removed.into(), 'Decrease after withdrawal');
+    assert(
+        balance_after_withdrawal == total_amount - balance_removed.into(),
+        'Decrease after withdrawal',
+    );
     stop_cheat_block_timestamp(payment_stream.contract_address);
 }
 
@@ -873,10 +897,10 @@ fn test_multiple_delegations() {
 
     let first_delegate = payment_stream.get_stream_delegate(stream_id);
     assert(first_delegate == delegate1, 'First delegation failed');
-    
+
     // Assign second delegate (should override first)
     payment_stream.delegate_stream(stream_id, delegate2);
-    
+
     let second_delegate = payment_stream.get_stream_delegate(stream_id);
     assert(second_delegate == delegate2, 'Second delegation failed');
     stop_cheat_caller_address(payment_stream.contract_address);
@@ -897,7 +921,7 @@ fn test_delegation_revocation() {
     let stream_id = payment_stream
         .create_stream(recipient, total_amount, duration, cancelable, token_address, transferable);
     stop_cheat_caller_address(payment_stream.contract_address);
-    
+
     start_cheat_caller_address(payment_stream.contract_address, recipient);
     payment_stream.delegate_stream(stream_id, delegate);
 
@@ -957,8 +981,6 @@ fn test_revoke_nonexistent_delegation() {
     // Try to revoke non-existent delegation
     payment_stream.revoke_delegation(stream_id);
     stop_cheat_caller_address(payment_stream.contract_address);
-
-
 }
 
 #[test]
@@ -1059,7 +1081,9 @@ fn test_nft_transfer_and_withdrawal() {
     // Create stream
     start_cheat_caller_address(payment_stream.contract_address, sender);
     let stream_id = payment_stream
-        .create_stream(initial_owner, total_amount, duration, cancelable, token_address, transferable);
+        .create_stream(
+            initial_owner, total_amount, duration, cancelable, token_address, transferable,
+        );
     stop_cheat_caller_address(payment_stream.contract_address);
 
     // Approve and deposit funds
@@ -1090,8 +1114,7 @@ fn test_nft_transfer_and_withdrawal() {
 
     start_cheat_caller_address(payment_stream.contract_address, new_owner);
     let (withdrawn, fee) = payment_stream.withdraw(stream_id, 1000_u256, new_owner);
-    
-    
+
     // Verify withdrawal
     let new_owner_balance = erc20.balance_of(new_owner);
     assert(new_owner_balance == withdrawn.into(), 'wrong amount');
