@@ -13,7 +13,7 @@ pub mod CampaignDonation {
         StoragePointerReadAccess, StoragePointerWriteAccess,
     };
     use starknet::{
-        ClassHash, ContractAddress, contract_address_const, get_block_timestamp, get_caller_address,
+        ClassHash, ContractAddress, contract_address_const ,get_block_timestamp, get_caller_address,
         get_contract_address,
     };
     use crate::base::errors::Errors::{CAMPAIGN_REF_EMPTY, CAMPAIGN_REF_EXISTS, ZERO_AMOUNT};
@@ -220,7 +220,7 @@ pub mod CampaignDonation {
 
             assert(campaign.is_closed, 'Campaign Not Closed');
 
-            assert(self.campaign_withdrawn.read(campaign_id), 'Double Withdrawal');
+            assert(!self.campaign_withdrawn.read(campaign_id), 'Double Withdrawal');
 
             let asset = campaign.asset;
             let asset_address = self.get_asset_address(asset);
