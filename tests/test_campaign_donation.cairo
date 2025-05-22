@@ -414,48 +414,46 @@ fn test_successful_multiple_users_donating_to_a_campaign() {
 //     assert(donations.len() == 0, 'Should return empty array');
 // }
 
-// #[test]
-// fn test_multiple_campaigns_with_donations() {
-//     let (token_address, sender, campaign_donation, _erc721) = setup();
-//     let target_amount = 1000_u256;
-//     let asset = 'Test';
+#[test]
+fn test_multiple_campaigns_with_donations() {
+    let (token_address, sender, campaign_donation, _erc721) = setup();
+    let target_amount = 1000_u256;
 
-//     // Create multiple campaigns
-//     start_cheat_caller_address(campaign_donation.contract_address, sender);
-//     let campaign_id_1 = campaign_donation.create_campaign('Campaign1', target_amount);
-//     let campaign_id_2 = campaign_donation.create_campaign('Campaign2', target_amount);
-//     stop_cheat_caller_address(campaign_donation.contract_address);
+    // Create multiple campaigns
+    start_cheat_caller_address(campaign_donation.contract_address, sender);
+    let campaign_id_1 = campaign_donation.create_campaign('Campaign1', target_amount);
+    let campaign_id_2 = campaign_donation.create_campaign('Campaign2', target_amount);
+    stop_cheat_caller_address(campaign_donation.contract_address);
 
-//     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
 
-//     // Setup token approvals
-//     start_cheat_caller_address(token_address, sender);
-//     token_dispatcher.approve(campaign_donation.contract_address, 10000);
-//     stop_cheat_caller_address(token_address);
+    // Setup token approvals
+    start_cheat_caller_address(token_address, sender);
+    token_dispatcher.approve(campaign_donation.contract_address, 10000);
+    stop_cheat_caller_address(token_address);
 
-//     // Make donations to both campaigns
-//     start_cheat_caller_address(campaign_donation.contract_address, sender);
-//     let _donation_id_1 = campaign_donation.donate_to_campaign(campaign_id_1, 100);
-//     let _donation_id_2 = campaign_donation.donate_to_campaign(campaign_id_1, 200);
-//     let _donation_id_3 = campaign_donation.donate_to_campaign(campaign_id_2, 300);
-//     stop_cheat_caller_address(campaign_donation.contract_address);
+    // Make donations to both campaigns
+    start_cheat_caller_address(campaign_donation.contract_address, sender);
+    let _donation_id_1 = campaign_donation.donate_to_campaign(campaign_id_1, 100);
+    let _donation_id_2 = campaign_donation.donate_to_campaign(campaign_id_1, 200);
+    let _donation_id_3 = campaign_donation.donate_to_campaign(campaign_id_2, 300);
+    stop_cheat_caller_address(campaign_donation.contract_address);
 
-//     // Get donations for campaign 1
-//     let donations_1 = campaign_donation.get_campagin_donations(campaign_id_1);
-//     assert(donations_1.len() == 2, 'wrong donation count 1');
-//     assert(*donations_1.at(0).amount == 100, '1st donation amt error');
-//     assert(*donations_1.at(1).amount == 200, '2nd donation amt error');
+    // Get donations for campaign 1
+    let donations_1 = campaign_donation.get_campagin_donations(campaign_id_1);
+    assert(donations_1.len() == 2, 'wrong donation count 1');
+    assert(*donations_1.at(0).amount == 100, '1st donation amt error');
+    assert(*donations_1.at(1).amount == 200, '2nd donation amt error');
 
-//     // Get donations for campaign 2
-//     let donations_2 = campaign_donation.get_campagin_donations(campaign_id_2);
-//     assert(donations_2.len() == 1, 'wrong donation count 2');
-//     assert(*donations_2.at(0).amount == 300, '3rd donation amount error');
+    // Get donations for campaign 2
+    let donations_2 = campaign_donation.get_campagin_donations(campaign_id_2);
+    assert(donations_2.len() == 1, 'wrong donation count 2');
+    assert(*donations_2.at(0).amount == 300, '3rd donation amount error');
 
-//     // Verify get_campaigns returns both campaigns
-//     let campaigns = campaign_donation.get_campaigns();
-//     assert(campaigns.len() == 2, 'Should return 2 campaigns');
-// }
-
+    // Verify get_campaigns returns both campaigns
+    let campaigns = campaign_donation.get_campaigns();
+    assert(campaigns.len() == 2, 'Should return 2 campaigns');
+}
 // #[test]
 // #[fork(url: "https://starknet-sepolia.public.blastapi.io/rpc/v0_7", block_tag: latest)]
 // fn test_withdraw_funds_from_campaign_successful() {
