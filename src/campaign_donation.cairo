@@ -167,6 +167,8 @@ pub mod CampaignDonation {
             let contract_address = get_contract_address();
             let timestamp = get_block_timestamp();
             let donation_token = self.donation_token.read();
+            // cannot send more than target amount
+
             // Fetch current count and write to (campaign_id, index)
             let donation_id = self.donation_count.read() + 1;
 
@@ -215,7 +217,6 @@ pub mod CampaignDonation {
             assert(caller == campaign_owner, CALLER_NOT_CAMPAIGN_OWNER);
             assert(campaign.current_amount >= campaign.target_amount, TARGET_NOT_REACHED);
             campaign.is_goal_reached = true;
-            self.campaign_closed.write(campaign_id, true);
 
             let this_contract = get_contract_address();
 
@@ -227,19 +228,11 @@ pub mod CampaignDonation {
 
             let token = IERC20Dispatcher { contract_address: donation_token };
 
-            // let approve = token.approve(campaign_owner, campaign.target_amount);
+            let transfer_from = token.transfer(campaign_owner, campaign.target_amount);
 
-            // assert(approve, 'Approval failed');
-
-            let allowance = token.allowance(this_contract, campaign_owner);
-
-            assert(!allowance.is_zero(), ZERO_ALLOWANCE);
-
-            assert(allowance >= campaign.target_amount, INSUFFICIENT_ALLOWANCE);
-
-            let transfer_from = token
-                .transfer_from(this_contract, campaign_owner, campaign.target_amount);
-
+            campaign.is_goal_reached = true;
+            self.campaign_closed.write(campaign_id, true);
+            self.campaigns.write(campaign_id, campaign);
             assert(transfer_from, WITHDRAWAL_FAILED);
         }
 

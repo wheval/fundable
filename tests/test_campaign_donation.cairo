@@ -454,60 +454,63 @@ fn test_multiple_campaigns_with_donations() {
     let campaigns = campaign_donation.get_campaigns();
     assert(campaigns.len() == 2, 'Should return 2 campaigns');
 }
-// #[test]
-// #[fork(url: "https://starknet-sepolia.public.blastapi.io/rpc/v0_7", block_tag: latest)]
-// fn test_withdraw_funds_from_campaign_successful() {
-//     let (token_address, sender, campaign_donation, _erc721) = setup();
-//     let target_amount = 500_u256;
-//     let asset = 'Test';
-//     let campaign_ref = 'Test';
-//     let owner = contract_address_const::<'owner'>();
 
-//     start_cheat_caller_address(campaign_donation.contract_address, owner);
-//     let campaign_id = campaign_donation.create_campaign(campaign_ref, target_amount);
+#[test]
+#[fork(url: "https://starknet-sepolia.public.blastapi.io/rpc/v0_8", block_tag: latest)]
+fn test_withdraw_funds_from_campaign_successful() {
+    let (token_address, sender, campaign_donation, _erc721) = setup();
+    let target_amount = 500_u256;
+    let campaign_ref = 'Test';
+    let owner = contract_address_const::<'owner'>();
 
-//     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
-//     stop_cheat_caller_address(campaign_donation.contract_address);
-//     // This is the first Campaign Created, so it will be 1.
-//     assert!(campaign_id == 1_u256, "Campaign creation failed");
+    start_cheat_caller_address(campaign_donation.contract_address, owner);
+    let campaign_id = campaign_donation.create_campaign(campaign_ref, target_amount);
 
-//     let donor = contract_address_const::<'donor'>();
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    stop_cheat_caller_address(campaign_donation.contract_address);
+    // This is the first Campaign Created, so it will be 1.
+    assert!(campaign_id == 1_u256, "Campaign creation failed");
 
-//     let user_balance_before = token_dispatcher.balance_of(sender);
-//     let contract_balance_before =
-//     token_dispatcher.balance_of(campaign_donation.contract_address);
+    // let donor = contract_address_const::<'donor'>();
 
-//     // Simulate delegate's approval:
-//     start_cheat_caller_address(token_address, sender);
-//     token_dispatcher.approve(campaign_donation.contract_address, 1000);
-//     stop_cheat_caller_address(token_address);
+    let user_balance_before = token_dispatcher.balance_of(sender);
+    println!("user balance before: {}", user_balance_before);
+    let contract_balance_before = token_dispatcher.balance_of(campaign_donation.contract_address);
+    println!("contract balance before: {}", contract_balance_before);
 
-//     let allowance = token_dispatcher.allowance(sender, campaign_donation.contract_address);
-//     assert(allowance >= 1000, 'Allowance not set correctly');
-//     println!("Allowance for withdrawal: {}", allowance);
+    // Simulate delegate's approval:
+    start_cheat_caller_address(token_address, sender);
+    token_dispatcher.approve(campaign_donation.contract_address, 1000);
+    stop_cheat_caller_address(token_address);
 
-//     start_cheat_caller_address(campaign_donation.contract_address, sender);
+    let allowance = token_dispatcher.allowance(sender, campaign_donation.contract_address);
+    println!("Allowance for withdrawal: {}", allowance);
 
-//     let donation_id = campaign_donation.donate_to_campaign(campaign_id, 600);
+    assert(allowance >= 1000, 'Allowance not set correctly');
 
-//     stop_cheat_caller_address(campaign_donation.contract_address);
+    start_cheat_caller_address(campaign_donation.contract_address, sender);
 
-//     // let donation = campaign_donation.get_donation(campaign_id, donation_id);
+    let donation_id = campaign_donation.donate_to_campaign(campaign_id, 600);
 
-//     start_cheat_caller_address(campaign_donation.contract_address, owner);
+    stop_cheat_caller_address(campaign_donation.contract_address);
 
-//     let owner_balance_before = token_dispatcher.balance_of(owner);
-//     let contract_balance_before =
-//     token_dispatcher.balance_of(campaign_donation.contract_address);
+    // let donation = campaign_donation.get_donation(campaign_id, donation_id);
 
-//     campaign_donation.withdraw_from_campaign(campaign_id);
+    start_cheat_caller_address(campaign_donation.contract_address, owner);
 
-//     let owner_balance_after = token_dispatcher.balance_of(owner);
-//     let contract_balance_after = token_dispatcher.balance_of(campaign_donation.contract_address);
+    let owner_balance_before = token_dispatcher.balance_of(owner);
+    println!("campaign owner balance before: {}", owner_balance_before);
+    let contract_balance_before = token_dispatcher.balance_of(campaign_donation.contract_address);
+    println!("contract  balance before: {}", contract_balance_before);
+    campaign_donation.withdraw_from_campaign(campaign_id);
 
-//     stop_cheat_caller_address(campaign_donation.contract_address);
+    let owner_balance_after = token_dispatcher.balance_of(owner);
+    println!("campaign owner balance after: {}", owner_balance_after);
+    let contract_balance_after = token_dispatcher.balance_of(campaign_donation.contract_address);
 
-//     assert(owner_balance_after - owner_balance_before == 500, 'Withdrawal error')
-// }
+    println!("contract balance after: {}", contract_balance_after);
+    stop_cheat_caller_address(campaign_donation.contract_address);
 
+    assert(owner_balance_after - owner_balance_before == 500, 'Withdrawal error')
+}
 
