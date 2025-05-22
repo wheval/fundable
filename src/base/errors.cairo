@@ -57,7 +57,7 @@ pub mod Errors {
     /// Thrown when campaign ref is emptu
     pub const CAMPAIGN_REF_EMPTY: felt252 = 'Error: Campaign Ref Is Required';
 
-    /// Thrown when denoting zero amount to campaign
+    /// Thrown when donating zero amount to a campaign
     pub const CANNOT_DENOTE_ZERO_AMOUNT: felt252 = 'Error: Cannot donate nothing';
 
     // Throw Error when campaign target has reached
@@ -68,6 +68,8 @@ pub mod Errors {
 
     // Throw Error when campaign target has not reached
     pub const TARGET_NOT_REACHED: felt252 = 'Error: Target Not Reached';
+
+    pub const MORE_THAN_TARGET: felt252 = 'Error: More than Target';
 
     pub const CAMPAIGN_NOT_CLOSED: felt252 = 'Error: Campaign not closed';
 

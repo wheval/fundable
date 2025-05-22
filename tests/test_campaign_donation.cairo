@@ -109,7 +109,7 @@ fn test_create_campaign_invalid_zero_amount() {
 #[test]
 fn test_successful_campaign_donation() {
     let (token_address, sender, campaign_donation, _erc721) = setup();
-    let target_amount = 1000_u256;
+    let target_amount = 5000_u256;
     let campaign_ref = 'Test';
 
     start_cheat_caller_address(campaign_donation.contract_address, sender);
@@ -206,7 +206,7 @@ fn test_successful_campaign_donation_twice() {
 #[test]
 fn test_successful_multiple_users_donating_to_a_campaign() {
     let (token_address, sender, campaign_donation, _erc721) = setup();
-    let target_amount = 1000_u256;
+    let target_amount = 10000_u256;
     let campaign_ref = 'Test';
     let another_user: ContractAddress = contract_address_const::<'another_user'>();
 
@@ -278,7 +278,7 @@ fn test_target_met_successful() {
 
     start_cheat_caller_address(campaign_donation.contract_address, sender);
 
-    let _donation_id = campaign_donation.donate_to_campaign(campaign_id, 1001);
+    let _donation_id = campaign_donation.donate_to_campaign(campaign_id, 1000);
 
     stop_cheat_caller_address(campaign_donation.contract_address);
 
@@ -456,7 +456,7 @@ fn test_multiple_campaigns_with_donations() {
 #[fork(url: "https://starknet-sepolia.public.blastapi.io/rpc/v0_8", block_tag: latest)]
 fn test_withdraw_funds_from_campaign_successful() {
     let (token_address, sender, campaign_donation, _erc721) = setup();
-    let target_amount = 500_u256;
+    let target_amount = 800_u256;
     let campaign_ref = 'Test';
     let owner = contract_address_const::<'owner'>();
 
@@ -487,7 +487,7 @@ fn test_withdraw_funds_from_campaign_successful() {
 
     start_cheat_caller_address(campaign_donation.contract_address, sender);
 
-    let donation_id = campaign_donation.donate_to_campaign(campaign_id, 600);
+    let donation_id = campaign_donation.donate_to_campaign(campaign_id, 800);
 
     stop_cheat_caller_address(campaign_donation.contract_address);
 
@@ -508,6 +508,6 @@ fn test_withdraw_funds_from_campaign_successful() {
     println!("contract balance after: {}", contract_balance_after);
     stop_cheat_caller_address(campaign_donation.contract_address);
 
-    assert(owner_balance_after - owner_balance_before == 500, 'Withdrawal error')
+    assert(owner_balance_after - owner_balance_before == 800, 'Withdrawal error')
 }
 

@@ -18,8 +18,8 @@ pub mod CampaignDonation {
     };
     use crate::base::errors::Errors::{
         CALLER_NOT_CAMPAIGN_OWNER, CAMPAIGN_NOT_CLOSED, CAMPAIGN_REF_EMPTY, CAMPAIGN_REF_EXISTS,
-        CANNOT_DENOTE_ZERO_AMOUNT, DOUBLE_WITHDRAWAL, INSUFFICIENT_ALLOWANCE, TARGET_NOT_REACHED,
-        TARGET_REACHED, WITHDRAWAL_FAILED, ZERO_ALLOWANCE, ZERO_AMOUNT,
+        CANNOT_DENOTE_ZERO_AMOUNT, DOUBLE_WITHDRAWAL, INSUFFICIENT_ALLOWANCE, MORE_THAN_TARGET,
+        TARGET_NOT_REACHED, TARGET_REACHED, WITHDRAWAL_FAILED, ZERO_ALLOWANCE, ZERO_AMOUNT,
     };
     use crate::base::types::{Campaigns, Donations};
 
@@ -168,8 +168,8 @@ pub mod CampaignDonation {
             let timestamp = get_block_timestamp();
             let donation_token = self.donation_token.read();
             // cannot send more than target amount
+            assert!(amount <= campaign.target_amount, "Error: More than Target");
 
-            // Fetch current count and write to (campaign_id, index)
             let donation_id = self.donation_count.read() + 1;
 
             // Ensure the campaign is still accepting donations
