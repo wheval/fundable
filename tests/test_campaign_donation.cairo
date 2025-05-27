@@ -451,7 +451,7 @@ fn test_multiple_campaigns_with_donations() {
 }
 
 #[test]
-#[fork(url: "https://starknet-sepolia.public.blastapi.io/rpc/v0_7", block_tag: latest)]
+// #[fork(url: "https://starknet-sepolia.public.blastapi.io/rpc/v0_7", block_tag: latest)]
 fn test_withdraw_funds_from_campaign_successful() {
     let (token_address, sender, campaign_donation, _erc721) = setup();
     let target_amount = 500_u256;
