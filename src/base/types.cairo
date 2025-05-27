@@ -1,4 +1,3 @@
-use fp::UFixedPoint123x128;
 use starknet::ContractAddress;
 
 /// @notice Struct containing all data for a single stream
@@ -14,9 +13,10 @@ pub struct Stream {
     pub token_decimals: u8,
     pub balance: u256,
     pub status: StreamStatus,
-    pub rate_per_second: UFixedPoint123x128,
+    pub rate_per_second: u256,
     pub last_update_time: u64,
     pub transferable: bool,
+    pub first_update_time: u64,
 }
 
 #[derive(Drop, starknet::Event)]
@@ -82,14 +82,15 @@ pub struct DistributionHistory {
 
 #[derive(Copy, Drop, Serde, starknet::Store)]
 pub struct StreamMetrics {
-    last_activity: u64,
-    total_withdrawn: u256,
-    withdrawal_count: u32,
-    pause_count: u32,
+    pub last_activity: u64,
+    pub total_withdrawn: u256,
+    pub total_deposited: u256,
+    pub withdrawal_count: u32,
+    pub pause_count: u32,
     // delegation metrics
-    total_delegations: u64,
-    current_delegate: ContractAddress,
-    last_delegation_time: u64,
+    pub total_delegations: u64,
+    pub current_delegate: ContractAddress,
+    pub last_delegation_time: u64,
 }
 
 #[derive(Drop, Serde, starknet::Store)]

@@ -13,7 +13,7 @@ pub mod CampaignDonation {
         StoragePointerReadAccess, StoragePointerWriteAccess,
     };
     use starknet::{
-        ClassHash, ContractAddress, contract_address_const ,get_block_timestamp, get_caller_address,
+        ClassHash, ContractAddress, contract_address_const, get_block_timestamp, get_caller_address,
         get_contract_address,
     };
     use crate::base::errors::Errors::{CAMPAIGN_REF_EMPTY, CAMPAIGN_REF_EXISTS, ZERO_AMOUNT};

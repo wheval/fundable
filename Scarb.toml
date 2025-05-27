@@ -12,6 +12,7 @@ starknet = "2.11.2"
 
 [profile.dev.cairo]
 unstable-add-statements-code-locations-debug-info = true
+unstable-add-statements-functions-debug-info = true
 
 [dev-dependencies]
 snforge_std = "0.40.0"
