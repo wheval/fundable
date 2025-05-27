@@ -505,3 +505,4 @@ fn test_multiple_campaigns_with_donations() {
 //     assert(owner_balance_after - owner_balance_before == 500, 'Withdrawal error')
 // }
 
+
