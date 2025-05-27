@@ -79,5 +79,11 @@ pub mod Errors {
 
     // Thrown when stream is not paused
     pub const STREAM_NOT_PAUSED: felt252 = 'Stream is not paused';
+
+    /// Thrown when campaign ref exists
+    pub const CAMPAIGN_REF_EXISTS: felt252 = 'Error: Campaign Ref Exists';
+
+    /// Thrown when campaign ref is emptu
+    pub const CAMPAIGN_REF_EMPTY: felt252 = 'Error: Campaign Ref Is Required';
 }
 
