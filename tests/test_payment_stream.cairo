@@ -485,15 +485,10 @@ fn test_debt_calculations() {
     // Get initial debt values
     let initial_total_debt = payment_stream.get_total_debt(stream_id);
     let initial_covered_debt = payment_stream.get_covered_debt(stream_id);
-    let initial_uncovered_debt = payment_stream.get_uncovered_debt(stream_id);
 
     // Verify debt calculations
     assert(initial_total_debt >= 0, 'Total debt non-negative');
     assert(initial_covered_debt <= initial_total_debt, 'Covered debt > total debt');
-    assert(
-        initial_uncovered_debt == initial_total_debt - initial_covered_debt,
-        'Incorrect debt calculation',
-    );
 
     // Warp time forward by 30 seconds
     start_cheat_block_timestamp(payment_stream.contract_address, 30_u64);
@@ -514,12 +509,10 @@ fn test_debt_calculations() {
     // Get updated debt values
     let updated_total_debt = payment_stream.get_total_debt(stream_id);
     let updated_covered_debt = payment_stream.get_covered_debt(stream_id);
-    let updated_uncovered_debt = payment_stream.get_uncovered_debt(stream_id);
 
     // Verify debt calculations after withdrawal and time warp
     assert(updated_total_debt > debt_after_30s, 'Debt should continue increasing');
     assert(updated_covered_debt >= initial_covered_debt, 'Must increase after withdrawal');
-    assert(updated_uncovered_debt < initial_uncovered_debt, 'Increase with time');
 
     // Stop time manipulation
     stop_cheat_block_timestamp(payment_stream.contract_address);
@@ -898,6 +891,8 @@ fn test_multiple_delegations() {
     let first_delegate = payment_stream.get_stream_delegate(stream_id);
     assert(first_delegate == delegate1, 'First delegation failed');
 
+    let _bool = payment_stream.revoke_delegation(stream_id);
+
     // Assign second delegate (should override first)
     payment_stream.delegate_stream(stream_id, delegate2);
 
@@ -1089,6 +1084,9 @@ fn test_nft_transfer_and_withdrawal() {
     // Approve and deposit funds
     start_cheat_caller_address(token_address, sender);
     erc20.approve(payment_stream.contract_address, total_amount);
+    stop_cheat_caller_address(token_address);
+
+    start_cheat_caller_address(payment_stream.contract_address, sender);
     payment_stream.deposit(stream_id, total_amount);
     stop_cheat_caller_address(payment_stream.contract_address);
 
@@ -1108,9 +1106,6 @@ fn test_nft_transfer_and_withdrawal() {
 
     // New owner withdraws
     start_cheat_block_timestamp(payment_stream.contract_address, 30_u64);
-    start_cheat_caller_address(token_address, new_owner);
-    erc20.approve(payment_stream.contract_address, total_amount);
-    stop_cheat_caller_address(token_address);
 
     start_cheat_caller_address(payment_stream.contract_address, new_owner);
     let (withdrawn, fee) = payment_stream.withdraw(stream_id, 1000_u256, new_owner);

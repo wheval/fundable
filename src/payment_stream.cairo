@@ -1,7 +1,6 @@
 #[starknet::contract]
 pub mod PaymentStream {
-    use starknet::ClassHash;
-use core::num::traits::{Pow, Zero};
+    use core::num::traits::{Pow, Zero};
     use core::traits::Into;
     use fp::UFixedPoint123x128;
     use fundable::interfaces::IPaymentStream::IPaymentStream;
@@ -11,20 +10,22 @@ use core::num::traits::{Pow, Zero};
         IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
         IERC20MetadataDispatcherTrait,
     };
+    use openzeppelin::token::erc721::{ERC721Component, ERC721HooksEmptyImpl};
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
-    use openzeppelin::token::erc721::{ERC721Component, ERC721HooksEmptyImpl};
     use starknet::storage::{
         Map, MutableVecTrait, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
         Vec,
     };
-    use starknet::{ContractAddress, get_block_timestamp, get_caller_address, get_contract_address};
+    use starknet::{
+        ClassHash, ContractAddress, get_block_timestamp, get_caller_address, get_contract_address,
+    };
     use crate::base::errors::Errors::{
-        DECIMALS_TOO_HIGH, INSUFFICIENT_ALLOWANCE, INSUFFICIENT_AMOUNT, INVALID_RECIPIENT,
-        INVALID_TOKEN, NON_TRANSFERABLE_STREAM, TOO_SHORT_DURATION, UNEXISTING_STREAM,
-        WRONG_RECIPIENT, WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
-        STREAM_NOT_ACTIVE, STREAM_VOIDED, STREAM_CANCELED, FEE_TOO_HIGH, STREAM_NOT_PAUSED,
-        SAME_COLLECTOR_ADDRESS, SAME_OWNER, ONLY_NFT_OWNER_CAN_DELEGATE, STREAM_HAS_DELEGATE,
+        DECIMALS_TOO_HIGH, FEE_TOO_HIGH, INSUFFICIENT_ALLOWANCE, INSUFFICIENT_AMOUNT,
+        INVALID_RECIPIENT, INVALID_TOKEN, NON_TRANSFERABLE_STREAM, ONLY_NFT_OWNER_CAN_DELEGATE,
+        SAME_COLLECTOR_ADDRESS, SAME_OWNER, STREAM_CANCELED, STREAM_HAS_DELEGATE, STREAM_NOT_ACTIVE,
+        STREAM_NOT_PAUSED, STREAM_VOIDED, TOO_SHORT_DURATION, UNEXISTING_STREAM, WRONG_RECIPIENT,
+        WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
     };
     use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
 
@@ -62,10 +63,10 @@ use core::num::traits::{Pow, Zero};
         accesscontrol: AccessControlComponent::Storage,
         next_stream_id: u256,
         streams: Map<u256, Stream>,
-        protocol_fee_rate: Map<ContractAddress, u256>,  // Single source of truth for fee rates
+        protocol_fee_rate: Map<ContractAddress, u256>, // Single source of truth for fee rates
         fee_collector: ContractAddress,
         protocol_owner: ContractAddress,
-        protocol_revenue: Map<ContractAddress, u256>,  // Track collected fees
+        protocol_revenue: Map<ContractAddress, u256>, // Track collected fees
         total_active_streams: u256,
         stream_metrics: Map<u256, StreamMetrics>,
         protocol_metrics: ProtocolMetrics,
@@ -302,18 +303,20 @@ use core::num::traits::{Pow, Zero};
         /// @param amount The amount to calculate fee from
         /// @param token_address The token address to get fee rate for
         /// @return The protocol fee amount
-        fn _calculate_protocol_fee(self: @ContractState, amount: u256, token_address: ContractAddress) -> u256 {
+        fn _calculate_protocol_fee(
+            self: @ContractState, amount: u256, token_address: ContractAddress,
+        ) -> u256 {
             let fee_rate = self.protocol_fee_rate.read(token_address);
             assert(fee_rate <= MAX_FEE, FEE_TOO_HIGH);
-            
+
             let rate = if fee_rate == 0 {
                 100 // 1% = 100 basis points
             } else {
                 fee_rate
             };
-            
+
             // Calculate fee using fixed-point multiplication
-            let fee = (amount * rate) / 10000_u256;  // Assuming 10000 = 100%
+            let fee = (amount * rate) / 10000_u256; // Assuming 10000 = 100%
             fee
         }
 
@@ -401,26 +404,20 @@ use core::num::traits::{Pow, Zero};
         /// @param stream_id The ID of the stream
         /// @return The total debt in token decimals
         fn _total_debt(self: @ContractState, stream_id: u256) -> u256 {
-            // duration ended. 
-            // return stream_balance
-            // compare the current timestamp with the duration
-            // let duration_in_seconds = 30 * 82400
-            // let duration_passed = stream.first_update_time - current timestamp
-            // duration passed > duration_in_seconds
             let stream = self.streams.read(stream_id);
             let duration_in_seconds = stream.duration * 82400;
-            let duration_passed = stream.first_update_time - get_block_timestamp();
+            let duration_passed = get_block_timestamp() - stream.first_update_time;
 
-            if duration_passed > duration_in_seconds {
+            if duration_passed >= duration_in_seconds {
                 return stream.balance;
             }
 
             let ongoing_debt_scaled = self._ongoing_debt_scaled(stream_id);
             let snapshot_debt_scaled = self.snapshot_debt.read(stream_id);
-            
+
             // Total debt in scaled form
             let total_debt_scaled = ongoing_debt_scaled + snapshot_debt_scaled;
-            
+
             // Convert from scaled form to token decimals
             total_debt_scaled
         }
@@ -442,19 +439,19 @@ use core::num::traits::{Pow, Zero};
         fn _withdrawable_amount(self: @ContractState, stream_id: u256) -> u256 {
             let stream = self.streams.read(stream_id);
             let total_debt = self._total_debt(stream_id);
-            
+
             // For paused streams, calculate debt up to the pause time
             if stream.status == StreamStatus::Paused {
                 // first_updated_time - last_updated_time
                 let pause_time = stream.last_update_time - stream.first_update_time;
-                
+
                 // Calculate elapsed time from last snapshot to pause time
                 let elapsed_time = pause_time;
-                
+
                 // Calculate debt up to pause time
                 let rate_per_second: u256 = stream.rate_per_second.into();
                 let pause_debt: u256 = elapsed_time.into() * rate_per_second;
-                
+
                 // The withdrawable amount is the minimum of stream balance and total pause debt
                 if stream.balance < pause_debt {
                     stream.balance
@@ -462,7 +459,8 @@ use core::num::traits::{Pow, Zero};
                     pause_debt
                 }
             } else {
-                // For active streams, the withdrawable amount is the minimum of stream balance and total debt
+                // For active streams, the withdrawable amount is the minimum of stream balance and
+                // total debt
                 if stream.balance <= total_debt {
                     stream.balance
                 } else {
@@ -474,21 +472,22 @@ use core::num::traits::{Pow, Zero};
         /// @notice Sets the protocol fee rate for a token
         /// @param token The token address
         /// @param new_fee_rate The new fee rate in basis points (e.g., 100 = 1%)
-        fn _set_protocol_fee_rate(ref self: ContractState, token: ContractAddress, new_fee_rate: u256) {
+        fn _set_protocol_fee_rate(
+            ref self: ContractState, token: ContractAddress, new_fee_rate: u256,
+        ) {
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
             assert(new_fee_rate <= MAX_FEE, FEE_TOO_HIGH);
-            
+
             let current_fee_rate = self.protocol_fee_rate.read(token);
             if current_fee_rate != new_fee_rate {
                 self.protocol_fee_rate.write(token, new_fee_rate);
-                
-                self.emit(
-                    ProtocolFeeSet {
-                        token,
-                        set_by: get_caller_address(),
-                        new_fee: new_fee_rate,
-                    },
-                );
+
+                self
+                    .emit(
+                        ProtocolFeeSet {
+                            token, set_by: get_caller_address(), new_fee: new_fee_rate,
+                        },
+                    );
             }
         }
 
@@ -498,10 +497,7 @@ use core::num::traits::{Pow, Zero};
         /// @param to The address receiving the withdrawn tokens
         /// @return A tuple of (withdrawn_amount, protocol_fee_amount)
         fn _withdraw(
-            ref self: ContractState,
-            stream_id: u256,
-            amount: u256,
-            to: ContractAddress
+            ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
         ) -> (u128, u128) {
             let mut stream = self.streams.read(stream_id);
             // @dev Allow stream creator to withdraw funds when a stream is canceled.
@@ -511,7 +507,7 @@ use core::num::traits::{Pow, Zero};
 
             // Update snapshot before calculating withdrawable amount
             self._update_snapshot(stream_id);
-            
+
             let withdrawable_amount = self._withdrawable_amount(stream_id);
             assert(withdrawable_amount >= amount, INSUFFICIENT_AMOUNT);
             assert(amount > 0, ZERO_AMOUNT);
@@ -522,7 +518,7 @@ use core::num::traits::{Pow, Zero};
             let fee = self._calculate_protocol_fee(amount, token_address);
             let net_amount: u256 = (amount - fee);
             let current_balance = stream.balance - stream.withdrawn_amount;
-            
+
             // Check if current balance is sufficient for withdrawal
             assert(current_balance >= amount, INSUFFICIENT_AMOUNT);
 
@@ -565,11 +561,7 @@ use core::num::traits::{Pow, Zero};
         /// @notice Internal function to handle refunds to stream creator
         /// @param stream_id The ID of the stream to refund from
         /// @param amount The amount to refund
-        fn _refund(
-            ref self: ContractState,
-            stream_id: u256,
-            amount: u256
-        ) {
+        fn _refund(ref self: ContractState, stream_id: u256, amount: u256) {
             let stream = self.streams.read(stream_id);
             let token_address = stream.token;
             let sender = stream.sender;
@@ -825,14 +817,16 @@ use core::num::traits::{Pow, Zero};
             // Only decrement counter if stream was active
             if stream.status == StreamStatus::Active {
                 let protocol_metrics = self.protocol_metrics.read();
-                self.protocol_metrics.write(
-                    ProtocolMetrics {
-                        total_active_streams: protocol_metrics.total_active_streams - 1,
-                        total_tokens_to_stream: protocol_metrics.total_tokens_to_stream,
-                        total_streams_created: protocol_metrics.total_streams_created,
-                        total_delegations: protocol_metrics.total_delegations,
-                    },
-                );
+                self
+                    .protocol_metrics
+                    .write(
+                        ProtocolMetrics {
+                            total_active_streams: protocol_metrics.total_active_streams - 1,
+                            total_tokens_to_stream: protocol_metrics.total_tokens_to_stream,
+                            total_streams_created: protocol_metrics.total_streams_created,
+                            total_delegations: protocol_metrics.total_delegations,
+                        },
+                    );
             }
 
             // Store the current rate before pausing
@@ -871,14 +865,16 @@ use core::num::traits::{Pow, Zero};
             // Only decrement counter if stream was active
             if stream.status == StreamStatus::Active {
                 let protocol_metrics = self.protocol_metrics.read();
-                self.protocol_metrics.write(
-                    ProtocolMetrics {
-                        total_active_streams: protocol_metrics.total_active_streams - 1,
-                        total_tokens_to_stream: protocol_metrics.total_tokens_to_stream,
-                        total_streams_created: protocol_metrics.total_streams_created,
-                        total_delegations: protocol_metrics.total_delegations,
-                    },
-                );
+                self
+                    .protocol_metrics
+                    .write(
+                        ProtocolMetrics {
+                            total_active_streams: protocol_metrics.total_active_streams - 1,
+                            total_tokens_to_stream: protocol_metrics.total_tokens_to_stream,
+                            total_streams_created: protocol_metrics.total_streams_created,
+                            total_delegations: protocol_metrics.total_delegations,
+                        },
+                    );
             }
 
             // Update snapshot before calculations
@@ -925,14 +921,16 @@ use core::num::traits::{Pow, Zero};
             assert(stream.status == StreamStatus::Paused, STREAM_NOT_PAUSED);
 
             let protocol_metrics = self.protocol_metrics.read();
-            self.protocol_metrics.write(
-                ProtocolMetrics {
-                    total_active_streams: protocol_metrics.total_active_streams + 1,
-                    total_tokens_to_stream: protocol_metrics.total_tokens_to_stream,
-                    total_streams_created: protocol_metrics.total_streams_created,
-                    total_delegations: protocol_metrics.total_delegations,
-                },
-            );
+            self
+                .protocol_metrics
+                .write(
+                    ProtocolMetrics {
+                        total_active_streams: protocol_metrics.total_active_streams + 1,
+                        total_tokens_to_stream: protocol_metrics.total_tokens_to_stream,
+                        total_streams_created: protocol_metrics.total_streams_created,
+                        total_delegations: protocol_metrics.total_delegations,
+                    },
+                );
 
             // Get the stored rate from when the stream was paused
             let stored_rate = self.paused_rates.read(stream_id);
@@ -954,11 +952,7 @@ use core::num::traits::{Pow, Zero};
         /// @param stream_id The ID of the stream to restart and deposit to
         /// @param amount The amount to deposit into the stream
         /// @return Boolean indicating if the operation was successful
-        fn restart_and_deposit(
-            ref self: ContractState,
-            stream_id: u256,
-            amount: u256,
-        ) -> bool {
+        fn restart_and_deposit(ref self: ContractState, stream_id: u256, amount: u256) -> bool {
             // First restart the stream
             self.restart(stream_id);
 
@@ -1001,11 +995,11 @@ use core::num::traits::{Pow, Zero};
 
         fn get_depletion_time(self: @ContractState, stream_id: u256) -> u64 {
             let stream = self.streams.read(stream_id);
-            
+
             // Debug prints
             println!("get_depletion_time - Rate per second: {}", stream.rate_per_second);
             println!("get_depletion_time - Stream balance: {}", stream.balance);
-            
+
             // If stream is not active or has no rate, return 0
             if stream.status != StreamStatus::Active || stream.rate_per_second == 0_u256 {
                 return 0_u64;
@@ -1014,7 +1008,7 @@ use core::num::traits::{Pow, Zero};
             // Get current time and calculate remaining balance
             let current_time = get_block_timestamp();
             let total_debt = self._total_debt(stream_id);
-            
+
             // If balance is less than or equal to total debt, stream is already depleted
             if stream.balance <= total_debt {
                 return current_time;
@@ -1022,18 +1016,19 @@ use core::num::traits::{Pow, Zero};
 
             let remaining_balance = stream.balance - total_debt;
             let rate_per_second = stream.rate_per_second;
-            
+
             println!("get_depletion_time - Remaining balance: {}", remaining_balance);
             println!("get_depletion_time - Rate per second: {}", rate_per_second);
-            
-            // Calculate seconds until depletion using fixed point arithmetic to avoid rounding errors
-            let seconds_until_depletion: u64 = ((remaining_balance * 1_u256) / rate_per_second).try_into().unwrap();
-            
+
+            // Calculate seconds until depletion using fixed point arithmetic to avoid rounding
+            // errors
+            let seconds_until_depletion: u64 = ((remaining_balance * 1_u256) / rate_per_second)
+                .try_into()
+                .unwrap();
+
             println!("get_depletion_time - Seconds until depletion: {}", seconds_until_depletion);
 
             seconds_until_depletion
-            
-
         }
 
         fn get_token_decimals(self: @ContractState, stream_id: u256) -> u8 {
@@ -1047,7 +1042,7 @@ use core::num::traits::{Pow, Zero};
         fn get_uncovered_debt(self: @ContractState, stream_id: u256) -> u256 {
             let stream = self.streams.read(stream_id);
             let total_debt = self._total_debt(stream_id);
-            
+
             // If total debt is greater than balance, return the difference
             // Otherwise return 0 (all debt is covered)
             if total_debt > stream.balance {
@@ -1060,7 +1055,7 @@ use core::num::traits::{Pow, Zero};
         fn get_covered_debt(self: @ContractState, stream_id: u256) -> u256 {
             let stream = self.streams.read(stream_id);
             let total_debt = self._total_debt(stream_id);
-            
+
             // If balance is greater than total debt, all debt is covered
             // Otherwise, the balance amount is covered
             if stream.balance >= total_debt {
@@ -1072,7 +1067,7 @@ use core::num::traits::{Pow, Zero};
 
         fn get_refundable_amount(self: @ContractState, stream_id: u256) -> u256 {
             let stream = self.streams.read(stream_id);
-            
+
             // If stream is not active, return 0
             if stream.status != StreamStatus::Active {
                 return 0_u256;
@@ -1080,7 +1075,7 @@ use core::num::traits::{Pow, Zero};
 
             // Calculate total debt (amount streamed but not withdrawn)
             let total_debt = self._total_debt(stream_id);
-            
+
             // Calculate refundable amount as the excess balance after accounting for debt
             if stream.balance > total_debt {
                 stream.balance - total_debt
@@ -1106,17 +1101,17 @@ use core::num::traits::{Pow, Zero};
         ) -> bool {
             self.assert_stream_exists(stream_id);
             assert(delegate.is_non_zero(), INVALID_RECIPIENT);
-            
+
             // Check NFT ownership instead of recipient field
             let nft_owner = self.erc721.owner_of(stream_id);
             assert(nft_owner == get_caller_address(), ONLY_NFT_OWNER_CAN_DELEGATE);
-            
+
             let current_delegate = self.stream_delegates.read(stream_id);
             assert(current_delegate.is_zero(), STREAM_HAS_DELEGATE);
-            
+
             self.stream_delegates.write(stream_id, delegate);
             self.delegation_history.entry(stream_id).push(delegate);
-            
+
             // Update stream metrics
             let mut metrics = self.stream_metrics.read(stream_id);
             metrics.total_delegations += 1;
@@ -1124,12 +1119,12 @@ use core::num::traits::{Pow, Zero};
             metrics.last_delegation_time = get_block_timestamp();
             metrics.last_activity = get_block_timestamp();
             self.stream_metrics.write(stream_id, metrics);
-            
+
             // Update protocol metrics
             let mut protocol_metrics = self.protocol_metrics.read();
             protocol_metrics.total_delegations += 1;
             self.protocol_metrics.write(protocol_metrics);
-            
+
             self.emit(DelegationGranted { stream_id, delegator: get_caller_address(), delegate });
             true
         }
@@ -1247,9 +1242,7 @@ use core::num::traits::{Pow, Zero};
         /// @param token The token address to set the fee rate for
         /// @param new_fee_rate The new fee rate in basis points (e.g., 100 = 1%)
         fn set_protocol_fee_rate(
-            ref self: ContractState,
-            token: ContractAddress,
-            new_fee_rate: u256
+            ref self: ContractState, token: ContractAddress, new_fee_rate: u256,
         ) {
             self._set_protocol_fee_rate(token, new_fee_rate);
         }
