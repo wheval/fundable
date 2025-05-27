@@ -1,8 +1,7 @@
 #[starknet::contract]
 pub mod PaymentStream {
-    use core::num::traits::{Pow, Zero};
+    use core::num::traits::Zero;
     use core::traits::Into;
-    use fp::UFixedPoint123x128;
     use fundable::interfaces::IPaymentStream::IPaymentStream;
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
@@ -90,7 +89,6 @@ pub mod PaymentStream {
         AccessControlEvent: AccessControlComponent::Event,
         #[flat]
         UpgradeableEvent: UpgradeableComponent::Event,
-        StreamRateUpdated: StreamRateUpdated,
         StreamCreated: StreamCreated,
         StreamWithdrawn: StreamWithdrawn,
         StreamCanceled: StreamCanceled,
@@ -108,15 +106,6 @@ pub mod PaymentStream {
         StreamDeposit: StreamDeposit,
         Recover: Recover,
         RefundFromStream: RefundFromStream,
-    }
-
-    #[derive(Drop, starknet::Event)]
-    struct StreamRateUpdated {
-        #[key]
-        stream_id: u256,
-        old_rate: UFixedPoint123x128,
-        new_rate: UFixedPoint123x128,
-        update_time: u64,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -405,7 +394,7 @@ pub mod PaymentStream {
         /// @return The total debt in token decimals
         fn _total_debt(self: @ContractState, stream_id: u256) -> u256 {
             let stream = self.streams.read(stream_id);
-            let duration_in_seconds = stream.duration * 82400;
+            let duration_in_seconds = stream.duration * SECONDS_PER_DAY;
             let duration_passed = get_block_timestamp() - stream.first_update_time;
 
             if duration_passed >= duration_in_seconds {
@@ -996,10 +985,6 @@ pub mod PaymentStream {
         fn get_depletion_time(self: @ContractState, stream_id: u256) -> u64 {
             let stream = self.streams.read(stream_id);
 
-            // Debug prints
-            println!("get_depletion_time - Rate per second: {}", stream.rate_per_second);
-            println!("get_depletion_time - Stream balance: {}", stream.balance);
-
             // If stream is not active or has no rate, return 0
             if stream.status != StreamStatus::Active || stream.rate_per_second == 0_u256 {
                 return 0_u64;
@@ -1017,16 +1002,11 @@ pub mod PaymentStream {
             let remaining_balance = stream.balance - total_debt;
             let rate_per_second = stream.rate_per_second;
 
-            println!("get_depletion_time - Remaining balance: {}", remaining_balance);
-            println!("get_depletion_time - Rate per second: {}", rate_per_second);
-
             // Calculate seconds until depletion using fixed point arithmetic to avoid rounding
             // errors
-            let seconds_until_depletion: u64 = ((remaining_balance * 1_u256) / rate_per_second)
+            let seconds_until_depletion: u64 = (remaining_balance / rate_per_second)
                 .try_into()
                 .unwrap();
-
-            println!("get_depletion_time - Seconds until depletion: {}", seconds_until_depletion);
 
             seconds_until_depletion
         }

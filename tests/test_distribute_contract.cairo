@@ -1199,22 +1199,17 @@ fn test_user_stats_after_distribution() {
     //Assert token stats
     assert(
         distributor.get_user_stats(sender).distributions_initiated == 1,
-        'wrong distributions
-    amount',
+        'wrong distributions amount',
     );
     assert(
         distributor.get_user_stats(sender).total_amount_distributed == 300,
-        'wrong distributed
-    amount',
+        'wrong distributed amount',
     );
     assert(
         distributor.get_user_stats(sender).last_distribution_time == 0x2137_u64,
         'wrong last_distribution time',
     );
-    assert(
-        distributor.get_user_stats(sender).unique_tokens_used == 1, 'wrong unique token
-    count',
-    );
+    assert(distributor.get_user_stats(sender).unique_tokens_used == 1, 'wrong unique token count');
 
     stop_cheat_block_timestamp(distributor.contract_address);
 }
@@ -1262,8 +1257,7 @@ fn test_distribution_history_after_distribution() {
     assert(*history[0].caller == sender, 'wrong caller');
     assert(*history[0].token == token_address, 'wrong token');
     assert(*history[0].amount == 300, 'wrong last_distribution time');
-    assert(*history[0].recipients_count == 3, 'wrong recipient
-    count');
+    assert(*history[0].recipients_count == 3, 'wrong recipient count');
     assert(*history[0].timestamp == 0x2137_u64, 'wrong timestamp');
 
     stop_cheat_block_timestamp(distributor.contract_address);

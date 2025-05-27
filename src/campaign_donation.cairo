@@ -207,41 +207,41 @@ pub mod CampaignDonation {
         }
 
 
-        // fn withdraw_from_campaign(ref self: ContractState, campaign_id: u256) {
-        //     let caller = get_caller_address();
-        //     let mut campaign = self.campaigns.read(campaign_id);
-        //     let campaign_owner = campaign.owner;
-        //     assert(caller == campaign_owner, 'Caller is Not Campaign Owner');
-        //     assert(campaign.current_amount >= campaign.target_amount, 'Target Not Reached');
-        //     campaign.is_goal_reached = true;
-        //     self.campaign_closed.write(campaign_id, true);
+        fn withdraw_from_campaign(ref self: ContractState, campaign_id: u256) {
+            let caller = get_caller_address();
+            let mut campaign = self.campaigns.read(campaign_id);
+            let campaign_owner = campaign.owner;
+            assert(caller == campaign_owner, 'Caller is Not Campaign Owner');
+            assert(campaign.current_amount >= campaign.target_amount, 'Target Not Reached');
+            campaign.is_goal_reached = true;
+            self.campaign_closed.write(campaign_id, true);
 
-        //     let this_contract = get_contract_address();
+            let this_contract = get_contract_address();
 
-        //     assert(campaign.is_closed, 'Campaign Not Closed');
+            assert(campaign.is_closed, 'Campaign Not Closed');
 
-        //     assert(!self.campaign_withdrawn.read(campaign_id), 'Double Withdrawal');
+            assert(!self.campaign_withdrawn.read(campaign_id), 'Double Withdrawal');
 
-        //     let asset = campaign.asset;
-        //     let asset_address = self.get_asset_address(asset);
+            let asset = campaign.asset;
+            let asset_address = self.get_asset_address(asset);
 
-        //     let token = IERC20Dispatcher { contract_address: asset_address };
+            let token = IERC20Dispatcher { contract_address: asset_address };
 
-        //     let approve = token.approve(campaign_owner, campaign.target_amount);
+            let approve = token.approve(campaign_owner, campaign.target_amount);
 
-        //     assert(approve, 'Approval failed');
+            assert(approve, 'Approval failed');
 
-        //     let allowance = token.allowance(this_contract, campaign_owner);
+            let allowance = token.allowance(this_contract, campaign_owner);
 
-        //     assert(!allowance.is_zero(), 'Zero allowance found');
+            assert(!allowance.is_zero(), 'Zero allowance found');
 
-        //     assert(allowance >= campaign.target_amount, 'Insufficient allowance');
+            assert(allowance >= campaign.target_amount, 'Insufficient allowance');
 
-        //     let transfer_from = token
-        //         .transfer_from(this_contract, campaign_owner, campaign.target_amount);
+            let transfer_from = token
+                .transfer_from(this_contract, campaign_owner, campaign.target_amount);
 
-        //     assert(transfer_from, 'Withdraw failed');
-        // }
+            assert(transfer_from, 'Withdraw failed');
+        }
 
         fn get_donation(self: @ContractState, campaign_id: u256, donation_id: u256) -> Donations {
             let donations: Donations = self.donations.entry(campaign_id).entry(donation_id).read();
