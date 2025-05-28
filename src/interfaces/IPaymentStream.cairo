@@ -1,4 +1,3 @@
-use fp::UFixedPoint123x128;
 use starknet::ContractAddress;
 use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics};
 
@@ -16,6 +15,25 @@ pub trait IPaymentStream<TContractState> {
     /// @param transferable Boolean indicating if the stream can be transferred
     /// @return The ID of the newly created stream
     fn create_stream(
+        ref self: TContractState,
+        recipient: ContractAddress,
+        total_amount: u256,
+        duration: u64,
+        cancelable: bool,
+        token: ContractAddress,
+        transferable: bool,
+    ) -> u256;
+
+    /// @notice Create a new stream and fund it with tokens in a single transaction
+    /// @param recipient The address receiving the tokens
+    /// @param total_amount The total amount to be streamed
+    /// @param start_time The timestamp when the stream starts
+    /// @param end_time The timestamp when the stream ends
+    /// @param cancelable Boolean indicating if the stream can be canceled
+    /// @param token The contract address of the ERC-20 token to be streamed
+    /// @param transferable Boolean indicating if the stream can be transferred
+    /// @return The ID of the newly created stream
+    fn create_stream_with_deposit(
         ref self: TContractState,
         recipient: ContractAddress,
         total_amount: u256,
@@ -50,23 +68,6 @@ pub trait IPaymentStream<TContractState> {
     /// @return A tuple of (withdrawn_amount, protocol_fee_amount)
     fn withdraw_max(ref self: TContractState, stream_id: u256, to: ContractAddress) -> (u128, u128);
 
-    /// @notice withdraws protocol fee to the provided recipient
-    /// @param amount Amount of fee to be withdrawn from fee holder
-    /// @param recipient Receiver of the token withdrawn
-    fn withdraw_protocol_fee(
-        ref self: TContractState, recipient: ContractAddress, amount: u256, token: ContractAddress,
-    );
-
-    /// @notice withdraws total accumulated protocol fee to the provided recipient
-    /// @param recipient Receiver of the token withdrawn
-    fn withdraw_max_protocol_fee(
-        ref self: TContractState, recipient: ContractAddress, token: ContractAddress,
-    );
-
-    /// @notice updates the percentage fee for the protocol
-    /// @param new_percentage The new percentage fee to be collected
-    fn update_percentage_protocol_fee(ref self: TContractState, new_percentage: u16);
-
     /// @notice updates the fee collector address
     /// @param new_fee_collector The new contract address to hold fees collected
     fn update_fee_collector(ref self: TContractState, new_fee_collector: ContractAddress);
@@ -89,7 +90,7 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Restarts the stream with the provided rate per second
     /// @param stream_id The ID of the stream to restart
     /// @param rate_per_second The amount by which the debt increases every second
-    fn restart(ref self: TContractState, stream_id: u256, rate_per_second: UFixedPoint123x128);
+    fn restart(ref self: TContractState, stream_id: u256);
 
     /// @notice Voids a stream, making it permanently inactive
     /// @param stream_id The ID of the stream to void
@@ -144,11 +145,6 @@ pub trait IPaymentStream<TContractState> {
     /// @return Token decimals
     fn get_token_decimals(self: @TContractState, stream_id: u256) -> u8;
 
-    /// @notice Returns the total amount distributed for a specific token
-    /// @param token The contract address of the token to query
-    /// @return Total amount distributed for the specified token
-    fn get_token_distribution(self: @TContractState, token: ContractAddress) -> u256;
-
     /// @notice Retrieves the analytics metrics for a specific stream
     /// @param stream_id The unique identifier of the stream
     /// @return StreamMetrics containing detailed stream analytics
@@ -174,13 +170,6 @@ pub trait IPaymentStream<TContractState> {
     /// @notice returns the delegated address from a stream
     fn get_stream_delegate(self: @TContractState, stream_id: u256) -> ContractAddress;
 
-    /// @notice Updates the rate per second for the stream
-    /// @param stream_id The ID of the stream to update
-    /// @param new_rate_per_second The new rate per second for the stream
-    fn update_stream_rate(
-        ref self: TContractState, stream_id: u256, new_rate_per_second: UFixedPoint123x128,
-    );
-
     /// @notice Transfers the stream to a new recipient
     /// @param stream_id The ID of the stream to transfer
     /// @param new_recipient The address of the new recipient
@@ -191,14 +180,6 @@ pub trait IPaymentStream<TContractState> {
     /// @param transferable Boolean indicating if the stream can be transferred
     fn set_transferability(ref self: TContractState, stream_id: u256, transferable: bool);
 
-    /// @notice Checks if the stream is transferable
-    /// @param stream_id The ID of the stream to check
-    /// @return Boolean indicating if the stream is transferable
-    /// fn is_transferable(self: @TContractState, stream_id: u256) -> bool;
-    /// @notice Gets the protocol fee of the token
-    /// @param token The ContractAddress of the token
-    /// @return u256 The fee of the token
-    fn get_protocol_fee(self: @TContractState, token: ContractAddress) -> u256;
 
     /// @notice Get the protocol revenue / accumulated fees of the token
     /// @param token The ContractAddress of the token
@@ -212,10 +193,6 @@ pub trait IPaymentStream<TContractState> {
         ref self: TContractState, token: ContractAddress, to: ContractAddress,
     );
 
-    /// @notice Set the protocol fee of the token
-    /// @param token The ContractAddress of the token
-    /// @param new_protocol_fee The new protocol fee of the token
-    fn set_protocol_fee(ref self: TContractState, token: ContractAddress, new_protocol_fee: u256);
     /// @notice Check if a stream exists
     /// @param stream_id The ID of the stream
     /// @return Boolean indicating if the stream exists
@@ -252,55 +229,14 @@ pub trait IPaymentStream<TContractState> {
     /// @notice gets the rate per second of a stream
     /// @param stream_id The ID of the stream
     /// @return rate per second associated with the stream
-    fn get_rate_per_second(self: @TContractState, stream_id: u256) -> UFixedPoint123x128;
-
-    /// @notice Create a new stream and fund it with tokens in a single transaction
-    /// @param recipient The address receiving the tokens
-    /// @param total_amount The total amount to be streamed
-    /// @param start_time The timestamp when the stream starts
-    /// @param end_time The timestamp when the stream ends
-    /// @param cancelable Boolean indicating if the stream can be canceled
-    /// @param token The contract address of the ERC-20 token to be streamed
-    /// @param transferable Boolean indicating if the stream can be transferred
-    /// @return The ID of the newly created stream
-    fn create_stream_with_deposit(
-        ref self: TContractState,
-        recipient: ContractAddress,
-        total_amount: u256,
-        duration: u64,
-        cancelable: bool,
-        token: ContractAddress,
-        transferable: bool,
-    ) -> u256;
+    fn get_rate_per_second(self: @TContractState, stream_id: u256) -> u256;
 
     /// @notice Restart a paused stream and deposit funds to it in a single transaction
     /// @param stream_id The ID of the stream to restart and fund
     /// @param rate_per_second The new rate per second for the stream
     /// @param amount The amount to deposit into the stream
     /// @return Boolean indicating if the operation was successful
-    fn restart_and_deposit(
-        ref self: TContractState,
-        stream_id: u256,
-        rate_per_second: UFixedPoint123x128,
-        amount: u256,
-    ) -> bool;
-
-    /// @notice Refunds a specified amount from a stream
-    /// @param stream_id The ID of the stream from which to refund
-    /// @param amount The amount to refund from the stream
-    /// @return Boolean indicating if the refund was successful
-    fn refund(ref self: TContractState, stream_id: u256, amount: u256) -> bool;
-
-    /// @notice Refunds the maximum possible amount from a stream
-    /// @param stream_id The ID of the stream from which to refund
-    /// @return The maximum refundable amount from the stream
-    fn refund_max(ref self: TContractState, stream_id: u256) -> bool;
-
-    /// @notice Refunds a specified amount from a stream and pauses the stream
-    /// @param stream_id The ID of the stream from which to refund
-    /// @param amount The amount to refund from the stream
-    /// @return Boolean indicating if the refund and pause operation was successful
-    fn refund_and_pause(ref self: TContractState, stream_id: u256, amount: u256) -> bool;
+    fn restart_and_deposit(ref self: TContractState, stream_id: u256, amount: u256) -> bool;
 
     /// @notice Retrieves the sum of balances of all streams
     /// @param token The ERC-20 token to query
@@ -312,4 +248,14 @@ pub trait IPaymentStream<TContractState> {
     /// @param to The address the surplus amount has been sent to
     /// @return surplus The amount of surplus tokens recovered
     fn recover(ref self: TContractState, token: ContractAddress, to: ContractAddress) -> u256;
+
+    /// @notice Sets the protocol fee rate for a specific token
+    /// @param token The token address to set the fee rate for
+    /// @param new_fee_rate The new fee rate in fixed-point (e.g., 0.01 for 1%)
+    fn set_protocol_fee_rate(ref self: TContractState, token: ContractAddress, new_fee_rate: u256);
+
+    /// @notice Gets the protocol fee rate for a specific token
+    /// @param token The token address to get the fee rate for
+    /// @return The current fee rate in fixed-point
+    fn get_protocol_fee_rate(self: @TContractState, token: ContractAddress) -> u256;
 }
