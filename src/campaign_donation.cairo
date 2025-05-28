@@ -40,19 +40,9 @@ pub mod CampaignDonation {
         upgradeable: UpgradeableComponent::Storage,
         campaign_counts: u256,
         campaigns: Map<u256, Campaigns>, // (campaign_id, Campaigns)
-        // campaign_donation: Map<
-        //     (ContractAddress, u256), Donation,
-        // >,
-        // map(<donor_address, campaign_id>, Donation)
-        //  donations: Map<u256, (ContractAddress, Donation)>
-        // donations: Map<(ContractAddress, u256), Donations>,
-        donations: Map<u256, Map<u256, Donations>>, // map<campaign_id, map<dontionid, donation>>
+        donations: Map<(u256, u256), Donations>, // MAP((campaign_id, donation_id), donation)
         donation_counts: Map<u256, u256>,
         donation_count: u256,
-        // cmapaign_withdrawal: Map<
-        //     (ContractAddress, u256), CampaignWithdrawal,
-        // >, // map<(campaign_owner, campaign_id), CampaignWithdrawal>
-        // Track existing campaign refs
         campaign_refs: Map<felt252, bool>, // All campaign ref to use for is_campaign_ref_exists
         campaign_closed: Map<u256, bool>, // Map campaign ids to closing boolean
         campaign_withdrawn: Map<u256, bool>, //Map campaign ids to whether they have been withdrawn
@@ -129,21 +119,23 @@ pub mod CampaignDonation {
             let campaign_id: u256 = self.campaign_counts.read() + 1;
             let caller = get_caller_address();
             let timestamp = get_block_timestamp();
-            let current_amount: u256 = 0;
+            let current_balance: u256 = 0;
+            let withdrawn_amount: u256 = 0;
             let campaign = Campaigns {
                 campaign_id,
                 owner: caller,
                 target_amount,
-                current_amount,
+                current_balance,
+                withdrawn_amount,
                 campaign_reference: campaign_ref,
                 is_closed: false,
                 is_goal_reached: false,
+                donation_token: self.donation_token.read(),
             };
 
             self.campaigns.write(campaign_id, campaign);
             self.campaign_counts.write(campaign_id);
             self.campaign_refs.write(campaign_ref, true);
-
             self
                 .emit(
                     Event::Campaign(
@@ -182,10 +174,10 @@ pub mod CampaignDonation {
             token_dispatcher.transfer_from(donor, contract_address, amount);
 
             // Update campaign amount
-            campaign.current_amount = campaign.current_amount + amount;
+            campaign.current_balance = campaign.current_balance + amount;
 
             // If goal reached, mark as closed
-            if (campaign.current_amount >= campaign.target_amount) {
+            if (campaign.current_balance >= campaign.target_amount) {
                 campaign.is_goal_reached = true;
                 campaign.is_closed = true;
             }
@@ -194,15 +186,14 @@ pub mod CampaignDonation {
 
             // Create donation record
             let donation = Donations { donation_id, donor, campaign_id, amount };
-
-            self.donations.entry(campaign_id).entry(donation_id).write(donation);
+            let compaign_donations = self.donations.write((campaign_id, donation_id), donation);
 
             self.donation_count.write(donation_id);
 
             // Update the per-campaign donation count
             let campaign_donation_count = self.donation_counts.read(campaign_id);
             self.donation_counts.write(campaign_id, campaign_donation_count + 1);
-
+            let timestamp = get_block_timestamp();
             // Emit donation event
             self.emit(Event::Donation(Donation { donor, campaign_id, amount, timestamp }));
 
@@ -215,7 +206,6 @@ pub mod CampaignDonation {
             let mut campaign = self.campaigns.read(campaign_id);
             let campaign_owner = campaign.owner;
             assert(caller == campaign_owner, CALLER_NOT_CAMPAIGN_OWNER);
-            assert(campaign.current_amount >= campaign.target_amount, TARGET_NOT_REACHED);
             campaign.is_goal_reached = true;
 
             let this_contract = get_contract_address();
@@ -228,16 +218,28 @@ pub mod CampaignDonation {
 
             let token = IERC20Dispatcher { contract_address: donation_token };
 
-            let transfer_from = token.transfer(campaign_owner, campaign.target_amount);
+            let withdrawn_amount = campaign.current_balance;
+            let transfer_from = token.transfer(campaign_owner, withdrawn_amount);
 
+            campaign.withdrawn_amount = campaign.withdrawn_amount + withdrawn_amount;
             campaign.is_goal_reached = true;
             self.campaign_closed.write(campaign_id, true);
             self.campaigns.write(campaign_id, campaign);
             assert(transfer_from, WITHDRAWAL_FAILED);
+            let timestamp = get_block_timestamp();
+            // emit CampaignWithdrawal event
+            self
+                .emit(
+                    Event::CampaignWithdrawal(
+                        CampaignWithdrawal {
+                            owner: caller, campaign_id, amount: withdrawn_amount, timestamp,
+                        },
+                    ),
+                );
         }
 
         fn get_donation(self: @ContractState, campaign_id: u256, donation_id: u256) -> Donations {
-            let donations: Donations = self.donations.entry(campaign_id).entry(donation_id).read();
+            let donations: Donations = self.donations.read((campaign_id, donation_id));
             donations
         }
 
@@ -256,43 +258,36 @@ pub mod CampaignDonation {
             campaigns
         }
 
-        fn get_campagin_donations(self: @ContractState, camapign_id: u256) -> Array<Donations> {
+        fn get_campaign_donations(self: @ContractState, campaign_id: u256) -> Array<Donations> {
             let mut donations = ArrayTrait::new();
 
-            // Get the total number of donations expected for this campaign
-            let campaign_donation_count = self.donation_counts.read(camapign_id);
+            let campaign_donation_count = self.donation_counts.read(campaign_id);
 
-            // Early return if no donations exist
             if campaign_donation_count == 0 {
                 return donations;
             }
 
-            // Get the maximum global donation ID
             let max_donation_id = self.donation_count.read();
 
-            // Track found donations
             let mut found_count: u256 = 0;
 
-            // Check each possible donation ID
-            let mut id: u256 = 1;
-            while id <= max_donation_id && found_count < campaign_donation_count {
-                // Try to read the donation
-                let donation = self.donations.entry(camapign_id).entry(id).read();
+            let mut donation_id: u256 = 1;
+            while donation_id <= max_donation_id && found_count < campaign_donation_count {
+                let donation = self.donations.read((campaign_id, donation_id));
 
-                // Only add valid donations for this campaign
-                if donation.campaign_id == camapign_id && donation.donation_id == id {
+                if donation.donation_id != 0 && donation.campaign_id == campaign_id {
                     donations.append(donation);
                     found_count += 1;
                 }
 
-                id += 1;
+                donation_id += 1;
             }
 
             donations
         }
 
-        fn get_campaign(self: @ContractState, camapign_id: u256) -> Campaigns {
-            let campaign: Campaigns = self.campaigns.read(camapign_id);
+        fn get_campaign(self: @ContractState, campaign_id: u256) -> Campaigns {
+            let campaign: Campaigns = self.campaigns.read(campaign_id);
             campaign
         }
     }

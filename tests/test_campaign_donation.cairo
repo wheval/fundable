@@ -59,7 +59,7 @@ fn test_successful_create_campaign() {
     assert(campaign.campaign_id == campaign_id, 'Campaign ID mismatch');
     assert(campaign.owner == owner, 'Owner mismatch');
     assert(campaign.target_amount == target_amount, 'Target amount mismatch');
-    assert(campaign.current_amount == 0.into(), 'Current amount should be 0');
+    assert(campaign.current_balance == 0.into(), 'Current amount should be 0');
     assert(campaign.campaign_reference == campaign_ref, 'Reference mismatch');
     assert(!campaign.is_closed, 'Campaign should not be closed');
     assert(!campaign.is_goal_reached, 'Goal should not be reached');
@@ -364,7 +364,7 @@ fn test_get_campaign_donations() {
     stop_cheat_caller_address(campaign_donation.contract_address);
 
     // Get all donations for the campaign
-    let donations = campaign_donation.get_campagin_donations(campaign_id);
+    let donations = campaign_donation.get_campaign_donations(campaign_id);
 
     // Verify donation count
     assert(donations.len() == 3, 'Should return 3 donations');
@@ -391,7 +391,7 @@ fn test_get_campaign_donations() {
 
     // Verify campaign data is updated correctly
     let campaign = campaign_donation.get_campaign(campaign_id);
-    assert(campaign.current_amount == 1500, 'Campaign amount mismatch');
+    assert(campaign.current_balance == 1500, 'Campaign amount mismatch');
 }
 
 #[test]
@@ -405,7 +405,7 @@ fn test_get_campaign_donations_empty() {
     stop_cheat_caller_address(campaign_donation.contract_address);
 
     // Get donations for the campaign
-    let donations = campaign_donation.get_campagin_donations(campaign_id);
+    let donations = campaign_donation.get_campaign_donations(campaign_id);
 
     // Verify no donations are returned
     assert(donations.len() == 0, 'Should return empty array');
@@ -437,13 +437,13 @@ fn test_multiple_campaigns_with_donations() {
     stop_cheat_caller_address(campaign_donation.contract_address);
 
     // Get donations for campaign 1
-    let donations_1 = campaign_donation.get_campagin_donations(campaign_id_1);
+    let donations_1 = campaign_donation.get_campaign_donations(campaign_id_1);
     assert(donations_1.len() == 2, 'wrong donation count 1');
     assert(*donations_1.at(0).amount == 100, '1st donation amt error');
     assert(*donations_1.at(1).amount == 200, '2nd donation amt error');
 
     // Get donations for campaign 2
-    let donations_2 = campaign_donation.get_campagin_donations(campaign_id_2);
+    let donations_2 = campaign_donation.get_campaign_donations(campaign_id_2);
     assert(donations_2.len() == 1, 'wrong donation count 2');
     assert(*donations_2.at(0).amount == 300, '3rd donation amount error');
 

@@ -27,7 +27,7 @@ pub trait ICampaignDonation<TContractState> {
 
     fn get_donation(self: @TContractState, campaign_id: u256, donation_id: u256) -> Donations;
 
-    fn get_campaign(self: @TContractState, camapign_id: u256) -> Campaigns;
+    fn get_campaign(self: @TContractState, campaign_id: u256) -> Campaigns;
 
-    fn get_campagin_donations(self: @TContractState, camapign_id: u256) -> Array<Donations>;
+    fn get_campaign_donations(self: @TContractState, campaign_id: u256) -> Array<Donations>;
 }
