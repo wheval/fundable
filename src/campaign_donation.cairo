@@ -9,8 +9,8 @@ pub mod CampaignDonation {
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
     use starknet::storage::{
-        Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePathEntry,
-        StoragePointerReadAccess, StoragePointerWriteAccess,
+        Map, MutableVecTrait, StorageMapReadAccess, StorageMapWriteAccess, StoragePathEntry,
+        StoragePointerReadAccess, StoragePointerWriteAccess, Vec, VecTrait,
     };
     use starknet::{
         ClassHash, ContractAddress, contract_address_const, get_block_timestamp, get_caller_address,
@@ -40,7 +40,7 @@ pub mod CampaignDonation {
         upgradeable: UpgradeableComponent::Storage,
         campaign_counts: u256,
         campaigns: Map<u256, Campaigns>, // (campaign_id, Campaigns)
-        donations: Map<(u256, u256), Donations>, // MAP((campaign_id, donation_id), donation)
+        donations: Map<u256, Vec<Donations>>, // MAP((campaign_id, donation_id), donation)
         donation_counts: Map<u256, u256>,
         donation_count: u256,
         campaign_refs: Map<felt252, bool>, // All campaign ref to use for is_campaign_ref_exists
@@ -186,7 +186,9 @@ pub mod CampaignDonation {
 
             // Create donation record
             let donation = Donations { donation_id, donor, campaign_id, amount };
-            let compaign_donations = self.donations.write((campaign_id, donation_id), donation);
+
+            // Properly append to the Vec using push
+            self.donations.entry(campaign_id).push(donation);
 
             self.donation_count.write(donation_id);
 
@@ -239,8 +241,23 @@ pub mod CampaignDonation {
         }
 
         fn get_donation(self: @ContractState, campaign_id: u256, donation_id: u256) -> Donations {
-            let donations: Donations = self.donations.read((campaign_id, donation_id));
-            donations
+            // Since donations are stored sequentially in the Vec, we need to find the index
+            // The donation_id is global, so we need to iterate through the Vec to find it
+            let vec_len = self.donations.entry(campaign_id).len();
+            let mut i: u64 = 0;
+
+            while i < vec_len {
+                let donation = self.donations.entry(campaign_id).at(i).read();
+                if donation.donation_id == donation_id {
+                    return donation;
+                }
+                i += 1;
+            }
+
+            // Return empty donation if not found
+            Donations {
+                donation_id: 0, donor: contract_address_const::<0>(), campaign_id: 0, amount: 0,
+            }
         }
 
         fn get_campaigns(self: @ContractState) -> Array<Campaigns> {
@@ -261,26 +278,15 @@ pub mod CampaignDonation {
         fn get_campaign_donations(self: @ContractState, campaign_id: u256) -> Array<Donations> {
             let mut donations = ArrayTrait::new();
 
-            let campaign_donation_count = self.donation_counts.read(campaign_id);
+            // Get the length of the Vec for this campaign
+            let vec_len = self.donations.entry(campaign_id).len();
 
-            if campaign_donation_count == 0 {
-                return donations;
-            }
-
-            let max_donation_id = self.donation_count.read();
-
-            let mut found_count: u256 = 0;
-
-            let mut donation_id: u256 = 1;
-            while donation_id <= max_donation_id && found_count < campaign_donation_count {
-                let donation = self.donations.read((campaign_id, donation_id));
-
-                if donation.donation_id != 0 && donation.campaign_id == campaign_id {
-                    donations.append(donation);
-                    found_count += 1;
-                }
-
-                donation_id += 1;
+            // Iterate through all donations in the Vec
+            let mut i: u64 = 0;
+            while i < vec_len {
+                let donation = self.donations.entry(campaign_id).at(i).read();
+                donations.append(donation);
+                i += 1;
             }
 
             donations
