@@ -106,11 +106,12 @@ pub struct Campaigns {
     pub campaign_id: u256,
     pub owner: ContractAddress,
     pub target_amount: u256,
-    pub current_amount: u256,
-    pub asset: felt252,
+    pub current_balance: u256,
     pub is_closed: bool,
     pub is_goal_reached: bool,
     pub campaign_reference: felt252,
+    pub withdrawn_amount: u256,
+    pub donation_token: ContractAddress,
 }
 
 #[derive(Drop, Serde, starknet::Store)]
@@ -119,7 +120,6 @@ pub struct Donations {
     pub donor: ContractAddress,
     pub campaign_id: u256,
     pub amount: u256,
-    pub asset: felt252,
 }
 
 #[derive(Drop, Serde, starknet::Store)]
@@ -127,5 +127,4 @@ pub struct CampaignWithdrawal {
     pub owner: ContractAddress,
     pub campaign_id: u256,
     pub amount: u256,
-    pub asset: u256,
 }
