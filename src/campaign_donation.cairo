@@ -3,6 +3,7 @@
 pub mod CampaignDonation {
     use core::num::traits::Zero;
     use core::traits::Into;
+    use fundable::base::types::DonationMetadata;
     use fundable::interfaces::ICampaignDonation::ICampaignDonation;
     use fundable::interfaces::IDonationNFT::{IDonationNFTDispatcher, IDonationNFTDispatcherTrait};
     use openzeppelin::access::ownable::OwnableComponent;
@@ -298,8 +299,16 @@ pub mod CampaignDonation {
             let campaign: Campaigns = self.campaigns.read(campaign_id);
             campaign
         }
+        fn set_donation_nft_address(
+            ref self: ContractState, donation_nft_address: ContractAddress,
+        ) {
+            // Ensure the caller is the owner
+            self.ownable.assert_only_owner();
+            // Set the donation NFT address
+            self.donation_nft_address.write(donation_nft_address);
+        }
         fn mint_donation_nft(
-            ref self: TContractState, campaign_id: u256, donation_id: u256,
+            ref self: ContractState, campaign_id: u256, donation_id: u256,
         ) -> u256 {
             let donation_nft_dispatcher = IDonationNFTDispatcher {
                 contract_address: self.donation_nft_address.read(),
@@ -316,6 +325,7 @@ pub mod CampaignDonation {
                 donation_id,
                 donor: donation.donor,
                 amount: donation.amount,
+                timestamp: get_block_timestamp(),
             };
             // Mint the NFT receipt
             let token_id = donation_nft_dispatcher.mint_receipt(caller, donation_data);

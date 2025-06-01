@@ -8,7 +8,7 @@ pub mod DonationNFT {
     };
     use starknet::{ContractAddress, get_caller_address};
     use crate::base::types::DonationMetadata;
-    use crate::interfaces::IDonationNFT;
+    use crate::interfaces::IDonationNFT::IDonationNFT;
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
@@ -54,13 +54,10 @@ pub mod DonationNFT {
     }
 
     #[constructor]
-    fn constructor(
-        ref self: ContractState,
-        name: ByteArray,
-        symbol: ByteArray,
-        base_uri: ByteArray,
-        owner: ContractAddress,
-    ) {
+    fn constructor(ref self: ContractState, owner: ContractAddress) {
+        let name: ByteArray = "Fundable Donation NFT Receipt";
+        let symbol: ByteArray = "FDNR";
+        let base_uri: ByteArray = "https://example.com/receipts/";
         // Initialize the owner of the contract
         self.owner.write(owner);
         // Initialize the ERC721 component
@@ -95,7 +92,7 @@ pub mod DonationNFT {
         fn get_donation_data(self: @ContractState, token_id: u256) -> DonationMetadata {
             // Retrieve the donation data associated with the token_id
             let donation_data = self.token_id_metadata.entry(token_id).read();
-            assert(donation_data.campaign_id != 0, 'Invalid token ID or donation data not found');
+            assert(donation_data.campaign_id != 0, 'Donation data not found');
             donation_data
         }
     }

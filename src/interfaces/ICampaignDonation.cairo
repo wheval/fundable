@@ -103,6 +103,12 @@ pub trait ICampaignDonation<TContractState> {
     /// # Returns
     /// * `Array<Donations>` - An array of all donations made to the campaign
     fn get_campaign_donations(self: @TContractState, campaign_id: u256) -> Array<Donations>;
+    /// Sets the address of the donation NFT contract
+    ///
+    /// # Arguments
+    /// * `donation_nft_address` - The address of the donation NFT contract
+    ///
+    fn set_donation_nft_address(ref self: TContractState, donation_nft_address: ContractAddress);
     /// Mint NFT receipt for a donation
     ///
     /// # Arguments
