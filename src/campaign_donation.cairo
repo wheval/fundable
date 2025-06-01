@@ -3,7 +3,6 @@
 pub mod CampaignDonation {
     use core::num::traits::Zero;
     use core::traits::Into;
-    use fundable::base::types::DonationMetadata;
     use fundable::interfaces::ICampaignDonation::ICampaignDonation;
     use fundable::interfaces::IDonationNFT::{IDonationNFTDispatcher, IDonationNFTDispatcherTrait};
     use openzeppelin::access::ownable::OwnableComponent;
@@ -23,7 +22,7 @@ pub mod CampaignDonation {
         CANNOT_DENOTE_ZERO_AMOUNT, DOUBLE_WITHDRAWAL, INSUFFICIENT_ALLOWANCE, MORE_THAN_TARGET,
         TARGET_NOT_REACHED, TARGET_REACHED, WITHDRAWAL_FAILED, ZERO_ALLOWANCE, ZERO_AMOUNT,
     };
-    use crate::base::types::{Campaigns, Donations};
+    use crate::base::types::{Campaigns, Donations, DonationMetadata};
 
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
