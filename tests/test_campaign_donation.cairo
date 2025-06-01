@@ -47,11 +47,11 @@ fn deploy_donation_nft(
     let donation_nft_class = declare("DonationNFT").unwrap().contract_class();
     let mut calldata = array![campaign_donation_address.into()];
     let (donation_nft_address, _) = donation_nft_class.deploy(@calldata).unwrap();
-    let ierc721_dispacther = IERC721Dispatcher { contract_address: donation_nft_address };
+    let ierc721_dispatcher = IERC721Dispatcher { contract_address: donation_nft_address };
     let idonation_nft_dispatcher = IDonationNFTDispatcher {
         contract_address: donation_nft_address,
     };
-    (ierc721_dispacther, idonation_nft_dispatcher)
+    (ierc721_dispatcher, idonation_nft_dispatcher)
 }
 
 // DONE
@@ -596,7 +596,7 @@ fn test_mint_donation_receipt_successful() {
 
 #[test]
 #[should_panic(expected: 'Caller is not the donor')]
-fn test_mint_donation_receipt_fail_if_not_doner() {
+fn test_mint_donation_receipt_fail_if_not_donor() {
     let (_token_address, sender, campaign_donation, _erc721) = setup();
     // Deploy the Donation NFT contract
     let (_erc721, donation_nft_dispatcher) = deploy_donation_nft(

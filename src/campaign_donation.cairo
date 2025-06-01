@@ -309,9 +309,9 @@ pub mod CampaignDonation {
         fn mint_donation_nft(
             ref self: ContractState, campaign_id: u256, donation_id: u256,
         ) -> u256 {
-            let donation_nft_dispatcher = IDonationNFTDispatcher {
-                contract_address: self.donation_nft_address.read(),
-            };
+            let nft_address = self.donation_nft_address.read();
+            assert(nft_address.is_non_zero(), 'NFT contract not configured');
+            let donation_nft_dispatcher = IDonationNFTDispatcher { contract_address: nft_address };
             // Ensure caller is the donor
             let caller = get_caller_address();
             let donation = self.get_donation(campaign_id, donation_id);
