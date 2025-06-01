@@ -4,6 +4,7 @@ pub mod CampaignDonation {
     use core::num::traits::Zero;
     use core::traits::Into;
     use fundable::interfaces::ICampaignDonation::ICampaignDonation;
+    use fundable::interfaces::IDonationNFT::{IDonationNFTDispatcher, IDonationNFTDispatcherTrait};
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
     use openzeppelin::upgrades::UpgradeableComponent;
@@ -47,6 +48,7 @@ pub mod CampaignDonation {
         campaign_closed: Map<u256, bool>, // Map campaign ids to closing boolean
         campaign_withdrawn: Map<u256, bool>, //Map campaign ids to whether they have been withdrawn
         donation_token: ContractAddress,
+        donation_nft_address: ContractAddress // Address of the Donation NFT contract
     }
 
 
@@ -295,6 +297,29 @@ pub mod CampaignDonation {
         fn get_campaign(self: @ContractState, campaign_id: u256) -> Campaigns {
             let campaign: Campaigns = self.campaigns.read(campaign_id);
             campaign
+        }
+        fn mint_donation_nft(
+            ref self: TContractState, campaign_id: u256, donation_id: u256,
+        ) -> u256 {
+            let donation_nft_dispatcher = IDonationNFTDispatcher {
+                contract_address: self.donation_nft_address.read(),
+            };
+            // Ensure caller is the donor
+            let caller = get_caller_address();
+            let donation = self.get_donation(campaign_id, donation_id);
+            assert(caller == donation.donor, 'Caller is not the donor');
+            let campaign = self.get_campaign(campaign_id);
+            let donation_data = DonationMetadata {
+                campaign_id,
+                campaign_name: campaign.campaign_reference,
+                campaign_owner: campaign.owner,
+                donation_id,
+                donor: donation.donor,
+                amount: donation.amount,
+            };
+            // Mint the NFT receipt
+            let token_id = donation_nft_dispatcher.mint_receipt(caller, donation_data);
+            token_id
         }
     }
 
