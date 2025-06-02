@@ -17,9 +17,11 @@ pub mod CampaignDonation {
         get_contract_address,
     };
     use crate::base::errors::Errors::{
-        CALLER_NOT_CAMPAIGN_OWNER, CAMPAIGN_NOT_CLOSED, CAMPAIGN_REF_EMPTY, CAMPAIGN_REF_EXISTS,
+        CALLER_NOT_CAMPAIGN_OWNER, CAMPAIGN_CLOSED, CAMPAIGN_NOT_CLOSED, CAMPAIGN_REF_EMPTY, CAMPAIGN_REF_EXISTS,
         CANNOT_DENOTE_ZERO_AMOUNT, DOUBLE_WITHDRAWAL, INSUFFICIENT_ALLOWANCE, MORE_THAN_TARGET,
         TARGET_NOT_REACHED, TARGET_REACHED, WITHDRAWAL_FAILED, ZERO_ALLOWANCE, ZERO_AMOUNT,
+        CAMPAIGN_WITHDRAWN, CAMPAIGN_HAS_DONATIONS, CAMPAIGN_NOT_FOUND, REFUND_ALREADY_CLAIMED,
+        DONATION_NOT_FOUND,
     };
     use crate::base::types::{Campaigns, Donations};
 
@@ -47,6 +49,7 @@ pub mod CampaignDonation {
         campaign_closed: Map<u256, bool>, // Map campaign ids to closing boolean
         campaign_withdrawn: Map<u256, bool>, //Map campaign ids to whether they have been withdrawn
         donation_token: ContractAddress,
+        refunds_claimed: Map<(u256, ContractAddress), bool>, // Map((campaign_id, donor), claimed)
     }
 
 
@@ -56,6 +59,9 @@ pub mod CampaignDonation {
         Campaign: Campaign,
         Donation: Donation,
         CampaignWithdrawal: CampaignWithdrawal,
+        CampaignUpdated: CampaignUpdated,
+        CampaignCancelled: CampaignCancelled,
+        CampaignRefunded: CampaignRefunded,
         #[flat]
         OwnableEvent: OwnableComponent::Event,
         #[flat]
@@ -96,6 +102,34 @@ pub mod CampaignDonation {
         pub owner: ContractAddress,
         #[key]
         pub campaign_id: u256,
+        #[key]
+        pub amount: u256,
+        #[key]
+        pub timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub struct CampaignUpdated {
+        #[key]
+        pub campaign_id: u256,
+        #[key]
+        pub new_target: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub struct CampaignCancelled {
+        #[key]
+        pub campaign_id: u256,
+        #[key]
+        pub timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub struct CampaignRefunded {
+        #[key]
+        pub campaign_id: u256,
+        #[key]
+        pub donor: ContractAddress,
         #[key]
         pub amount: u256,
         #[key]
@@ -295,6 +329,97 @@ pub mod CampaignDonation {
         fn get_campaign(self: @ContractState, campaign_id: u256) -> Campaigns {
             let campaign: Campaigns = self.campaigns.read(campaign_id);
             campaign
+        }
+
+        fn update_campaign_target(ref self: ContractState, campaign_id: u256, new_target: u256) {
+            let caller = get_caller_address();
+            let mut campaign = self.get_campaign(campaign_id);
+            assert(caller == campaign.owner, CALLER_NOT_CAMPAIGN_OWNER);
+            assert(campaign.current_balance == 0, CAMPAIGN_HAS_DONATIONS);
+            assert(new_target > 0, ZERO_AMOUNT);
+            campaign.target_amount = new_target;
+            self.campaigns.write(campaign_id, campaign);
+            self
+                .emit(
+                    Event::CampaignUpdated(
+                        CampaignUpdated { 
+                            campaign_id, new_target 
+                        }
+                    )
+                );
+        }
+
+        fn cancel_campaign(ref self: ContractState, campaign_id: u256) {
+            let caller = get_caller_address();
+            assert(campaign_id <= self.campaign_counts.read(), CAMPAIGN_NOT_FOUND);
+            let mut campaign = self.get_campaign(campaign_id);
+            assert(caller == campaign.owner, CALLER_NOT_CAMPAIGN_OWNER);
+            assert(!campaign.is_closed, CAMPAIGN_CLOSED);
+            assert(!campaign.is_goal_reached, TARGET_REACHED);
+            assert(campaign.withdrawn_amount == 0, CAMPAIGN_WITHDRAWN);
+            let timestamp = get_block_timestamp();
+            campaign.is_closed = true;
+            self.campaigns.write(campaign_id, campaign);
+            self
+                .emit(
+                    Event::CampaignCancelled(
+                        CampaignCancelled { 
+                            campaign_id, 
+                            timestamp 
+                        }
+                    )
+                );
+        }
+
+        fn claim_refund(ref self: ContractState, campaign_id: u256) {
+            let caller = get_caller_address();
+            assert(campaign_id > 0, CAMPAIGN_NOT_FOUND);
+            assert(campaign_id <= self.campaign_counts.read(), CAMPAIGN_NOT_FOUND);
+            let mut campaign = self.get_campaign(campaign_id);
+            
+            // Check if campaign is cancelled
+            assert(campaign.is_closed, CAMPAIGN_CLOSED);
+            assert(campaign.withdrawn_amount == 0, CAMPAIGN_WITHDRAWN);
+            
+            // Check if caller has already claimed refund
+            assert(!self.refunds_claimed.read((campaign_id, caller)), REFUND_ALREADY_CLAIMED);
+            
+            // Calculate caller's total donations
+            let mut total_donation: u256 = 0;
+            let donations = self.get_campaign_donations(campaign_id);
+            let mut i: u64 = 0;
+            while i < donations.len().into() {
+                let donation = *donations.at(i.try_into().unwrap());
+                if donation.donor == caller {
+                    total_donation += donation.amount;
+                }
+                i += 1;
+            }
+            
+            // Ensure caller has donated
+            assert(total_donation > 0, DONATION_NOT_FOUND);
+            
+            // Transfer tokens back to donor
+            let donation_token = self.donation_token.read();
+            let token = IERC20Dispatcher { contract_address: donation_token };
+            let transfer_success = token.transfer(caller, total_donation);
+            assert(transfer_success, WITHDRAWAL_FAILED);
+            
+            // Mark refund as claimed
+            self.refunds_claimed.write((campaign_id, caller), true);
+            
+            // Emit event
+            let timestamp = get_block_timestamp();
+            self.emit(
+                Event::CampaignRefunded(
+                    CampaignRefunded {
+                        campaign_id,
+                        donor: caller,
+                        amount: total_donation,
+                        timestamp
+                    }
+                )
+            );
         }
     }
 
