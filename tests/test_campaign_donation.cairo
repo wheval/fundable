@@ -571,7 +571,7 @@ fn test_campaign_progress_precision() {
 
     // Test various precise percentages
     start_cheat_caller_address(campaign_donation.contract_address, sender);
-    
+
     // Test 51%
     campaign_donation.donate_to_campaign(campaign_id, 512);
     let progress = campaign_donation.get_campaign_progress(campaign_id);
@@ -734,7 +734,7 @@ fn test_multiple_campaigns_donor_count() {
     // Verify counts for both campaigns
     let count_campaign_1 = campaign_donation.get_campaign_donor_count(campaign_id_1);
     let count_campaign_2 = campaign_donation.get_campaign_donor_count(campaign_id_2);
-    
+
     assert(count_campaign_1 == 1, 'Campaign 1 count should be 1');
     assert(count_campaign_2 == 1, 'Campaign 2 count should be 1');
 
@@ -746,7 +746,7 @@ fn test_multiple_campaigns_donor_count() {
     // Verify updated counts
     let new_count_campaign_1 = campaign_donation.get_campaign_donor_count(campaign_id_1);
     let new_count_campaign_2 = campaign_donation.get_campaign_donor_count(campaign_id_2);
-    
+
     assert(new_count_campaign_1 == 1, 'should still be 1');
     assert(new_count_campaign_2 == 2, 'should be 2');
 }

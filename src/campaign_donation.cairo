@@ -48,7 +48,9 @@ pub mod CampaignDonation {
         campaign_withdrawn: Map<u256, bool>, //Map campaign ids to whether they have been withdrawn
         donation_token: ContractAddress,
         unique_donors_count: Map<u256, u32>, // Number of unique donors per campaign
-        campaign_donors: Map<(u256, ContractAddress), bool>, // Track if an address has donated to a campaign
+        campaign_donors: Map<
+            (u256, ContractAddress), bool,
+        > // Track if an address has donated to a campaign
     }
 
 
@@ -308,23 +310,22 @@ pub mod CampaignDonation {
             campaign
         }
         fn get_campaign_progress(self: @ContractState, campaign_id: u256) -> u8 {
-         
             let campaign: Campaigns = self.campaigns.read(campaign_id);
             if campaign.target_amount == 0 {
                 return 0_u8;
             }
-          
+
             let progress = (campaign.current_balance * 100) / campaign.target_amount;
 
             // // Cap at 100% for overfunded campaigns
             if progress > 100_u256 {
                 return 100_u8;
             }
-        
+
             // Convert the calculated progress to u8 using try_into().
             // This is a fallible conversion. unwrap() will panic if the value > 255.
             let progress_u8: u8 = progress.try_into().unwrap();
-        
+
             // Return the u8 value.
             progress_u8
         }
