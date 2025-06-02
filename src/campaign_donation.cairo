@@ -21,7 +21,7 @@ pub mod CampaignDonation {
         CANNOT_DENOTE_ZERO_AMOUNT, DOUBLE_WITHDRAWAL, INSUFFICIENT_ALLOWANCE, MORE_THAN_TARGET,
         TARGET_NOT_REACHED, TARGET_REACHED, WITHDRAWAL_FAILED, ZERO_ALLOWANCE, ZERO_AMOUNT,
         CAMPAIGN_WITHDRAWN, CAMPAIGN_HAS_DONATIONS, CAMPAIGN_NOT_FOUND, REFUND_ALREADY_CLAIMED,
-        DONATION_NOT_FOUND,
+        DONATION_NOT_FOUND, CAMPAIGN_NOT_CANCELLED,
     };
     use crate::base::types::{Campaigns, Donations};
 
@@ -166,6 +166,7 @@ pub mod CampaignDonation {
                 is_closed: false,
                 is_goal_reached: false,
                 donation_token: self.donation_token.read(),
+                is_cancelled: false,
             };
 
             self.campaigns.write(campaign_id, campaign);
@@ -367,7 +368,9 @@ pub mod CampaignDonation {
             assert(campaign.withdrawn_amount == 0, CAMPAIGN_WITHDRAWN);
             let timestamp = get_block_timestamp();
             campaign.is_closed = true;
+            campaign.is_cancelled = true;
             self.campaigns.write(campaign_id, campaign);
+            self.campaign_closed.write(campaign_id, true);
             self
                 .emit(
                     Event::CampaignCancelled(
@@ -386,7 +389,7 @@ pub mod CampaignDonation {
             let mut campaign = self.get_campaign(campaign_id);
             
             // Check if campaign is cancelled
-            assert(campaign.is_closed, CAMPAIGN_CLOSED);
+            assert(campaign.is_cancelled, CAMPAIGN_NOT_CANCELLED);
             assert(campaign.withdrawn_amount == 0, CAMPAIGN_WITHDRAWN);
             
             // Check if caller has already claimed refund

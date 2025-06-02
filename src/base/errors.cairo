@@ -102,6 +102,8 @@ pub mod Errors {
 
     pub const CAMPAIGN_NOT_CLOSED: felt252 = 'Error: Campaign not closed';
 
+    pub const CAMPAIGN_NOT_CANCELLED: felt252 = 'Error: Campaign not cancelled';
+
     pub const CAMPAIGN_CLOSED: felt252 = 'Error: Campaign closed';
 
     pub const CAMPAIGN_HAS_DONATIONS: felt252 = 'Error: Campaign has donations';
