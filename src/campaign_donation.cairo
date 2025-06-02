@@ -50,6 +50,7 @@ pub mod CampaignDonation {
         campaign_withdrawn: Map<u256, bool>, //Map campaign ids to whether they have been withdrawn
         donation_token: ContractAddress,
         refunds_claimed: Map<(u256, ContractAddress), bool>, // Map((campaign_id, donor), claimed)
+        donations_by_donor: Map<(u256, ContractAddress), u256>, // Map((campaign_id, donor), total_donation)
     }
 
 
@@ -210,6 +211,10 @@ pub mod CampaignDonation {
             // Update campaign amount
             campaign.current_balance = campaign.current_balance + amount;
 
+            // Update donor's total donation for this campaign
+            let current_total = self.donations_by_donor.read((campaign_id, donor));
+            self.donations_by_donor.write((campaign_id, donor), current_total + amount);
+
             // If goal reached, mark as closed
             if (campaign.current_balance >= campaign.target_amount) {
                 campaign.is_goal_reached = true;
@@ -333,6 +338,8 @@ pub mod CampaignDonation {
 
         fn update_campaign_target(ref self: ContractState, campaign_id: u256, new_target: u256) {
             let caller = get_caller_address();
+            assert(campaign_id > 0, CAMPAIGN_NOT_FOUND);
+            assert(campaign_id <= self.campaign_counts.read(), CAMPAIGN_NOT_FOUND);
             let mut campaign = self.get_campaign(campaign_id);
             assert(caller == campaign.owner, CALLER_NOT_CAMPAIGN_OWNER);
             assert(campaign.current_balance == 0, CAMPAIGN_HAS_DONATIONS);
@@ -351,6 +358,7 @@ pub mod CampaignDonation {
 
         fn cancel_campaign(ref self: ContractState, campaign_id: u256) {
             let caller = get_caller_address();
+            assert(campaign_id > 0, CAMPAIGN_NOT_FOUND);
             assert(campaign_id <= self.campaign_counts.read(), CAMPAIGN_NOT_FOUND);
             let mut campaign = self.get_campaign(campaign_id);
             assert(caller == campaign.owner, CALLER_NOT_CAMPAIGN_OWNER);
@@ -384,17 +392,8 @@ pub mod CampaignDonation {
             // Check if caller has already claimed refund
             assert(!self.refunds_claimed.read((campaign_id, caller)), REFUND_ALREADY_CLAIMED);
             
-            // Calculate caller's total donations
-            let mut total_donation: u256 = 0;
-            let donations = self.get_campaign_donations(campaign_id);
-            let mut i: u64 = 0;
-            while i < donations.len().into() {
-                let donation = *donations.at(i.try_into().unwrap());
-                if donation.donor == caller {
-                    total_donation += donation.amount;
-                }
-                i += 1;
-            }
+            // Get total donation amount directly from mapping
+            let total_donation = self.donations_by_donor.read((campaign_id, caller));
             
             // Ensure caller has donated
             assert(total_donation > 0, DONATION_NOT_FOUND);
