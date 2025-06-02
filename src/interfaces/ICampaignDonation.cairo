@@ -103,7 +103,8 @@ pub trait ICampaignDonation<TContractState> {
     /// # Returns
     /// * `Array<Donations>` - An array of all donations made to the campaign
     fn get_campaign_donations(self: @TContractState, campaign_id: u256) -> Array<Donations>;
-    // *************************************************************************
+
+// *************************************************************************
 //                        USER EXPERIENCE ENHANCEMENTS
 // *************************************************************************
 
@@ -214,16 +215,18 @@ pub trait ICampaignDonation<TContractState> {
 ///
 /// # Returns
 /// * `u8` - Progress percentage (0-100)
-// fn get_campaign_progress(self: @TContractState, campaign_id: u256) -> u8;
 
-    /// Gets the number of unique donors for a campaign
+fn get_campaign_progress(self: @TContractState, campaign_id: u256) -> u8;
+
+/// Gets the number of unique donors for a campaign
 ///
 /// # Arguments
 /// * `campaign_id` - The campaign ID
 ///
 /// # Returns
 /// * `u32` - Number of unique donors
-// fn get_campaign_donor_count(self: @TContractState, campaign_id: u256) -> u32;
+
+fn get_campaign_donor_count(self: @TContractState, campaign_id: u256) -> u32;
 
     /// Gets campaigns close to reaching their goal
 ///
