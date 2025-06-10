@@ -116,6 +116,9 @@ pub mod Errors {
 
     pub const WITHDRAWAL_FAILED: felt252 = 'Error: Withdraw failed';
 
+    /// Thrown when an operation leads to an overflow
+    pub const OPERATION_OVERFLOW: felt252 = 'Error: Operation overflow';
+
     pub const CAMPAIGN_NOT_FOUND: felt252 = 'Error: Campaign Not Found';
 
     pub const REFUND_ALREADY_CLAIMED: felt252 = 'Error: Refund already claimed';
