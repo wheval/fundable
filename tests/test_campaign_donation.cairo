@@ -573,10 +573,13 @@ fn test_update_campaign_target_with_donations() {
     token_dispatcher.approve(campaign_donation.contract_address, 1000);
     stop_cheat_caller_address(token_address);
     
+    // Make donation in separate block
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     campaign_donation.donate_to_campaign(campaign_id, 500);
+    stop_cheat_caller_address(campaign_donation.contract_address);
     
-    // Try to update target
+    // Try to update target in separate block - this should fail since current_balance > 0
+    start_cheat_caller_address(campaign_donation.contract_address, sender);
     campaign_donation.update_campaign_target(campaign_id, 2000);
     stop_cheat_caller_address(campaign_donation.contract_address);
 }
