@@ -52,7 +52,7 @@ pub mod CampaignDonation {
         donation_token: ContractAddress,
         donor_donations: Map<
             ContractAddress, Vec<(u256, u256)>,
-        > // Map donor_address to Vec of (campaign_id, donation_id)
+        >, // Map donor_address to Vec of (campaign_id, donation_id)
         refunds_claimed: Map<(u256, ContractAddress), bool>, // Map((campaign_id, donor), claimed)
         donations_by_donor: Map<(u256, ContractAddress), u256>, // Map((campaign_id, donor), total_donation)
     }
@@ -399,8 +399,10 @@ pub mod CampaignDonation {
             assert(campaign_id <= self.campaign_counts.read(), CAMPAIGN_NOT_FOUND);
             let mut campaign = self.get_campaign(campaign_id);
             assert(caller == campaign.owner, CALLER_NOT_CAMPAIGN_OWNER);
-            assert(campaign.current_balance == 0, CAMPAIGN_HAS_DONATIONS);
             assert(new_target > 0, ZERO_AMOUNT);
+            assert(!campaign.is_closed, CAMPAIGN_CLOSED);
+            assert(!campaign.is_goal_reached, TARGET_REACHED); // Campaign must not have reached its goal
+            assert(campaign.current_balance == 0, CAMPAIGN_HAS_DONATIONS); // Campaign must have no donations
             campaign.target_amount = new_target;
             self.campaigns.write(campaign_id, campaign);
             self
