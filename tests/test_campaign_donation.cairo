@@ -667,12 +667,13 @@ fn test_claim_refund_twice() {
     
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     campaign_donation.donate_to_campaign(campaign_id, 500);
-    
     // Cancel and claim refund
     campaign_donation.cancel_campaign(campaign_id);
     campaign_donation.claim_refund(campaign_id);
+    stop_cheat_caller_address(campaign_donation.contract_address);
     
     // Try to claim again
+    start_cheat_caller_address(campaign_donation.contract_address, sender);
     campaign_donation.claim_refund(campaign_id);
     stop_cheat_caller_address(campaign_donation.contract_address);
 }
