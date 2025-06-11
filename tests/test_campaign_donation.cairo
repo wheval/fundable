@@ -625,6 +625,7 @@ fn test_claim_refund_successful() {
     // Create campaign
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation.create_campaign('Test', target_amount);
+    stop_cheat_caller_address(campaign_donation.contract_address);
     
     // Make donation
     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
@@ -659,6 +660,7 @@ fn test_claim_refund_twice() {
     // Create campaign and make donation
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation.create_campaign('Test', 1000);
+    stop_cheat_caller_address(campaign_donation.contract_address);
     
     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
     start_cheat_caller_address(token_address, sender);
@@ -690,6 +692,7 @@ fn test_claim_refund_no_donation() {
     
     // Cancel campaign
     campaign_donation.cancel_campaign(campaign_id);
+    stop_cheat_caller_address(campaign_donation.contract_address);
     
     // Try to claim refund as non-donor
     start_cheat_caller_address(campaign_donation.contract_address, other_user);
