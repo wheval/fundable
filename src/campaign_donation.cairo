@@ -1,7 +1,7 @@
 /// CampaignDonation contract implementation
 #[starknet::contract]
 pub mod CampaignDonation {
-    use core::num::traits::Zero;
+    use core::num::traits::{OverflowingAdd, Zero};
     use core::traits::Into;
     use fundable::interfaces::ICampaignDonation::ICampaignDonation;
     use fundable::interfaces::IDonationNFT::{IDonationNFTDispatcher, IDonationNFTDispatcherTrait};
@@ -20,7 +20,8 @@ pub mod CampaignDonation {
     use crate::base::errors::Errors::{
         CALLER_NOT_CAMPAIGN_OWNER, CAMPAIGN_NOT_CLOSED, CAMPAIGN_REF_EMPTY, CAMPAIGN_REF_EXISTS,
         CANNOT_DENOTE_ZERO_AMOUNT, DOUBLE_WITHDRAWAL, INSUFFICIENT_ALLOWANCE, MORE_THAN_TARGET,
-        TARGET_NOT_REACHED, TARGET_REACHED, WITHDRAWAL_FAILED, ZERO_ALLOWANCE, ZERO_AMOUNT,
+        OPERATION_OVERFLOW, TARGET_NOT_REACHED, TARGET_REACHED, WITHDRAWAL_FAILED, ZERO_ALLOWANCE,
+        ZERO_AMOUNT,
     };
     use crate::base::types::{Campaigns, DonationMetadata, Donations};
 
@@ -48,7 +49,10 @@ pub mod CampaignDonation {
         campaign_closed: Map<u256, bool>, // Map campaign ids to closing boolean
         campaign_withdrawn: Map<u256, bool>, //Map campaign ids to whether they have been withdrawn
         donation_token: ContractAddress,
-        donation_nft_address: ContractAddress // Address of the Donation NFT contract
+        donation_nft_address: ContractAddress, // Address of the Donation NFT contract
+        donor_donations: Map<
+            ContractAddress, Vec<(u256, u256)>,
+        > // Map donor_address to Vec of (campaign_id, donation_id)
     }
 
 
@@ -194,6 +198,9 @@ pub mod CampaignDonation {
 
             self.donation_count.write(donation_id);
 
+            // Save donation reference for the donor
+            self.donor_donations.entry(donor).push((campaign_id, donation_id));
+
             // Update the per-campaign donation count
             let campaign_donation_count = self.donation_counts.read(campaign_id);
             self.donation_counts.write(campaign_id, campaign_donation_count + 1);
@@ -329,6 +336,55 @@ pub mod CampaignDonation {
             // Mint the NFT receipt
             let token_id = donation_nft_dispatcher.mint_receipt(caller, donation_data);
             token_id
+        }
+
+        fn get_donations_by_donor(
+            self: @ContractState, donor: ContractAddress,
+        ) -> Array<(u256, Donations)> {
+            let mut donations = ArrayTrait::new();
+
+            // List of (campaign_id, donation_id) for this donor
+            let donor_entries = self.donor_donations.entry(donor);
+
+            // Rebuild full donation records from stored entries
+            for i in 0..donor_entries.len() {
+                let (campaign_id, donation_id) = donor_entries.at(i).read();
+                let donation = self.get_donation(campaign_id, donation_id);
+                donations.append((campaign_id, donation));
+            }
+
+            donations
+        }
+
+        fn get_total_donated_by_donor(self: @ContractState, donor: ContractAddress) -> u256 {
+            let mut total: u256 = 0;
+            let donor_donations = self.get_donations_by_donor(donor);
+
+            // Sum all donation amounts across campaigns
+            for (_, donation) in donor_donations {
+                let (new_total, overflowed) = total.overflowing_add(donation.amount);
+                assert(!overflowed, OPERATION_OVERFLOW);
+                total = new_total;
+            }
+
+            total
+        }
+
+        fn has_donated_to_campaign(
+            self: @ContractState, campaign_id: u256, donor: ContractAddress,
+        ) -> bool {
+            // List of (campaign_id, donation_id) for this donor
+            let donor_entries = self.donor_donations.entry(donor);
+
+            // Check if any entry matches the specified campaign_id
+            for i in 0..donor_entries.len() {
+                let (donor_campaign_id, _) = donor_entries.at(i).read();
+                if donor_campaign_id == campaign_id {
+                    return true;
+                }
+            }
+
+            false
         }
     }
 
