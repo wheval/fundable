@@ -520,7 +520,7 @@ fn test_update_campaign_target_successful() {
     // Create campaign
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation.create_campaign('Test', target_amount);
-    
+
     // Update target
     campaign_donation.update_campaign_target(campaign_id, new_target);
     stop_cheat_caller_address(campaign_donation.contract_address);
@@ -544,12 +544,12 @@ fn test_update_campaign_target_nonexistent() {
 fn test_update_campaign_target_not_owner() {
     let (_token_address, sender, campaign_donation, _erc721) = setup();
     let other_user: ContractAddress = contract_address_const::<'other_user'>();
-    
+
     // Create campaign as sender
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation.create_campaign('Test', 1000);
     stop_cheat_caller_address(campaign_donation.contract_address);
-    
+
     // Try to update as other user
     start_cheat_caller_address(campaign_donation.contract_address, other_user);
     campaign_donation.update_campaign_target(campaign_id, 2000);
@@ -561,23 +561,23 @@ fn test_update_campaign_target_not_owner() {
 fn test_update_campaign_target_with_donations() {
     let (token_address, sender, campaign_donation, _erc721) = setup();
     let target_amount = 1000_u256;
-    
+
     // Create campaign and make donation
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation.create_campaign('Test', target_amount);
     stop_cheat_caller_address(campaign_donation.contract_address);
-    
+
     // Approve and donate
     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
     start_cheat_caller_address(token_address, sender);
     token_dispatcher.approve(campaign_donation.contract_address, 1000);
     stop_cheat_caller_address(token_address);
-    
+
     // Make donation in separate block
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     campaign_donation.donate_to_campaign(campaign_id, 500);
     stop_cheat_caller_address(campaign_donation.contract_address);
-    
+
     // Try to update target in separate block - this should fail since current_balance > 0
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     campaign_donation.update_campaign_target(campaign_id, 2000);
@@ -587,15 +587,15 @@ fn test_update_campaign_target_with_donations() {
 #[test]
 fn test_cancel_campaign_successful() {
     let (_token_address, sender, campaign_donation, _erc721) = setup();
-    
+
     // Create campaign
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation.create_campaign('Test', 1000);
-    
+
     // Cancel campaign
     campaign_donation.cancel_campaign(campaign_id);
     stop_cheat_caller_address(campaign_donation.contract_address);
-    
+
     // Verify cancellation
     let campaign = campaign_donation.get_campaign(campaign_id);
     assert(campaign.is_closed, 'Campaign not closed');
@@ -606,12 +606,12 @@ fn test_cancel_campaign_successful() {
 #[should_panic(expected: 'Error: Campaign closed')]
 fn test_cancel_campaign_already_closed() {
     let (_token_address, sender, campaign_donation, _erc721) = setup();
-    
+
     // Create and cancel campaign
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation.create_campaign('Test', 1000);
     campaign_donation.cancel_campaign(campaign_id);
-    
+
     // Try to cancel again
     campaign_donation.cancel_campaign(campaign_id);
     stop_cheat_caller_address(campaign_donation.contract_address);
@@ -621,31 +621,31 @@ fn test_cancel_campaign_already_closed() {
 fn test_claim_refund_successful() {
     let (token_address, sender, campaign_donation, _erc721) = setup();
     let target_amount = 1000_u256;
-    
+
     // Create campaign
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation.create_campaign('Test', target_amount);
     stop_cheat_caller_address(campaign_donation.contract_address);
-    
+
     // Make donation
     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
     start_cheat_caller_address(token_address, sender);
     token_dispatcher.approve(campaign_donation.contract_address, 1000);
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     campaign_donation.donate_to_campaign(campaign_id, 500);
-    
+
     // Cancel campaign
     campaign_donation.cancel_campaign(campaign_id);
-    
+
     // Claim refund
     let balance_before = token_dispatcher.balance_of(sender);
     campaign_donation.claim_refund(campaign_id);
     let balance_after = token_dispatcher.balance_of(sender);
-    
+
     stop_cheat_caller_address(campaign_donation.contract_address);
-    
+
     // Verify refund
     assert(balance_after - balance_before == 500, 'Refund amount incorrect');
     let campaign = campaign_donation.get_campaign(campaign_id);
@@ -656,24 +656,24 @@ fn test_claim_refund_successful() {
 #[should_panic(expected: 'Error: Refund already claimed')]
 fn test_claim_refund_twice() {
     let (token_address, sender, campaign_donation, _erc721) = setup();
-    
+
     // Create campaign and make donation
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation.create_campaign('Test', 1000);
     stop_cheat_caller_address(campaign_donation.contract_address);
-    
+
     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
     start_cheat_caller_address(token_address, sender);
     token_dispatcher.approve(campaign_donation.contract_address, 1000);
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     campaign_donation.donate_to_campaign(campaign_id, 500);
     // Cancel and claim refund
     campaign_donation.cancel_campaign(campaign_id);
     campaign_donation.claim_refund(campaign_id);
     stop_cheat_caller_address(campaign_donation.contract_address);
-    
+
     // Try to claim again
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     campaign_donation.claim_refund(campaign_id);
@@ -685,15 +685,15 @@ fn test_claim_refund_twice() {
 fn test_claim_refund_no_donation() {
     let (_token_address, sender, campaign_donation, _erc721) = setup();
     let other_user: ContractAddress = contract_address_const::<'other_user'>();
-    
+
     // Create campaign
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation.create_campaign('Test', 1000);
-    
+
     // Cancel campaign
     campaign_donation.cancel_campaign(campaign_id);
     stop_cheat_caller_address(campaign_donation.contract_address);
-    
+
     // Try to claim refund as non-donor
     start_cheat_caller_address(campaign_donation.contract_address, other_user);
     campaign_donation.claim_refund(campaign_id);

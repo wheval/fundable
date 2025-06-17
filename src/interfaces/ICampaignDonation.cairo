@@ -167,8 +167,8 @@ pub trait ICampaignDonation<TContractState> {
         self: @TContractState, campaign_id: u256, donor: ContractAddress,
     ) -> bool;
     // *************************************************************************
-//                        CAMPAIGN MANAGEMENT
-// *************************************************************************
+    //                        CAMPAIGN MANAGEMENT
+    // *************************************************************************
 
     /// Updates the target amount for a campaign (only by owner before any donations)
     ///
@@ -203,7 +203,6 @@ pub trait ICampaignDonation<TContractState> {
     // / * Caller must have donated to the campaign
     // / * Refund must not have been claimed already
     fn claim_refund(ref self: TContractState, campaign_id: u256);
-
     // *************************************************************************
 //                        ANALYTICS & INSIGHTS
 // *************************************************************************
