@@ -124,5 +124,14 @@ pub mod Errors {
     pub const REFUND_ALREADY_CLAIMED: felt252 = 'Error: Refund already claimed';
 
     pub const DONATION_NOT_FOUND: felt252 = 'Error: Donation not found';
+
+    // Throw Error when NFT contract is not configured
+    pub const NFT_NOT_CONFIGURED: felt252 = 'Error: NFT not configured';
+
+    // Throw Error when Caller is not the donor
+    pub const CALLER_NOT_DONOR: felt252 = 'Error: Caller is not the donor';
+
+    // Throw Error when Insufficient balance
+    pub const INSUFFICIENT_BALANCE: felt252 = 'Error: Insufficient balance';
 }
 
