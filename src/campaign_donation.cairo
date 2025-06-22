@@ -526,9 +526,6 @@ pub mod CampaignDonation {
             let mut campaign = self.campaigns.read(campaign_id);
             let campaign_owner = campaign.owner;
             assert(caller == campaign_owner, CALLER_NOT_CAMPAIGN_OWNER);
-            campaign.is_goal_reached = true;
-
-            let this_contract = get_contract_address();
 
             assert(campaign.is_closed, CAMPAIGN_NOT_CLOSED);
 
@@ -539,13 +536,14 @@ pub mod CampaignDonation {
             let token = IERC20Dispatcher { contract_address: donation_token };
 
             let withdrawn_amount = campaign.current_balance;
-            let transfer_from = token.transfer(campaign_owner, withdrawn_amount.clone());
+            let transfer_from = token.transfer(campaign_owner, withdrawn_amount);
             assert(transfer_from, WITHDRAWAL_FAILED);
 
             campaign.withdrawn_amount = campaign.withdrawn_amount + withdrawn_amount;
             campaign.is_goal_reached = true;
             self.campaign_closed.write(campaign_id, true);
             self.campaigns.write(campaign_id, campaign);
+            self.campaign_withdrawn.write(campaign_id, true);
             withdrawn_amount
         }
 
