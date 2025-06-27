@@ -150,9 +150,15 @@ pub mod CampaignDonation {
     }
 
     #[constructor]
-    fn constructor(ref self: ContractState, owner: ContractAddress, token: ContractAddress) {
+    fn constructor(
+        ref self: ContractState,
+        owner: ContractAddress,
+        token: ContractAddress,
+        protocol_fee_address: ContractAddress,
+    ) {
         self.ownable.initializer(owner);
         self.donation_token.write(token);
+        self.protocol_fee_address.write(protocol_fee_address);
     }
 
     #[abi(embed_v0)]
@@ -444,6 +450,7 @@ pub mod CampaignDonation {
         }
 
         fn get_protocol_fee_address(self: @ContractState) -> ContractAddress {
+            self.ownable.assert_only_owner();
             self.protocol_fee_address.read()
         }
 
