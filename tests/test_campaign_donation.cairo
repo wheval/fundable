@@ -96,6 +96,20 @@ fn test_create_campaign_invalid_zero_amount() {
     stop_cheat_caller_address(campaign_donation.contract_address);
 }
 
+#[test]
+#[should_panic(expected: 'Error: Invalid donation token')]
+fn test_create_campaign_invalid_donation_token() {
+    let (token_address, _sender, campaign_donation, _erc721) = setup();
+    let target_amount = 10_u256;
+    let campaign_ref = 'Test';
+    let donation_token: ContractAddress = 0.try_into().unwrap();
+    let owner = contract_address_const::<'owner'>();
+    start_cheat_caller_address(campaign_donation.contract_address, owner);
+    campaign_donation.create_campaign(campaign_ref, target_amount, donation_token);
+    stop_cheat_caller_address(campaign_donation.contract_address);
+}
+
+
 // #[test]
 // #[should_panic(expected: 'Error: Campaign Ref Exists')]
 // fn test_create_campaign_duplicate_campaign_refs() {
