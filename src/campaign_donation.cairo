@@ -451,7 +451,6 @@ pub mod CampaignDonation {
         }
 
         fn get_protocol_fee_address(self: @ContractState) -> ContractAddress {
-            self.ownable.assert_only_owner();
             self.protocol_fee_address.read()
         }
 
@@ -572,8 +571,8 @@ pub mod CampaignDonation {
             if protocol_fee > 0 {
                 let protocol_address = self.protocol_fee_address.read();
                 assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
-                token_dispatcher.transfer(protocol_address, protocol_fee);
-                assert(transfer_from, WITHDRAWAL_FAILED);
+                let protocol_transfer = token_dispatcher.transfer(protocol_address, protocol_fee);
+                assert(protocol_transfer, WITHDRAWAL_FAILED);
             }
 
             let amount_after_fee = withdrawn_amount - protocol_fee;
