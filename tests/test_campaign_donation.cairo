@@ -54,7 +54,6 @@ fn deploy_donation_nft(
     (ierc721_dispatcher, idonation_nft_dispatcher)
 }
 
-fn deploy_donation_token() {}
 // DONE
 
 #[test]

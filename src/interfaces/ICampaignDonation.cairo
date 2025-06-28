@@ -17,6 +17,7 @@ pub trait ICampaignDonation<TContractState> {
     /// # Arguments
     /// * `campaign_ref` - A unique 5-character identifier for the campaign
     /// * `target_amount` - The fundraising goal amount in the donation token
+    /// * `donation_token` - The address of the donation token
     ///
     /// # Returns
     /// * `u256` - The newly created campaign's ID
