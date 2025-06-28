@@ -23,8 +23,8 @@ pub mod CampaignDonation {
         CAMPAIGN_REF_EXISTS, CAMPAIGN_WITHDRAWN, CANNOT_DENOTE_ZERO_AMOUNT, DONATION_NOT_FOUND,
         DOUBLE_WITHDRAWAL, INSUFFICIENT_ALLOWANCE, INSUFFICIENT_BALANCE, MORE_THAN_TARGET,
         NFT_NOT_CONFIGURED, OPERATION_OVERFLOW, PROTOCOL_FEE_ADDRESS_NOT_SET,
-        REFUND_ALREADY_CLAIMED, TARGET_NOT_REACHED, TARGET_REACHED, WITHDRAWAL_FAILED,
-        ZERO_ALLOWANCE, ZERO_AMOUNT,
+        PROTOCOL_FEE_PERCENTAGE_EXCEED, REFUND_ALREADY_CLAIMED, TARGET_NOT_REACHED, TARGET_REACHED,
+        WITHDRAWAL_FAILED, ZERO_ALLOWANCE, ZERO_AMOUNT,
     };
     use crate::base::types::{Campaigns, DonationMetadata, Donations};
 
@@ -446,6 +446,7 @@ pub mod CampaignDonation {
 
         fn set_protocol_fee_percent(ref self: ContractState, new_fee_percent: u256) {
             self.ownable.assert_only_owner();
+            assert(new_fee_percent <= 10000, PROTOCOL_FEE_PERCENTAGE_EXCEED);
             self.protocol_fee_percent.write(new_fee_percent);
         }
 
@@ -566,16 +567,17 @@ pub mod CampaignDonation {
 
             let withdrawn_amount = campaign.current_balance;
             let protocol_fee = self.calculate_protocol_fee(@withdrawn_amount);
-            let total_amount = withdrawn_amount - protocol_fee;
 
             // transfer protocol fee
             if protocol_fee > 0 {
                 let protocol_address = self.protocol_fee_address.read();
                 assert(!protocol_address.is_zero(), PROTOCOL_FEE_ADDRESS_NOT_SET);
                 token_dispatcher.transfer(protocol_address, protocol_fee);
+                assert(transfer_from, WITHDRAWAL_FAILED);
             }
 
-            let transfer_from = token_dispatcher.transfer(campaign_owner, withdrawn_amount);
+            let amount_after_fee = withdrawn_amount - protocol_fee;
+            let transfer_from = token_dispatcher.transfer(campaign_owner, amount_after_fee);
             assert(transfer_from, WITHDRAWAL_FAILED);
 
             campaign.withdrawn_amount = campaign.withdrawn_amount + withdrawn_amount;
