@@ -135,5 +135,9 @@ pub mod Errors {
 
     // Throw Error when donation token is invalid
     pub const INVALID_DONATION_TOKEN: felt252 = 'Error: Invalid donation token';
+
+    // Throw Error when Fee percent exceeds 100%
+    pub const PROTOCOL_FEE_PERCENTAGE_EXCEED: felt252 = 'Error: Fee percent exceeds 100%';
+
 }
 
