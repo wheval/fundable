@@ -24,7 +24,8 @@ pub mod CampaignDonation {
         DOUBLE_WITHDRAWAL, INSUFFICIENT_ALLOWANCE, INSUFFICIENT_BALANCE, MORE_THAN_TARGET,
         NFT_NOT_CONFIGURED, OPERATION_OVERFLOW, PROTOCOL_FEE_ADDRESS_NOT_SET,
         PROTOCOL_FEE_PERCENTAGE_EXCEED, REFUND_ALREADY_CLAIMED, TARGET_NOT_REACHED, TARGET_REACHED,
-        WITHDRAWAL_FAILED, ZERO_ALLOWANCE, ZERO_AMOUNT,
+        WITHDRAWAL_FAILED, ZERO_ALLOWANCE, ZERO_AMOUNT, INVALID_DONATION_TOKEN,
+
     };
     use crate::base::types::{Campaigns, DonationMetadata, Donations};
 
@@ -164,13 +165,17 @@ pub mod CampaignDonation {
     #[abi(embed_v0)]
     impl CampaignDonationImpl of ICampaignDonation<ContractState> {
         fn create_campaign(
-            ref self: ContractState, campaign_ref: felt252, target_amount: u256,
+            ref self: ContractState,
+            campaign_ref: felt252,
+            target_amount: u256,
+            donation_token: ContractAddress,
         ) -> u256 {
             let caller = get_caller_address();
             let timestamp = get_block_timestamp();
             let ref_campaign = campaign_ref.clone();
             let campaign_target_amount = target_amount.clone();
-            let campaign_id = self._create_campaign(ref_campaign, campaign_target_amount);
+            let campaign_id = self
+                ._create_campaign(ref_campaign, campaign_target_amount, donation_token);
             self
                 .emit(
                     Event::Campaign(
@@ -463,11 +468,15 @@ pub mod CampaignDonation {
     #[generate_trait]
     impl InternalImpl of InternalTrait {
         fn _create_campaign(
-            ref self: ContractState, campaign_ref: felt252, target_amount: u256,
+            ref self: ContractState,
+            campaign_ref: felt252,
+            target_amount: u256,
+            donation_token: ContractAddress,
         ) -> u256 {
             assert(campaign_ref != '', CAMPAIGN_REF_EMPTY);
             assert(!self.campaign_refs.read(campaign_ref), CAMPAIGN_REF_EXISTS);
             assert(target_amount > 0, ZERO_AMOUNT);
+            assert(!donation_token.is_zero(), INVALID_DONATION_TOKEN);
             let campaign_id: u256 = self.campaign_counts.read() + 1;
             let caller = get_caller_address();
             let current_balance: u256 = 0;
@@ -481,7 +490,7 @@ pub mod CampaignDonation {
                 campaign_reference: campaign_ref,
                 is_closed: false,
                 is_goal_reached: false,
-                donation_token: self.donation_token.read(),
+                donation_token: donation_token,
                 is_cancelled: false,
             };
 
@@ -497,7 +506,7 @@ pub mod CampaignDonation {
             let mut campaign = self.get_campaign(campaign_id);
             let contract_address = get_contract_address();
 
-            let donation_token = self.donation_token.read();
+            let donation_token = campaign.donation_token;
             // cannot send more than target amount
             assert!(amount <= campaign.target_amount, "More than Target");
 
@@ -560,7 +569,7 @@ pub mod CampaignDonation {
 
             assert(!self.campaign_withdrawn.read(campaign_id), DOUBLE_WITHDRAWAL);
 
-            let donation_token = self.donation_token.read();
+            let donation_token = campaign.donation_token;
 
             let token_dispatcher = IERC20Dispatcher { contract_address: donation_token };
 
