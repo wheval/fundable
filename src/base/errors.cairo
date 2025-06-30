@@ -53,9 +53,6 @@ pub mod Errors {
     /// Thrown when stream is not active
     pub const STREAM_NOT_ACTIVE: felt252 = 'Stream is not active';
 
-    /// Thrown when stream is voided
-    pub const STREAM_VOIDED: felt252 = 'Stream is voided';
-
     /// Thrown when stream is canceled
     pub const STREAM_CANCELED: felt252 = 'Stream is canceled';
 
@@ -115,6 +112,8 @@ pub mod Errors {
     pub const ZERO_ALLOWANCE: felt252 = 'Error: Zero allowance found';
 
     pub const WITHDRAWAL_FAILED: felt252 = 'Error: Withdraw failed';
+
+    pub const OVERDEPOSIT: felt252 = 'Error: Overdeposit';
 
     /// Thrown when an operation leads to an overflow
     pub const OPERATION_OVERFLOW: felt252 = 'Error: Operation overflow';

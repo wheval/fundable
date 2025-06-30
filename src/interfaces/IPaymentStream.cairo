@@ -24,34 +24,15 @@ pub trait IPaymentStream<TContractState> {
         transferable: bool,
     ) -> u256;
 
-    /// @notice Create a new stream and fund it with tokens in a single transaction
-    /// @param recipient The address receiving the tokens
-    /// @param total_amount The total amount to be streamed
-    /// @param start_time The timestamp when the stream starts
-    /// @param end_time The timestamp when the stream ends
-    /// @param cancelable Boolean indicating if the stream can be canceled
-    /// @param token The contract address of the ERC-20 token to be streamed
-    /// @param transferable Boolean indicating if the stream can be transferred
-    /// @return The ID of the newly created stream
-    fn create_stream_with_deposit(
-        ref self: TContractState,
-        recipient: ContractAddress,
-        total_amount: u256,
-        duration: u64,
-        cancelable: bool,
-        token: ContractAddress,
-        transferable: bool,
-    ) -> u256;
-
     /// @notice Deposits the provided amount to the stream
     /// @param stream_id The ID of the stream to deposit to
     /// @param amount The amount to deposit
-    fn deposit(ref self: TContractState, stream_id: u256, amount: u256);
+    // fn deposit(ref self: TContractState, stream_id: u256, amount: u256);
 
     /// @notice Deposit and Pause the stream
     /// @param stream_id The ID of the stream to deposit and pause
     /// @param amount The amount to deposit
-    fn deposit_and_pause(ref self: TContractState, stream_id: u256, amount: u256);
+    // fn deposit_and_pause(ref self: TContractState, stream_id: u256, amount: u256);
 
     /// @notice Withdraws the provided amount minus the protocol fee to the provided address
     /// @param stream_id The ID of the stream to withdraw from
@@ -92,10 +73,6 @@ pub trait IPaymentStream<TContractState> {
     /// @param rate_per_second The amount by which the debt increases every second
     fn restart(ref self: TContractState, stream_id: u256);
 
-    /// @notice Voids a stream, making it permanently inactive
-    /// @param stream_id The ID of the stream to void
-    fn void(ref self: TContractState, stream_id: u256);
-
     /// @notice Returns the stream data for the given ID
     /// @param stream_id The stream ID for the query
     /// @return The Stream struct containing all stream data
@@ -111,7 +88,7 @@ pub trait IPaymentStream<TContractState> {
     /// @return Boolean indicating if the stream is active
     fn is_stream_active(self: @TContractState, stream_id: u256) -> bool;
 
-    /// @notice Returns the time at which the total debt exceeds stream balance
+    /// @notice Returns the time at which the stream will be depleted
     /// @param stream_id The stream ID for the query
     /// @return The timestamp when the stream will be depleted
     fn get_depletion_time(self: @TContractState, stream_id: u256) -> u64;
@@ -134,7 +111,7 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Returns the amount that the sender can be refunded
     /// @param stream_id The stream ID for the query
     /// @return The refundable amount
-    fn get_refundable_amount(self: @TContractState, stream_id: u256) -> u256;
+    // fn get_refundable_amount(self: @TContractState, stream_id: u256) -> u256;
 
     /// @notice Returns the total number of currently active streams
     /// @return The count of active streams in the protocol
@@ -154,7 +131,7 @@ pub trait IPaymentStream<TContractState> {
     /// @return ProtocolMetrics containing comprehensive protocol analytics
     fn get_protocol_metrics(self: @TContractState) -> ProtocolMetrics;
 
-    /// @notice Delegate a contract address to a stream
+    /// @notice Delegate a stream to a new recipient
     /// @param stream_id The stream ID for the query
     /// @param delegate The address to delegate a stream to
     /// @return Boolean indicating if the stream delegation is successsful
@@ -181,17 +158,12 @@ pub trait IPaymentStream<TContractState> {
     fn set_transferability(ref self: TContractState, stream_id: u256, transferable: bool);
 
 
-    /// @notice Get the protocol revenue / accumulated fees of the token
-    /// @param token The ContractAddress of the token
-    /// @return u256 The accumulated fees of the token
-    fn get_protocol_revenue(self: @TContractState, token: ContractAddress) -> u256;
-
     /// @notice Allow authorized addresses to collect revenue for a specific token.
     /// @param token The ContractAddress of the token
     /// @param to The ContractAddress that will receive the revenue
-    fn collect_protocol_revenue(
-        ref self: TContractState, token: ContractAddress, to: ContractAddress,
-    );
+    // fn collect_protocol_revenue(
+    //     ref self: TContractState, token: ContractAddress, to: ContractAddress,
+    // );
 
     /// @notice Check if a stream exists
     /// @param stream_id The ID of the stream
@@ -202,11 +174,6 @@ pub trait IPaymentStream<TContractState> {
     /// @param stream_id The ID of the stream
     /// @return Boolean indicating if the stream is paused
     fn is_paused(self: @TContractState, stream_id: u256) -> bool;
-
-    /// @notice Check if a stream is voided
-    /// @param stream_id The ID of the stream
-    /// @return Boolean indicating if the stream is voided or not
-    fn is_voided(self: @TContractState, stream_id: u256) -> bool;
 
     /// @notice gets sender of the stream
     /// @param stream_id The ID of the stream
@@ -231,17 +198,10 @@ pub trait IPaymentStream<TContractState> {
     /// @return rate per second associated with the stream
     fn get_rate_per_second(self: @TContractState, stream_id: u256) -> u256;
 
-    /// @notice Restart a paused stream and deposit funds to it in a single transaction
-    /// @param stream_id The ID of the stream to restart and fund
-    /// @param rate_per_second The new rate per second for the stream
-    /// @param amount The amount to deposit into the stream
-    /// @return Boolean indicating if the operation was successful
-    fn restart_and_deposit(ref self: TContractState, stream_id: u256, amount: u256) -> bool;
-
     /// @notice Retrieves the sum of balances of all streams
     /// @param token The ERC-20 token to query
     /// @return The aggregated balance across all streams
-    fn aggregate_balance(self: @TContractState, token: ContractAddress) -> u256;
+    fn get_aggregate_balance(self: @TContractState, token: ContractAddress) -> u256;
 
     /// @notice Emitted when the contract admin recovers the surplus amount of token
     /// @param token The address of the token the surplus amount has been recovered for
