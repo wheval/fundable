@@ -109,7 +109,7 @@ fn test_create_campaign_invalid_zero_amount() {
 #[test]
 #[should_panic(expected: 'Error: Invalid donation token')]
 fn test_create_campaign_invalid_donation_token() {
-    let (token_address, _sender, campaign_donation, _erc721) = setup();
+    let (token_address, _sender, campaign_donation, _erc721, _, _) = setup();
     let target_amount = 10_u256;
     let campaign_ref = 'Test';
     let donation_token: ContractAddress = 0.try_into().unwrap();
@@ -1199,6 +1199,7 @@ fn test_protocol_donation_fee_calculation() {
     let (token_address, sender, campaign_donation, _erc721, protocol_owner, protocol_address) =
         setup();
     let token = _erc721;
+    let donation_token = token_address;
     // Set protocol fee to 250 basis points (2.5%)
     start_cheat_caller_address(campaign_donation.contract_address, protocol_owner);
     campaign_donation.set_protocol_fee_address(protocol_address);
@@ -1208,7 +1209,7 @@ fn test_protocol_donation_fee_calculation() {
     // Create a campaign and make a donation
     let target_amount = 1000_u256;
     start_cheat_caller_address(campaign_donation.contract_address, sender);
-    let campaign_id = campaign_donation.create_campaign('Test', target_amount);
+    let campaign_id = campaign_donation.create_campaign('Test', target_amount, donation_token);
     stop_cheat_caller_address(campaign_donation.contract_address);
 
     // Setup token approval and make donation
