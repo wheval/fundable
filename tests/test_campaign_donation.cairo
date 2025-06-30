@@ -299,7 +299,8 @@ fn test_campaign_creation_should_panic_with_invalid_token() {
     let (_, sender, campaign_donation, _erc721) = setup();
     let target_amount = 10000_u256;
     let campaign_ref = 'Test';
-    let donation_token = contract_address_const::<'0'>();
+    let donation_token = contract_address_const::<0>();
+    println!("donation token: {:?}", donation_token);
 
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let campaign_id = campaign_donation
