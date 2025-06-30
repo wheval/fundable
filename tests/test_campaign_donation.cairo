@@ -1163,4 +1163,44 @@ fn test_protocol_donation_fee_calculation() {
     campaign_donation.set_protocol_fee_address(protocol_address);
     campaign_donation.set_protocol_fee_percent(250);
     stop_cheat_caller_address(campaign_donation.contract_address);
+
+    // Create a campaign and make a donation
+    let target_amount = 1000_u256;
+    start_cheat_caller_address(campaign_donation.contract_address, sender);
+    let campaign_id = campaign_donation.create_campaign('Test', target_amount);
+    stop_cheat_caller_address(campaign_donation.contract_address);
+
+    // Setup token approval and make donation
+    let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+    start_cheat_caller_address(token_address, sender);
+    token_dispatcher.approve(campaign_donation.contract_address, 1000);
+    stop_cheat_caller_address(token_address);
+
+    start_cheat_caller_address(campaign_donation.contract_address, sender);
+    campaign_donation.donate_to_campaign(campaign_id, 1000);
+    stop_cheat_caller_address(campaign_donation.contract_address);
+
+    // Test withdrawal with protocol fee calculation
+    let protocol_balance_before = token_dispatcher.balance_of(protocol_address);
+    let owner_balance_before = token_dispatcher.balance_of(sender);
+
+    start_cheat_caller_address(campaign_donation.contract_address, sender);
+    campaign_donation.withdraw_from_campaign(campaign_id);
+    stop_cheat_caller_address(campaign_donation.contract_address);
+
+    let protocol_balance_after = token_dispatcher.balance_of(protocol_address);
+    let owner_balance_after = token_dispatcher.balance_of(sender);
+
+    // Verify protocol fee (2.5% of 1000 = 25)
+    let expected_protocol_fee = 25;
+    let expected_owner_amount = 975;
+
+    assert(
+        protocol_balance_after - protocol_balance_before == expected_protocol_fee,
+        'Protocol fee calculation error',
+    );
+    assert(
+        owner_balance_after - owner_balance_before == expected_owner_amount,
+        'Owner amount calculation error',
+    );
 }
