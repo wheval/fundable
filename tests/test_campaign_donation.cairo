@@ -68,7 +68,7 @@ fn deploy_donation_nft(
 
 #[test]
 fn test_successful_create_campaign() {
-    let (_token_address, _sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, _sender, campaign_donation, _erc721, _, _) = setup();
     let target_amount = 1000_u256;
     let campaign_ref = 'Test';
     let owner = contract_address_const::<'owner'>();
@@ -95,7 +95,7 @@ fn test_successful_create_campaign() {
 #[test]
 #[should_panic(expected: 'Error: Amount must be > 0.')]
 fn test_create_campaign_invalid_zero_amount() {
-    let (_token_address, _sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, _sender, campaign_donation, _erc721, _, _) = setup();
     let target_amount = 0_u256;
     let campaign_ref = 'Test';
     let donation_token = token_address;
@@ -109,7 +109,7 @@ fn test_create_campaign_invalid_zero_amount() {
 #[test]
 #[should_panic(expected: 'Error: Invalid donation token')]
 fn test_create_campaign_invalid_donation_token() {
-    let (token_address, _sender, campaign_donation, _erc721) = setup();
+    let (token_address, _sender, campaign_donation, _erc721, _, _) = setup();
     let target_amount = 10_u256;
     let campaign_ref = 'Test';
     let donation_token: ContractAddress = 0.try_into().unwrap();
@@ -308,7 +308,7 @@ fn test_successful_multiple_users_donating_to_a_campaign() {
 #[test]
 #[should_panic(expected: 'Error: Invalid donation token')]
 fn test_campaign_creation_should_panic_with_invalid_token() {
-    let (_, sender, campaign_donation, _erc721) = setup();
+    let (token_address, sender, campaign_donation, _erc721, _, _) = setup();
     let target_amount = 10000_u256;
     let campaign_ref = 'Test';
     let donation_token = contract_address_const::<0>();
@@ -471,7 +471,7 @@ fn test_get_campaign_donations() {
 
 #[test]
 fn test_get_campaign_donations_empty() {
-    let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, sender, campaign_donation, _erc721, _, _) = setup();
     let target_amount = 1000_u256;
     let donation_token = token_address;
 
@@ -595,7 +595,7 @@ fn test_withdraw_funds_from_campaign_successful() {
 
 #[test]
 fn test_update_campaign_target_successful() {
-    let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, sender, campaign_donation, _erc721, _, _) = setup();
 
     let target_amount = 1000_u256;
     let new_target = 2000_u256;
@@ -626,7 +626,7 @@ fn test_update_campaign_target_nonexistent() {
 #[test]
 #[should_panic(expected: 'Caller is Not Campaign Owner')]
 fn test_update_campaign_target_not_owner() {
-    let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, sender, campaign_donation, _erc721, _, _) = setup();
 
     let other_user: ContractAddress = contract_address_const::<'other_user'>();
     let donation_token = token_address;
@@ -673,9 +673,8 @@ fn test_update_campaign_target_with_donations() {
 
 #[test]
 fn test_cancel_campaign_successful() {
-    let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, sender, campaign_donation, _erc721, _, _) = setup();
     let donation_token = token_address;
-
 
     // Create campaign
     start_cheat_caller_address(campaign_donation.contract_address, sender);
@@ -694,7 +693,7 @@ fn test_cancel_campaign_successful() {
 #[test]
 #[should_panic(expected: 'Error: Campaign closed')]
 fn test_cancel_campaign_already_closed() {
-    let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, sender, campaign_donation, _erc721, _, _) = setup();
     let donation_token = token_address;
 
     // Create and cancel campaign
@@ -773,7 +772,7 @@ fn test_claim_refund_twice() {
 #[test]
 #[should_panic(expected: 'Error: Donation not found')]
 fn test_claim_refund_no_donation() {
-    let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, sender, campaign_donation, _erc721, _, _) = setup();
     let other_user: ContractAddress = contract_address_const::<'other_user'>();
     let donation_token = token_address;
     // Create campaign
@@ -792,7 +791,7 @@ fn test_claim_refund_no_donation() {
 
 #[test]
 fn test_mint_donation_receipt_successful() {
-    let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, sender, campaign_donation, _erc721, _, _) = setup();
     // Deploy the Donation NFT contract
     let (erc721, donation_nft_dispatcher) = deploy_donation_nft(campaign_donation.contract_address);
     // Use the protocol owner to set the donation NFT address
@@ -863,7 +862,7 @@ fn test_mint_donation_receipt_successful() {
 #[test]
 #[should_panic(expected: 'Error: Caller is not the donor')]
 fn test_mint_donation_receipt_fail_if_not_donor() {
-    let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, sender, campaign_donation, _erc721, _, _) = setup();
     // Deploy the Donation NFT contract
     let (_erc721, donation_nft_dispatcher) = deploy_donation_nft(
         campaign_donation.contract_address,
@@ -900,7 +899,7 @@ fn test_mint_donation_receipt_fail_if_not_donor() {
 #[test]
 #[should_panic(expected: 'NFT already minted')]
 fn test_mint_donation_receipt_fail_if_already_minted() {
-    let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
+    let (token_address, sender, campaign_donation, _erc721, _, _) = setup();
     // Deploy the Donation NFT contract
     let (_erc721, donation_nft_dispatcher) = deploy_donation_nft(
         campaign_donation.contract_address,
@@ -944,7 +943,7 @@ fn test_mint_donation_receipt_fail_if_already_minted() {
 #[test]
 #[should_panic(expected: 'Donation data not found')]
 fn test_get_donation_data_fail_if_not_found() {
-  let (_token_address, _sender, campaign_donation, _erc721, _, _) = setup();
+    let (_token_address, _sender, campaign_donation, _erc721, _, _) = setup();
     // Deploy the Donation NFT contract
     let (_erc721, donation_nft_dispatcher) = deploy_donation_nft(
         campaign_donation.contract_address,
@@ -954,7 +953,7 @@ fn test_get_donation_data_fail_if_not_found() {
     donation_nft_dispatcher.get_donation_data(999_u256);
 }
 fn test_get_donations_by_donor_no_donations() {
- let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
+    let (_token_address, sender, campaign_donation, _erc721, _, _) = setup();
     // Fetch donations for sender
     let donations = campaign_donation.get_donations_by_donor(sender);
     assert(donations.len() == 0, 'Should have no donations');
@@ -1200,6 +1199,7 @@ fn test_protocol_donation_fee_calculation() {
     let (token_address, sender, campaign_donation, _erc721, protocol_owner, protocol_address) =
         setup();
     let token = _erc721;
+    let donation_token = token_address;
     // Set protocol fee to 250 basis points (2.5%)
     start_cheat_caller_address(campaign_donation.contract_address, protocol_owner);
     campaign_donation.set_protocol_fee_address(protocol_address);
@@ -1209,7 +1209,7 @@ fn test_protocol_donation_fee_calculation() {
     // Create a campaign and make a donation
     let target_amount = 1000_u256;
     start_cheat_caller_address(campaign_donation.contract_address, sender);
-    let campaign_id = campaign_donation.create_campaign('Test', target_amount);
+    let campaign_id = campaign_donation.create_campaign('Test', target_amount, donation_token);
     stop_cheat_caller_address(campaign_donation.contract_address);
 
     // Setup token approval and make donation

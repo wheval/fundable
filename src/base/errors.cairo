@@ -138,6 +138,5 @@ pub mod Errors {
 
     // Throw Error when Fee percent exceeds 100%
     pub const PROTOCOL_FEE_PERCENTAGE_EXCEED: felt252 = 'Error: Fee percent exceeds 100%';
-
 }
 
