@@ -22,9 +22,9 @@ pub mod PaymentStream {
     use crate::base::errors::Errors::{
         DECIMALS_TOO_HIGH, FEE_TOO_HIGH, INSUFFICIENT_ALLOWANCE, INSUFFICIENT_AMOUNT,
         INVALID_RECIPIENT, INVALID_TOKEN, NON_TRANSFERABLE_STREAM, ONLY_NFT_OWNER_CAN_DELEGATE,
-        SAME_COLLECTOR_ADDRESS, SAME_OWNER, STREAM_CANCELED, STREAM_HAS_DELEGATE, STREAM_NOT_ACTIVE,
-        STREAM_NOT_PAUSED, TOO_SHORT_DURATION, UNEXISTING_STREAM, WRONG_RECIPIENT,
-        WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT, OVERDEPOSIT
+        OVERDEPOSIT, SAME_COLLECTOR_ADDRESS, SAME_OWNER, STREAM_CANCELED, STREAM_HAS_DELEGATE,
+        STREAM_NOT_ACTIVE, STREAM_NOT_PAUSED, TOO_SHORT_DURATION, UNEXISTING_STREAM,
+        WRONG_RECIPIENT, WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
     };
     use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
 
@@ -353,7 +353,6 @@ pub mod PaymentStream {
             // Check: stream is not canceled
             assert(stream.status != StreamStatus::Canceled, STREAM_CANCELED);
 
-
             let token_address = stream.token;
 
             // Effect: update the stream balance by adding the deposit amount
@@ -464,7 +463,7 @@ pub mod PaymentStream {
             } else {
                 // For active streams, the withdrawable amount is the minimum of stream balance and
                 // total debt
-               total_debt - stream.withdrawn_amount
+                total_debt - stream.withdrawn_amount
             }
         }
 
@@ -673,7 +672,6 @@ pub mod PaymentStream {
 
     #[abi(embed_v0)]
     impl PaymentStreamImpl of IPaymentStream<ContractState> {
-
         /// @notice Creates a new stream and funds it with tokens in a single transaction
         /// @dev Combines the create_stream and deposit functions into one efficient operation
         fn create_stream(
@@ -806,7 +804,10 @@ pub mod PaymentStream {
 
             self.accesscontrol.revoke_role(PROTOCOL_OWNER_ROLE, current_owner);
             self.accesscontrol._grant_role(PROTOCOL_OWNER_ROLE, new_protocol_owner);
-            self.emit(ProtocolOwnerUpdated { new_protocol_owner, old_protocol_owner: current_owner });
+            self
+                .emit(
+                    ProtocolOwnerUpdated { new_protocol_owner, old_protocol_owner: current_owner },
+                );
         }
 
         fn get_fee_collector(self: @ContractState) -> ContractAddress {
@@ -911,7 +912,7 @@ pub mod PaymentStream {
 
             // Pay the recipient the remaining balance
             let recipient = stream.recipient;
-            
+
             // Update Stream in State
             self.streams.write(stream_id, stream);
             let amount_due = self._withdrawable_amount(stream_id);

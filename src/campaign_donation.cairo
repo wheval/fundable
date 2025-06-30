@@ -446,7 +446,7 @@ pub mod CampaignDonation {
             assert(campaign_ref != '', CAMPAIGN_REF_EMPTY);
             assert(!self.campaign_refs.read(campaign_ref), CAMPAIGN_REF_EXISTS);
             assert(target_amount > 0, ZERO_AMOUNT);
-            assert(donation_token.is_non_zero(), INVALID_DONATION_TOKEN);
+            assert(donation_token.is_zero(), INVALID_DONATION_TOKEN);
             let campaign_id: u256 = self.campaign_counts.read() + 1;
             let caller = get_caller_address();
             let current_balance: u256 = 0;

@@ -292,6 +292,21 @@ fn test_successful_multiple_users_donating_to_a_campaign() {
     assert(other_user_balance_after == other_user_balance_before - 300, ' USR transfer failed');
 }
 
+
+#[test]
+#[should_panic(expected: 'Error: Invalid donation token')]
+fn test_campaign_creation_should_panic_with_invalid_token() {
+    let (_, sender, campaign_donation, _erc721) = setup();
+    let target_amount = 10000_u256;
+    let campaign_ref = 'Test';
+    let donation_token = contract_address_const::<'0'>();
+
+    start_cheat_caller_address(campaign_donation.contract_address, sender);
+    let campaign_id = campaign_donation
+        .create_campaign(campaign_ref, target_amount, donation_token);
+}
+
+
 #[test]
 fn test_target_met_successful() {
     let (token_address, sender, campaign_donation, _erc721) = setup();

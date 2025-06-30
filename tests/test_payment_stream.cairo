@@ -361,7 +361,6 @@ fn test_stream_metrics_accuracy() {
     // Get initial metrics
     let initial_metrics = payment_stream.get_stream_metrics(stream_id);
 
-
     let stream = payment_stream.get_stream(stream_id);
     println!("Stream balance: {}", stream.balance);
     println!("Stream rate per second: {}", stream.rate_per_second);
@@ -645,7 +644,8 @@ fn test_withdraw() {
     // Withdraw to another address
     let another_recipient = contract_address_const::<'another_recipient'>();
     start_cheat_caller_address(payment_stream.contract_address, recipient);
-    let (withdrawn_to_another, fee_to_another) = payment_stream.withdraw(stream_id, 5000_u256, another_recipient);
+    let (withdrawn_to_another, fee_to_another) = payment_stream
+        .withdraw(stream_id, 5000_u256, another_recipient);
     stop_cheat_caller_address(payment_stream.contract_address);
 
     // Verify withdrawal
