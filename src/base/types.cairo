@@ -28,6 +28,8 @@ pub struct Distribution {
     #[key]
     pub amount: u256,
     #[key]
+    pub unique_ref: felt252,
+    #[key]
     pub recipients_count: u32,
 }
 
@@ -41,6 +43,8 @@ pub struct WeightedDistribution {
     pub recipient: ContractAddress,
     #[key]
     pub amount: u256,
+    #[key]
+    pub unique_ref: felt252,
 }
 
 /// @notice Enum representing the possible states of a stream
@@ -77,6 +81,7 @@ pub struct DistributionHistory {
     pub token: ContractAddress,
     pub amount: u256,
     pub recipients_count: u32,
+    pub unique_ref: felt252,
     pub timestamp: u64,
 }
 
