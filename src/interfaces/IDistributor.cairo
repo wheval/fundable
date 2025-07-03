@@ -8,11 +8,13 @@ pub trait IDistributor<TContractState> {
     /// @param amount The total amount to distribute
     /// @param recipients Array of recipient addresses to distribute to
     /// @param token The ERC20 token to distribute
+    // @param unique_ref uniquely identify the distrubtion
     fn distribute(
         ref self: TContractState,
         amount: u256,
         recipients: Array<ContractAddress>,
         token: ContractAddress,
+        unique_ref: felt252,
     );
 
     /// @notice Distributes tokens to recipients with custom amounts
@@ -24,6 +26,7 @@ pub trait IDistributor<TContractState> {
         amounts: Array<u256>,
         recipients: Array<ContractAddress>,
         token: ContractAddress,
+        unique_ref: felt252,
     );
 
     /// @notice Gets the current protocol fee percentage

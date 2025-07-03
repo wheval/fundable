@@ -208,8 +208,9 @@ fn test_fuzz_recipients(recipients_count: u16) {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'Testerj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients.clone(), token_address);
+    distributor.distribute(amount_per_recipient, recipients.clone(), token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -237,8 +238,9 @@ fn test_fuzz_amount_per_recipient(amount_per_recipient: u16) {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients.clone(), token_address);
+    distributor.distribute(amount_per_recipient, recipients.clone(), token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -266,8 +268,9 @@ fn test_fuzz_both_amount_and_recipients(recipients_count: u16, amount_per_recipi
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let campaign_ref = 'Testerj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients.clone(), token_address);
+    distributor.distribute(amount_per_recipient, recipients.clone(), token_address, campaign_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -296,8 +299,12 @@ fn test_fuzz_weighted_amount_and_recipients(recipients_count: u16) {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute_weighted(weighted_amounts.clone(), recipients.clone(), token_address);
+    distributor
+        .distribute_weighted(
+            weighted_amounts.clone(), recipients.clone(), token_address, unique_ref,
+        );
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -329,8 +336,9 @@ fn test_fuzz_and_fork_STRK_mainnet_recipients(recipients_count: u16) {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients.clone(), token_address);
+    distributor.distribute(amount_per_recipient, recipients.clone(), token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -362,8 +370,9 @@ fn test_fuzz_and_fork_STRK_mainnet_amount_per_recipient(amount_per_recipient: u1
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7wr';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients.clone(), token_address);
+    distributor.distribute(amount_per_recipient, recipients.clone(), token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -395,8 +404,9 @@ fn test_fuzz_fork_STRK_distribution(recipients_count: u16, amount_per_recipient:
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients.clone(), token_address);
+    distributor.distribute(amount_per_recipient, recipients.clone(), token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -428,8 +438,12 @@ fn test_fuzz_fork_STRK_weighted_distribution(recipients_count: u16) {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute_weighted(weighted_amounts.clone(), recipients.clone(), token_address);
+    distributor
+        .distribute_weighted(
+            weighted_amounts.clone(), recipients.clone(), token_address, unique_ref,
+        );
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -463,8 +477,9 @@ fn test_fuzz_fork_ETH_distribution(recipients_count: u16, amount_per_recipient: 
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients.clone(), token_address);
+    distributor.distribute(amount_per_recipient, recipients.clone(), token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -495,8 +510,12 @@ fn test_fuzz_fork_ETH_weighted_distribution(recipients_count: u16) {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute_weighted(weighted_amounts.clone(), recipients.clone(), token_address);
+    distributor
+        .distribute_weighted(
+            weighted_amounts.clone(), recipients.clone(), token_address, unique_ref,
+        );
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -530,8 +549,9 @@ fn test_fuzz_fork_USDC_distribution(recipients_count: u16, amount_per_recipient:
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients.clone(), token_address);
+    distributor.distribute(amount_per_recipient, recipients.clone(), token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -562,8 +582,12 @@ fn test_fuzz_fork_USDC_weighted_distribution(recipients_count: u16) {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute_weighted(weighted_amounts.clone(), recipients.clone(), token_address);
+    distributor
+        .distribute_weighted(
+            weighted_amounts.clone(), recipients.clone(), token_address, unique_ref,
+        );
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -597,8 +621,9 @@ fn test_fuzz_fork_USDT_distribution(recipients_count: u16, amount_per_recipient:
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7iwefjehrgtj';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients.clone(), token_address);
+    distributor.distribute(amount_per_recipient, recipients.clone(), token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -629,8 +654,12 @@ fn test_fuzz_fork_USDT_weighted_distribution(recipients_count: u16) {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'wertyjktej5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute_weighted(weighted_amounts.clone(), recipients.clone(), token_address);
+    distributor
+        .distribute_weighted(
+            weighted_amounts.clone(), recipients.clone(), token_address, unique_ref,
+        );
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -666,8 +695,9 @@ fn test_successful_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'dklmfgnhrrj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients, token_address);
+    distributor.distribute(amount_per_recipient, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances
@@ -711,8 +741,9 @@ fn test_protocol_fee_calculation() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'sderttyu5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients, token_address);
+    distributor.distribute(amount_per_recipient, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Check protocol fee address received correct amount (2.5% of 2000 = 50)
@@ -750,8 +781,9 @@ fn test_empty_recipients() {
     let (token_address, sender, distributor) = setup();
     let recipients = array![];
 
+    let unique_ref = 'drgyjuyi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(100_u256, recipients, token_address);
+    distributor.distribute(100_u256, recipients, token_address, unique_ref);
     stop_cheat_caller_address(sender);
 }
 
@@ -761,8 +793,9 @@ fn test_zero_amount() {
     let (token_address, sender, distributor) = setup();
     let recipients = array![contract_address_const::<0x2>()];
 
+    let unique_ref = 'sdfghjkld;sdhfurhgt';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(0_u256, recipients, token_address);
+    distributor.distribute(0_u256, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 }
 
@@ -800,8 +833,9 @@ fn test_weighted_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens with weighted amounts
+    let unique_ref = 'sfrkhtjhytjkerte';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute_weighted(amounts, recipients, token_address);
+    distributor.distribute_weighted(amounts, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert balances for each recipient
@@ -849,8 +883,9 @@ fn test_weighted_distribution_with_protocol_fee() {
     stop_cheat_caller_address(token_address);
 
     // Execute distribution
+    let unique_ref = 'erj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute_weighted(amounts, recipients, token.contract_address);
+    distributor.distribute_weighted(amounts, recipients, token.contract_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert correct amounts were transferred
@@ -868,8 +903,9 @@ fn test_weighted_distribution_mismatched_arrays() {
     let recipients = array![contract_address_const::<0x2>(), contract_address_const::<0x3>()];
     let amounts = array![100_u256];
 
+    let unique_ref = 'sm!@#$i7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute_weighted(amounts, recipients, token_address);
+    distributor.distribute_weighted(amounts, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 }
 
@@ -881,8 +917,9 @@ fn test_weighted_distribution_zero_amount() {
     let recipients = array![contract_address_const::<0x2>()];
     let amounts = array![0_u256];
 
+    let unique_ref = 'sma5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute_weighted(amounts, recipients, token_address);
+    distributor.distribute_weighted(amounts, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 }
 
@@ -950,8 +987,9 @@ fn test_total_distribution_after_single_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'dftuiterj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients, token_address);
+    distributor.distribute(amount_per_recipient, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert distributions
@@ -977,8 +1015,9 @@ fn test_total_distribution_after_multiple_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerterj5yi7i##$$';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients, token_address);
+    distributor.distribute(amount_per_recipient, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Create recipients array
@@ -997,8 +1036,9 @@ fn test_total_distribution_after_multiple_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'terj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, new_recipients, token_address);
+    distributor.distribute(amount_per_recipient, new_recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert distributions
@@ -1034,8 +1074,9 @@ fn test_total_distributed_amount_after_single_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'dfgyij5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients, token_address);
+    distributor.distribute(amount_per_recipient, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert distributions
@@ -1063,8 +1104,9 @@ fn test_total_distributed_amount_after_multiple_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'dgyuirj5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, recipients, token_address);
+    distributor.distribute(amount_per_recipient, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Create recipients array
@@ -1083,8 +1125,9 @@ fn test_total_distributed_amount_after_multiple_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'sdfgyiuyi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
-    distributor.distribute(amount_per_recipient, new_recipients, token_address);
+    distributor.distribute(amount_per_recipient, new_recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     // Assert distributions
@@ -1134,9 +1177,10 @@ fn test_token_stats_after_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smaerter@#$56j5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
     start_cheat_block_timestamp(distributor.contract_address, 0x2137_u64);
-    distributor.distribute(amount_per_recipient, recipients, token_address);
+    distributor.distribute(amount_per_recipient, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     //Assert token stats
@@ -1191,9 +1235,10 @@ fn test_user_stats_after_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'smdfdfggyuu5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
     start_cheat_block_timestamp(distributor.contract_address, 0x2137_u64);
-    distributor.distribute(amount_per_recipient, recipients, token_address);
+    distributor.distribute(amount_per_recipient, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     //Assert token stats
@@ -1246,9 +1291,10 @@ fn test_distribution_history_after_distribution() {
     stop_cheat_caller_address(token_address);
 
     // Distribute tokens
+    let unique_ref = 'suiquej5yi7i';
     start_cheat_caller_address(distributor.contract_address, sender);
     start_cheat_block_timestamp(distributor.contract_address, 0x2137_u64);
-    distributor.distribute(amount_per_recipient, recipients, token_address);
+    distributor.distribute(amount_per_recipient, recipients, token_address, unique_ref);
     stop_cheat_caller_address(distributor.contract_address);
 
     let history = distributor.get_distribution_history(0, 1);

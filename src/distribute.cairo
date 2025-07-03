@@ -131,6 +131,7 @@ mod Distributor {
             amount: u256,
             recipients: Array<ContractAddress>,
             token: ContractAddress,
+            unique_ref: felt252,
         ) {
             // Validate inputs
             assert(!recipients.is_empty(), EMPTY_RECIPIENTS);
@@ -160,7 +161,7 @@ mod Distributor {
             let recipients_list = recipients.span();
             for recipient in recipients {
                 token_dispatcher.transfer_from(caller, recipient, amount);
-                self.emit(WeightedDistribution { caller, token, recipient, amount });
+                self.emit(WeightedDistribution { caller, token, recipient, amount, unique_ref });
             }
 
             // Update global statistics
@@ -176,6 +177,7 @@ mod Distributor {
                         token,
                         amount: amount_to_distribute,
                         recipients_count: recipients_list.len(),
+                        unique_ref,
                         timestamp,
                     },
                 );
@@ -189,6 +191,7 @@ mod Distributor {
                             token,
                             amount: amount_to_distribute,
                             recipients_count: recipients_list.len(),
+                            unique_ref,
                         },
                     ),
                 );
@@ -199,6 +202,7 @@ mod Distributor {
             amounts: Array<u256>,
             recipients: Array<ContractAddress>,
             token: ContractAddress,
+            unique_ref: felt252,
         ) {
             // Validate inputs
             assert(!recipients.is_empty(), EMPTY_RECIPIENTS);
@@ -241,7 +245,7 @@ mod Distributor {
                 token_dispatcher.transfer_from(caller, recipient, amount);
 
                 // Emit event for each distribution
-                self.emit(WeightedDistribution { caller, token, recipient, amount });
+                self.emit(WeightedDistribution { caller, token, recipient, amount, unique_ref });
 
                 i += 1;
             }
@@ -259,6 +263,7 @@ mod Distributor {
                         token,
                         amount: amount_to_distribute,
                         recipients_count: recipients.len(),
+                        unique_ref,
                         timestamp,
                     },
                 );
@@ -272,6 +277,7 @@ mod Distributor {
                             token,
                             amount: amount_to_distribute,
                             recipients_count: recipients.len(),
+                            unique_ref,
                         },
                     ),
                 );
