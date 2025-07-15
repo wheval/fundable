@@ -3,8 +3,10 @@
 # Configuration
 ACCOUNT_NAME="dev"  # Replace with your account name
 NETWORK="sepolia"         # Replace with your target network (sepolia, mainnet, etc.)
-CLASS_HASH="0x056a6295d66416b47b128ed7feb5a40d4c2de6c066fd7b3bd8f45c708c6f1199"     # Replace with your contract's class hash after declaration    # Replace with the protocol owner address 
-PROTOCOL_OWNER=0x023345e38d729e39128c0cF163e6916a343C18649f07FcC063014E63558B20f3    # Replace with the protocol owner address
+CLASS_HASH="0x05319cc180d885f87f25300452e822491d2a412f4042c02f969291a6e3f3e95b"     # Replace with your contract's class hash after declaration    # Replace with the protocol owner address 
+PROTOCOL_OWNER=0x023345e38d729e39128c0cF163e6916a343C18649f07FcC063014E63558B20f3
+GENERAL_PROTOCOL_FEE_RATE=100
+PROTOCOL_FEE_ADDRESS=0x023345e38d729e39128c0cF163e6916a343C18649f07FcC063014E63558B20f3
 
 # Check if sncast is installed
 if ! command -v sncast &> /dev/null; then
@@ -29,7 +31,7 @@ DEPLOY_OUTPUT=$(sncast --account $ACCOUNT_NAME \
     deploy \
     --network $NETWORK \
     --class-hash $CLASS_HASH \
-    --constructor-calldata $PROTOCOL_OWNER $RECIPIENT $DECIMALS)
+    --constructor-calldata $PROTOCOL_OWNER $GENERAL_PROTOCOL_FEE_RATE $PROTOCOL_FEE_ADDRESS)
 
 # Check if the deployment was successful
 if [ $? -eq 0 ]; then

@@ -212,10 +212,18 @@ pub trait IPaymentStream<TContractState> {
     /// @notice Sets the protocol fee rate for a specific token
     /// @param token The token address to set the fee rate for
     /// @param new_fee_rate The new fee rate in fixed-point (e.g., 0.01 for 1%)
-    fn set_protocol_fee_rate(ref self: TContractState, token: ContractAddress, new_fee_rate: u256);
+    fn set_protocol_fee_rate(ref self: TContractState, token: ContractAddress, new_fee_rate: u64);
 
     /// @notice Gets the protocol fee rate for a specific token
     /// @param token The token address to get the fee rate for
     /// @return The current fee rate in fixed-point
-    fn get_protocol_fee_rate(self: @TContractState, token: ContractAddress) -> u256;
+    fn get_protocol_fee_rate(self: @TContractState, token: ContractAddress) -> u64;
+
+    /// @notice Sets the general protocol fee rate
+    /// @param new_general_protocol_fee_rate The new fee rate in fixed-point
+    fn set_general_protocol_fee_rate(ref self: TContractState, new_general_protocol_fee_rate: u64);
+
+    /// @notice Gets the general protocol fee rate
+    /// @return The current fee rate in fixed-point
+    fn get_general_protocol_fee_rate(self: @TContractState) -> u64;
 }
