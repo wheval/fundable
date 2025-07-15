@@ -330,7 +330,7 @@ pub mod PaymentStream {
 
         /// @notice Safely performs scaled multiplication: (a * b) / scale
         /// @param a First number
-        /// @param b Second number  
+        /// @param b Second number
         /// @param scale Scale factor
         /// @return The scaled product
         fn safe_scaled_multiply(self: @ContractState, a: u256, b: u256, scale: u256) -> u256 {
@@ -471,7 +471,7 @@ pub mod PaymentStream {
             // Calculate ongoing debt using scaled rate with overflow protection
             // rate_per_second is already scaled by PRECISION_SCALE
             let rate_per_second_scaled = self._get_scaled_rate_per_second(stream_id);
-            
+
             // Use safe scaled multiplication to calculate debt
             self.safe_scaled_multiply(elapsed_time, rate_per_second_scaled, PRECISION_SCALE)
         }
@@ -685,7 +685,7 @@ pub mod PaymentStream {
             assert(current_balance >= amount, INSUFFICIENT_AMOUNT);
 
             // === REENTRANCY PROTECTION: Update ALL state before external calls ===
-            
+
             // Update stream's withdrawn amount and balance
             stream.withdrawn_amount += amount;
             stream.balance -= amount;
@@ -706,7 +706,7 @@ pub mod PaymentStream {
             self.stream_metrics.write(stream_id, metrics);
 
             // === ALL STATE UPDATES COMPLETE - NOW SAFE TO MAKE EXTERNAL CALLS ===
-            
+
             let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
 
             self.collect_protocol_fee(token_address, fee);
@@ -734,13 +734,13 @@ pub mod PaymentStream {
             let sender = stream.sender;
 
             // === REENTRANCY PROTECTION: Update state before external calls ===
-            
+
             // Update aggregate balance
             let aggregate_balance = self.aggregate_balance.read(token_address) - amount;
             self.aggregate_balance.write(token_address, aggregate_balance);
 
             // === STATE UPDATES COMPLETE - NOW SAFE TO MAKE EXTERNAL CALLS ===
-            
+
             // Transfer tokens back to sender
             let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
             token_dispatcher.transfer(sender, amount);
@@ -988,20 +988,21 @@ pub mod PaymentStream {
             };
 
             // === REENTRANCY PROTECTION: Update ALL state before external calls ===
-            
+
             // Update the stream status to canceled
             stream.status = StreamStatus::Canceled;
-            
+
             // Update stream balance and withdrawn amount
             if amount_due_to_recipient > 0 {
                 stream.withdrawn_amount += amount_due_to_recipient;
                 stream.balance -= amount_due_to_recipient;
             }
-            
+
             // Update aggregate balance
             let total_amount_to_transfer = amount_due_to_recipient + refundable_amount;
             if total_amount_to_transfer > 0 {
-                let aggregate_balance = self.aggregate_balance.read(token_address) - total_amount_to_transfer;
+                let aggregate_balance = self.aggregate_balance.read(token_address)
+                    - total_amount_to_transfer;
                 self.aggregate_balance.write(token_address, aggregate_balance);
             }
 
@@ -1026,31 +1027,39 @@ pub mod PaymentStream {
             self.erc721.burn(stream_id);
 
             // === ALL STATE UPDATES COMPLETE - NOW SAFE TO MAKE EXTERNAL CALLS ===
-            
+
             let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
 
             // Pay recipient their due amount (with protocol fee)
             if amount_due_to_recipient > 0 {
                 let fee = self._calculate_protocol_fee(amount_due_to_recipient, token_address);
                 let net_amount = amount_due_to_recipient - fee;
-                
+
                 // Transfer fee to collector and net amount to recipient
                 self.collect_protocol_fee(token_address, fee);
                 token_dispatcher.transfer(recipient, net_amount);
 
                 // Emit withdrawal event
-                self.emit(StreamWithdrawn {
-                    stream_id,
-                    recipient,
-                    amount: net_amount,
-                    protocol_fee: fee.try_into().unwrap(),
-                });
+                self
+                    .emit(
+                        StreamWithdrawn {
+                            stream_id,
+                            recipient,
+                            amount: net_amount,
+                            protocol_fee: fee.try_into().unwrap(),
+                        },
+                    );
             }
 
             // Refund excess to sender
             if refundable_amount > 0 {
                 token_dispatcher.transfer(stream_sender, refundable_amount);
-                self.emit(RefundFromStream { stream_id, sender: stream_sender, amount: refundable_amount });
+                self
+                    .emit(
+                        RefundFromStream {
+                            stream_id, sender: stream_sender, amount: refundable_amount,
+                        },
+                    );
             }
 
             // Emit cancellation event
