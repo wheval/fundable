@@ -28,6 +28,8 @@ pub struct Distribution {
     #[key]
     pub amount: u256,
     #[key]
+    pub unique_ref: felt252,
+    #[key]
     pub recipients_count: u32,
 }
 
@@ -41,6 +43,8 @@ pub struct WeightedDistribution {
     pub recipient: ContractAddress,
     #[key]
     pub amount: u256,
+    #[key]
+    pub unique_ref: felt252,
 }
 
 /// @notice Enum representing the possible states of a stream
@@ -77,6 +81,7 @@ pub struct DistributionHistory {
     pub token: ContractAddress,
     pub amount: u256,
     pub recipients_count: u32,
+    pub unique_ref: felt252,
     pub timestamp: u64,
 }
 
@@ -112,6 +117,7 @@ pub struct Campaigns {
     pub campaign_reference: felt252,
     pub withdrawn_amount: u256,
     pub donation_token: ContractAddress,
+    pub is_cancelled: bool,
 }
 
 #[derive(Drop, Serde, starknet::Store)]
@@ -127,4 +133,15 @@ pub struct CampaignWithdrawal {
     pub owner: ContractAddress,
     pub campaign_id: u256,
     pub amount: u256,
+}
+
+#[derive(Copy, Drop, Serde, starknet::Store)]
+pub struct DonationMetadata {
+    pub campaign_id: u256,
+    pub campaign_name: felt252,
+    pub campaign_owner: ContractAddress,
+    pub donation_id: u256,
+    pub donor: ContractAddress,
+    pub amount: u256,
+    pub timestamp: u64,
 }

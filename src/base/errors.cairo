@@ -53,9 +53,6 @@ pub mod Errors {
     /// Thrown when stream is not active
     pub const STREAM_NOT_ACTIVE: felt252 = 'Stream is not active';
 
-    /// Thrown when stream is voided
-    pub const STREAM_VOIDED: felt252 = 'Stream is voided';
-
     /// Thrown when stream is canceled
     pub const STREAM_CANCELED: felt252 = 'Stream is canceled';
 
@@ -102,10 +99,44 @@ pub mod Errors {
 
     pub const CAMPAIGN_NOT_CLOSED: felt252 = 'Error: Campaign not closed';
 
+    pub const CAMPAIGN_NOT_CANCELLED: felt252 = 'Error: Campaign not cancelled';
+
+    pub const CAMPAIGN_CLOSED: felt252 = 'Error: Campaign closed';
+
+    pub const CAMPAIGN_HAS_DONATIONS: felt252 = 'Error: Campaign has donations';
+
     pub const DOUBLE_WITHDRAWAL: felt252 = 'Error: Double Withdrawal';
+
+    pub const CAMPAIGN_WITHDRAWN: felt252 = 'Error: Campaign Withdrawn';
 
     pub const ZERO_ALLOWANCE: felt252 = 'Error: Zero allowance found';
 
     pub const WITHDRAWAL_FAILED: felt252 = 'Error: Withdraw failed';
+
+    pub const OVERDEPOSIT: felt252 = 'Error: Overdeposit';
+
+    /// Thrown when an operation leads to an overflow
+    pub const OPERATION_OVERFLOW: felt252 = 'Error: Operation overflow';
+
+    pub const CAMPAIGN_NOT_FOUND: felt252 = 'Error: Campaign Not Found';
+
+    pub const REFUND_ALREADY_CLAIMED: felt252 = 'Error: Refund already claimed';
+
+    pub const DONATION_NOT_FOUND: felt252 = 'Error: Donation not found';
+
+    // Throw Error when NFT contract is not configured
+    pub const NFT_NOT_CONFIGURED: felt252 = 'Error: NFT not configured';
+
+    // Throw Error when Caller is not the donor
+    pub const CALLER_NOT_DONOR: felt252 = 'Error: Caller is not the donor';
+
+    // Throw Error when Insufficient balance
+    pub const INSUFFICIENT_BALANCE: felt252 = 'Error: Insufficient balance';
+
+    // Throw Error when donation token is invalid
+    pub const INVALID_DONATION_TOKEN: felt252 = 'Error: Invalid donation token';
+
+    // Throw Error when Fee percent exceeds 100%
+    pub const PROTOCOL_FEE_PERCENTAGE_EXCEED: felt252 = 'Error: Fee percent exceeds 100%';
 }
 

@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Configuration
-ACCOUNT_NAME="my_account"  # Replace with your account name
+ACCOUNT_NAME="dev"  # Replace with your account name
 NETWORK="sepolia"         # Replace with your target network (sepolia, mainnet, etc.)
-CLASS_HASH=""            # Replace with your contract's class hash after declaration
-PROTOCOL_OWNER=""        # Replace with the protocol owner address
+CLASS_HASH="0x056a6295d66416b47b128ed7feb5a40d4c2de6c066fd7b3bd8f45c708c6f1199"     # Replace with your contract's class hash after declaration    # Replace with the protocol owner address 
+PROTOCOL_OWNER=0x023345e38d729e39128c0cF163e6916a343C18649f07FcC063014E63558B20f3    # Replace with the protocol owner address
 
 # Check if sncast is installed
 if ! command -v sncast &> /dev/null; then
@@ -25,16 +25,25 @@ fi
 
 # Deploy the contract
 echo "Deploying contract with class hash $CLASS_HASH on $NETWORK..."
-sncast --account $ACCOUNT_NAME \
+DEPLOY_OUTPUT=$(sncast --account $ACCOUNT_NAME \
     deploy \
     --network $NETWORK \
     --class-hash $CLASS_HASH \
-    --constructor-calldata $PROTOCOL_OWNER
+    --constructor-calldata $PROTOCOL_OWNER $RECIPIENT $DECIMALS)
 
 # Check if the deployment was successful
 if [ $? -eq 0 ]; then
     echo "Contract deployment completed successfully!"
+    echo "$DEPLOY_OUTPUT"
+    CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep "contract_address" | awk '{print $2}')
+    if [ -n "$CONTRACT_ADDRESS" ]; then
+        echo "new_contract_address: $CONTRACT_ADDRESS" >> deployment_state.txt
+        echo "Updated deployment_state.txt with new contract address."
+    else
+        echo "Could not extract contract address from deployment output."
+    fi
 else
     echo "Error: Contract deployment failed."
+    echo "$DEPLOY_OUTPUT"
     exit 1
 fi 

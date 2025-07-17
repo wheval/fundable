@@ -22,9 +22,9 @@ pub mod PaymentStream {
     use crate::base::errors::Errors::{
         DECIMALS_TOO_HIGH, FEE_TOO_HIGH, INSUFFICIENT_ALLOWANCE, INSUFFICIENT_AMOUNT,
         INVALID_RECIPIENT, INVALID_TOKEN, NON_TRANSFERABLE_STREAM, ONLY_NFT_OWNER_CAN_DELEGATE,
-        SAME_COLLECTOR_ADDRESS, SAME_OWNER, STREAM_CANCELED, STREAM_HAS_DELEGATE, STREAM_NOT_ACTIVE,
-        STREAM_NOT_PAUSED, STREAM_VOIDED, TOO_SHORT_DURATION, UNEXISTING_STREAM, WRONG_RECIPIENT,
-        WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
+        OVERDEPOSIT, SAME_COLLECTOR_ADDRESS, SAME_OWNER, STREAM_CANCELED, STREAM_HAS_DELEGATE,
+        STREAM_NOT_ACTIVE, STREAM_NOT_PAUSED, TOO_SHORT_DURATION, UNEXISTING_STREAM,
+        WRONG_RECIPIENT, WRONG_RECIPIENT_OR_DELEGATE, WRONG_SENDER, ZERO_AMOUNT,
     };
     use crate::base::types::{ProtocolMetrics, Stream, StreamMetrics, StreamStatus};
 
@@ -47,7 +47,7 @@ pub mod PaymentStream {
     const STREAM_ADMIN_ROLE: felt252 = selector!("STREAM_ADMIN");
 
     const MAX_FEE: u256 = 5000;
-    const SECONDS_PER_DAY: u64 = 86400;
+    const SECONDS_PER_HOUR: u64 = 3600;
 
 
     #[storage]
@@ -94,7 +94,6 @@ pub mod PaymentStream {
         StreamCanceled: StreamCanceled,
         StreamPaused: StreamPaused,
         StreamRestarted: StreamRestarted,
-        StreamVoided: StreamVoided,
         FeeCollected: FeeCollected,
         WithdrawalSuccessful: WithdrawalSuccessful,
         DelegationGranted: DelegationGranted,
@@ -106,6 +105,8 @@ pub mod PaymentStream {
         StreamDeposit: StreamDeposit,
         Recover: Recover,
         RefundFromStream: RefundFromStream,
+        FeeCollectorUpdated: FeeCollectorUpdated,
+        ProtocolOwnerUpdated: ProtocolOwnerUpdated,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -164,12 +165,6 @@ pub mod PaymentStream {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct StreamVoided {
-        #[key]
-        stream_id: u256,
-    }
-
-    #[derive(Drop, starknet::Event)]
     struct DelegationGranted {
         #[key]
         stream_id: u256,
@@ -225,6 +220,22 @@ pub mod PaymentStream {
     }
 
     #[derive(Drop, starknet::Event)]
+    struct FeeCollectorUpdated {
+        #[key]
+        new_fee_collector: ContractAddress,
+        #[key]
+        old_fee_collector: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct ProtocolOwnerUpdated {
+        #[key]
+        new_protocol_owner: ContractAddress,
+        #[key]
+        old_protocol_owner: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
     pub struct Recover {
         #[key]
         pub sender: ContractAddress,
@@ -258,7 +269,7 @@ pub mod PaymentStream {
         }
         let num = total_amount;
         // Convert duration from days to seconds (86400 seconds in a day)
-        let duration_in_seconds = (duration * SECONDS_PER_DAY);
+        let duration_in_seconds = (duration * SECONDS_PER_HOUR);
         let divisor = duration_in_seconds;
         // Calculate the rate by dividing the total amount by the duration in seconds
         // This gives us the rate of tokens per second for the stream
@@ -335,9 +346,11 @@ pub mod PaymentStream {
             assert(amount > 0, ZERO_AMOUNT);
 
             let mut stream = self.streams.read(stream_id);
+            let mut stream_metrics = self.stream_metrics.read(stream_id);
+            let deposit_diff = stream.total_amount - stream_metrics.total_deposited;
+            assert(deposit_diff >= amount, OVERDEPOSIT);
 
-            // Check: stream is not voided or canceled
-            assert(stream.status != StreamStatus::Voided, STREAM_VOIDED);
+            // Check: stream is not canceled
             assert(stream.status != StreamStatus::Canceled, STREAM_CANCELED);
 
             let token_address = stream.token;
@@ -347,10 +360,9 @@ pub mod PaymentStream {
             self.streams.write(stream_id, stream);
 
             // Update stream metrics
-            let mut metrics = self.stream_metrics.read(stream_id);
-            metrics.total_deposited += amount;
-            metrics.last_activity = get_block_timestamp();
-            self.stream_metrics.write(stream_id, metrics);
+            stream_metrics.total_deposited += amount;
+            stream_metrics.last_activity = get_block_timestamp();
+            self.stream_metrics.write(stream_id, stream_metrics);
 
             let aggregate_balance = self.aggregate_balance.read(token_address) + amount;
             self.aggregate_balance.write(token_address, aggregate_balance);
@@ -394,7 +406,7 @@ pub mod PaymentStream {
         /// @return The total debt in token decimals
         fn _total_debt(self: @ContractState, stream_id: u256) -> u256 {
             let stream = self.streams.read(stream_id);
-            let duration_in_seconds = stream.duration * SECONDS_PER_DAY;
+            let duration_in_seconds = stream.duration * SECONDS_PER_HOUR;
             let duration_passed = get_block_timestamp() - stream.first_update_time;
 
             if duration_passed >= duration_in_seconds {
@@ -442,135 +454,20 @@ pub mod PaymentStream {
                 let pause_debt: u256 = elapsed_time.into() * rate_per_second;
 
                 // The withdrawable amount is the minimum of stream balance and total pause debt
-                if stream.balance < pause_debt {
-                    stream.balance
-                } else {
-                    pause_debt
-                }
+                // if stream.balance < pause_debt {
+                //     stream.balance
+                // } else {
+                //     pause_debt
+                // }
+                pause_debt - stream.withdrawn_amount
             } else {
                 // For active streams, the withdrawable amount is the minimum of stream balance and
                 // total debt
-                if stream.balance <= total_debt {
-                    stream.balance
-                } else {
-                    total_debt
-                }
+                total_debt - stream.withdrawn_amount
             }
         }
 
-        /// @notice Sets the protocol fee rate for a token
-        /// @param token The token address
-        /// @param new_fee_rate The new fee rate in basis points (e.g., 100 = 1%)
-        fn _set_protocol_fee_rate(
-            ref self: ContractState, token: ContractAddress, new_fee_rate: u256,
-        ) {
-            self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
-            assert(new_fee_rate <= MAX_FEE, FEE_TOO_HIGH);
-
-            let current_fee_rate = self.protocol_fee_rate.read(token);
-            if current_fee_rate != new_fee_rate {
-                self.protocol_fee_rate.write(token, new_fee_rate);
-
-                self
-                    .emit(
-                        ProtocolFeeSet {
-                            token, set_by: get_caller_address(), new_fee: new_fee_rate,
-                        },
-                    );
-            }
-        }
-
-        /// @notice Internal function to handle withdrawals
-        /// @param stream_id The ID of the stream to withdraw from
-        /// @param amount The amount to withdraw
-        /// @param to The address receiving the withdrawn tokens
-        /// @return A tuple of (withdrawn_amount, protocol_fee_amount)
-        fn _withdraw(
-            ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
-        ) -> (u128, u128) {
-            let mut stream = self.streams.read(stream_id);
-            // @dev Allow stream creator to withdraw funds when a stream is canceled.
-            if stream.sender != get_caller_address() {
-                self.assert_is_recipient_or_delegate(stream_id);
-            }
-
-            // Update snapshot before calculating withdrawable amount
-            self._update_snapshot(stream_id);
-
-            let withdrawable_amount = self._withdrawable_amount(stream_id);
-            assert(withdrawable_amount >= amount, INSUFFICIENT_AMOUNT);
-            assert(amount > 0, ZERO_AMOUNT);
-            assert(to.is_non_zero(), INVALID_RECIPIENT);
-
-            // Calculate fee using new fixed-point system
-            let token_address = stream.token;
-            let fee = self._calculate_protocol_fee(amount, token_address);
-            let net_amount: u256 = (amount - fee);
-            let current_balance = stream.balance - stream.withdrawn_amount;
-
-            // Check if current balance is sufficient for withdrawal
-            assert(current_balance >= amount, INSUFFICIENT_AMOUNT);
-
-            // Update stream's withdrawn amount and balance
-            stream.withdrawn_amount += amount;
-            stream.balance -= amount;
-            self.streams.write(stream_id, stream);
-
-            let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
-
-            self.collect_protocol_fee(token_address, fee);
-            token_dispatcher.transfer(to, net_amount);
-
-            let aggregate_balance = self.aggregate_balance.read(token_address) - amount;
-            self.aggregate_balance.write(token_address, aggregate_balance);
-
-            // Update snapshot after withdrawal
-            self._update_snapshot(stream_id);
-
-            // Update stream metrics
-            let mut metrics = self.stream_metrics.read(stream_id);
-            metrics.total_withdrawn += amount;
-            metrics.withdrawal_count += 1;
-            metrics.last_activity = get_block_timestamp();
-            self.stream_metrics.write(stream_id, metrics);
-
-            self
-                .emit(
-                    StreamWithdrawn {
-                        stream_id,
-                        recipient: to,
-                        amount: net_amount,
-                        protocol_fee: fee.try_into().unwrap(),
-                    },
-                );
-
-            (net_amount.try_into().unwrap(), fee.try_into().unwrap())
-        }
-
-        /// @notice Internal function to handle refunds to stream creator
-        /// @param stream_id The ID of the stream to refund from
-        /// @param amount The amount to refund
-        fn _refund(ref self: ContractState, stream_id: u256, amount: u256) {
-            let stream = self.streams.read(stream_id);
-            let token_address = stream.token;
-            let sender = stream.sender;
-
-            // Transfer tokens back to sender
-            let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
-            token_dispatcher.transfer(sender, amount);
-
-            // Update aggregate balance
-            let aggregate_balance = self.aggregate_balance.read(token_address) - amount;
-            self.aggregate_balance.write(token_address, aggregate_balance);
-
-            // Emit event
-            self.emit(RefundFromStream { stream_id, sender, amount });
-        }
-    }
-
-    #[abi(embed_v0)]
-    impl PaymentStreamImpl of IPaymentStream<ContractState> {
-        fn create_stream(
+        fn _create_stream(
             ref self: ContractState,
             recipient: ContractAddress,
             total_amount: u256,
@@ -656,13 +553,128 @@ pub mod PaymentStream {
                         },
                     ),
                 );
-
             stream_id
         }
 
+        /// @notice Sets the protocol fee rate for a token
+        /// @param token The token address
+        /// @param new_fee_rate The new fee rate in basis points (e.g., 100 = 1%)
+        fn _set_protocol_fee_rate(
+            ref self: ContractState, token: ContractAddress, new_fee_rate: u256,
+        ) {
+            self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
+            assert(new_fee_rate <= MAX_FEE, FEE_TOO_HIGH);
+
+            let current_fee_rate = self.protocol_fee_rate.read(token);
+            if current_fee_rate != new_fee_rate {
+                self.protocol_fee_rate.write(token, new_fee_rate);
+
+                self
+                    .emit(
+                        ProtocolFeeSet {
+                            token, set_by: get_caller_address(), new_fee: new_fee_rate,
+                        },
+                    );
+            }
+        }
+
+        /// @notice Internal function to handle withdrawals
+        /// @param stream_id The ID of the stream to withdraw from
+        /// @param amount The amount to withdraw
+        /// @param to The address receiving the withdrawn tokens
+        /// @return A tuple of (withdrawn_amount, protocol_fee_amount)
+        fn _withdraw(
+            ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
+        ) -> (u128, u128) {
+            let mut stream = self.streams.read(stream_id);
+            // @dev Allow stream creator to withdraw funds when a stream is canceled.
+            if stream.sender != get_caller_address() {
+                self.assert_is_recipient_or_delegate(stream_id);
+            }
+
+            // Stream creator can only withdraw when a stream is not paused
+            if stream.sender == get_caller_address() {
+                assert(stream.status != StreamStatus::Paused, STREAM_NOT_PAUSED);
+            }
+
+            // Update snapshot before calculating withdrawable amount
+            self._update_snapshot(stream_id);
+
+            let withdrawable_amount = self._withdrawable_amount(stream_id);
+            assert(withdrawable_amount >= amount, INSUFFICIENT_AMOUNT);
+            assert(amount > 0, ZERO_AMOUNT);
+
+            // Calculate fee using new fixed-point system
+            let token_address = stream.token;
+            let fee = self._calculate_protocol_fee(amount, token_address);
+            let net_amount: u256 = (amount - fee);
+            let current_balance = stream.balance - stream.withdrawn_amount;
+
+            // Check if current balance is sufficient for withdrawal
+            assert(current_balance >= amount, INSUFFICIENT_AMOUNT);
+
+            // Update stream's withdrawn amount and balance
+            stream.withdrawn_amount += amount;
+            stream.balance -= amount;
+            self.streams.write(stream_id, stream);
+
+            let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+
+            self.collect_protocol_fee(token_address, fee);
+            token_dispatcher.transfer(to, net_amount);
+
+            let aggregate_balance = self.aggregate_balance.read(token_address) - amount;
+            self.aggregate_balance.write(token_address, aggregate_balance);
+
+            // Update snapshot after withdrawal
+            self._update_snapshot(stream_id);
+
+            // Update stream metrics
+            let mut metrics = self.stream_metrics.read(stream_id);
+            metrics.total_withdrawn += amount;
+            metrics.withdrawal_count += 1;
+            metrics.last_activity = get_block_timestamp();
+            self.stream_metrics.write(stream_id, metrics);
+
+            self
+                .emit(
+                    StreamWithdrawn {
+                        stream_id,
+                        recipient: to,
+                        amount: net_amount,
+                        protocol_fee: fee.try_into().unwrap(),
+                    },
+                );
+
+            (net_amount.try_into().unwrap(), fee.try_into().unwrap())
+        }
+
+        /// @notice Internal function to handle refunds to stream creator
+        /// @param stream_id The ID of the stream to refund from
+        /// @param amount The amount to refund
+        fn _refund(ref self: ContractState, stream_id: u256, amount: u256) {
+            let stream = self.streams.read(stream_id);
+            let token_address = stream.token;
+            let sender = stream.sender;
+
+            // Transfer tokens back to sender
+            let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
+            token_dispatcher.transfer(sender, amount);
+
+            // Update aggregate balance
+            let aggregate_balance = self.aggregate_balance.read(token_address) - amount;
+            self.aggregate_balance.write(token_address, aggregate_balance);
+
+            // Emit event
+            self.emit(RefundFromStream { stream_id, sender, amount });
+        }
+    }
+
+    #[abi(embed_v0)]
+    impl PaymentStreamImpl of IPaymentStream<ContractState> {
         /// @notice Creates a new stream and funds it with tokens in a single transaction
         /// @dev Combines the create_stream and deposit functions into one efficient operation
-        fn create_stream_with_deposit(
+        fn create_stream(
             ref self: ContractState,
             recipient: ContractAddress,
             total_amount: u256,
@@ -681,7 +693,7 @@ pub mod PaymentStream {
 
             // Now create the stream as we know we have sufficient allowance
             let stream_id = self
-                .create_stream(recipient, total_amount, duration, cancelable, token, transferable);
+                ._create_stream(recipient, total_amount, duration, cancelable, token, transferable);
 
             // Transfer the tokens from the sender to the contract
             self._deposit(stream_id, total_amount);
@@ -689,28 +701,30 @@ pub mod PaymentStream {
             stream_id
         }
 
-        fn deposit(ref self: ContractState, stream_id: u256, amount: u256) {
-            // Call the internal deposit function
-            self._deposit(stream_id, amount);
-        }
+        // fn deposit(ref self: ContractState, stream_id: u256, amount: u256) {
+        //     // Call the internal deposit function
+        //     self._deposit(stream_id, amount);
+        // }
 
-        fn deposit_and_pause(ref self: ContractState, stream_id: u256, amount: u256) {
-            // First deposit additional funds
-            self._deposit(stream_id, amount);
+        // fn deposit_and_pause(ref self: ContractState, stream_id: u256, amount: u256) {
+        //     // First deposit additional funds
+        //     self._deposit(stream_id, amount);
 
-            // Then pause the stream
-            self.pause(stream_id);
-        }
+        //     // Then pause the stream
+        //     self.pause(stream_id);
+        // }
 
         fn withdraw(
             ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
         ) -> (u128, u128) {
+            assert(!to.is_zero(), INVALID_RECIPIENT);
             self._withdraw(stream_id, amount, to)
         }
 
         fn withdraw_max(
             ref self: ContractState, stream_id: u256, to: ContractAddress,
         ) -> (u128, u128) {
+            assert(!to.is_zero(), INVALID_RECIPIENT);
             let withdrawable_amount = self._withdrawable_amount(stream_id);
             self._withdraw(stream_id, withdrawable_amount, to)
         }
@@ -772,15 +786,16 @@ pub mod PaymentStream {
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
 
             let fee_collector = self.fee_collector.read();
-            assert(new_fee_collector.is_non_zero(), INVALID_RECIPIENT);
+            assert(!new_fee_collector.is_zero(), INVALID_RECIPIENT);
             assert(new_fee_collector != fee_collector, SAME_COLLECTOR_ADDRESS);
 
             self.fee_collector.write(new_fee_collector);
+            self.emit(FeeCollectorUpdated { new_fee_collector, old_fee_collector: fee_collector });
         }
 
         fn update_protocol_owner(ref self: ContractState, new_protocol_owner: ContractAddress) {
             let current_owner = self.protocol_owner.read();
-            assert(new_protocol_owner.is_non_zero(), INVALID_RECIPIENT);
+            assert(!new_protocol_owner.is_zero(), INVALID_RECIPIENT);
             assert(new_protocol_owner != current_owner, SAME_OWNER);
 
             self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
@@ -789,6 +804,10 @@ pub mod PaymentStream {
 
             self.accesscontrol.revoke_role(PROTOCOL_OWNER_ROLE, current_owner);
             self.accesscontrol._grant_role(PROTOCOL_OWNER_ROLE, new_protocol_owner);
+            self
+                .emit(
+                    ProtocolOwnerUpdated { new_protocol_owner, old_protocol_owner: current_owner },
+                );
         }
 
         fn get_fee_collector(self: @ContractState) -> ContractAddress {
@@ -875,9 +894,6 @@ pub mod PaymentStream {
             // Update the stream status to canceled
             stream.status = StreamStatus::Canceled;
 
-            // Update Stream in State
-            self.streams.write(stream_id, stream);
-
             self.erc721.burn(stream_id);
 
             // Calculate the amount that can be refunded
@@ -893,6 +909,16 @@ pub mod PaymentStream {
                 // Use the dedicated refund function
                 self._refund(stream_id, refundable_amount);
             }
+
+            // Pay the recipient the remaining balance
+            let recipient = stream.recipient;
+
+            // Update Stream in State
+            self.streams.write(stream_id, stream);
+            let amount_due = self._withdrawable_amount(stream_id);
+
+            // Withdraw the remaining balance
+            self._withdraw(stream_id, amount_due, recipient);
 
             // Emit an event for stream cancellation
             self.emit(StreamCanceled { stream_id });
@@ -936,33 +962,6 @@ pub mod PaymentStream {
             self.emit(StreamRestarted { stream_id, rate_per_second: stored_rate });
         }
 
-        /// @notice Restart a paused stream and deposit funds to it in a single transaction
-        /// @dev Combines the restart and deposit functions into one efficient operation
-        /// @param stream_id The ID of the stream to restart and deposit to
-        /// @param amount The amount to deposit into the stream
-        /// @return Boolean indicating if the operation was successful
-        fn restart_and_deposit(ref self: ContractState, stream_id: u256, amount: u256) -> bool {
-            // First restart the stream
-            self.restart(stream_id);
-
-            // Then deposit the funds
-            self.deposit(stream_id, amount);
-
-            true
-        }
-
-        fn void(ref self: ContractState, stream_id: u256) {
-            let mut stream = self.streams.read(stream_id);
-
-            self.assert_stream_exists(stream_id);
-            assert(stream.status != StreamStatus::Canceled, STREAM_NOT_ACTIVE);
-
-            stream.status = StreamStatus::Voided;
-            self.streams.write(stream_id, stream);
-
-            self.emit(StreamVoided { stream_id });
-        }
-
         fn get_stream(self: @ContractState, stream_id: u256) -> Stream {
             self.streams.read(stream_id)
         }
@@ -990,25 +989,13 @@ pub mod PaymentStream {
                 return 0_u64;
             }
 
-            // Get current time and calculate remaining balance
+            // return the difference between the first_update_time and the current time
             let current_time = get_block_timestamp();
-            let total_debt = self._total_debt(stream_id);
-
-            // If balance is less than or equal to total debt, stream is already depleted
-            if stream.balance <= total_debt {
-                return current_time;
-            }
-
-            let remaining_balance = stream.balance - total_debt;
-            let rate_per_second = stream.rate_per_second;
-
-            // Calculate seconds until depletion using fixed point arithmetic to avoid rounding
-            // errors
-            let seconds_until_depletion: u64 = (remaining_balance / rate_per_second)
-                .try_into()
-                .unwrap();
-
-            seconds_until_depletion
+            let first_update_time = stream.first_update_time;
+            let time_since_first_update = current_time - first_update_time;
+            let time_specified = stream.duration * SECONDS_PER_HOUR;
+            let time_remaining = time_specified - time_since_first_update;
+            return time_remaining;
         }
 
         fn get_token_decimals(self: @ContractState, stream_id: u256) -> u8 {
@@ -1045,24 +1032,24 @@ pub mod PaymentStream {
             }
         }
 
-        fn get_refundable_amount(self: @ContractState, stream_id: u256) -> u256 {
-            let stream = self.streams.read(stream_id);
+        // fn get_refundable_amount(self: @ContractState, stream_id: u256) -> u256 {
+        //     let stream = self.streams.read(stream_id);
 
-            // If stream is not active, return 0
-            if stream.status != StreamStatus::Active {
-                return 0_u256;
-            }
+        //     // If stream is not active, return 0
+        //     if stream.status != StreamStatus::Active {
+        //         return 0_u256;
+        //     }
 
-            // Calculate total debt (amount streamed but not withdrawn)
-            let total_debt = self._total_debt(stream_id);
+        //     // Calculate total debt (amount streamed but not withdrawn)
+        //     let total_debt = self._total_debt(stream_id);
 
-            // Calculate refundable amount as the excess balance after accounting for debt
-            if stream.balance > total_debt {
-                stream.balance - total_debt
-            } else {
-                0_u256
-            }
-        }
+        //     // Calculate refundable amount as the excess balance after accounting for debt
+        //     if stream.balance > total_debt {
+        //         stream.balance - total_debt
+        //     } else {
+        //         0_u256
+        //     }
+        // }
 
         fn get_active_streams_count(self: @ContractState) -> u256 {
             self.protocol_metrics.read().total_active_streams
@@ -1123,33 +1110,6 @@ pub mod PaymentStream {
             self.stream_delegates.read(stream_id)
         }
 
-        fn get_protocol_revenue(self: @ContractState, token: ContractAddress) -> u256 {
-            self.protocol_revenue.read(token)
-        }
-
-        fn collect_protocol_revenue(
-            ref self: ContractState, token: ContractAddress, to: ContractAddress,
-        ) {
-            self.accesscontrol.assert_only_role(PROTOCOL_OWNER_ROLE);
-            let protocol_revenue = self.protocol_revenue.read(token);
-            self.protocol_revenue.write(token, 0_u256);
-            let token_dispatcher = IERC20Dispatcher { contract_address: token };
-            token_dispatcher.transfer(to, protocol_revenue);
-
-            let aggregate_balance = self.aggregate_balance.read(token) - protocol_revenue;
-            self.aggregate_balance.write(token, aggregate_balance);
-
-            self
-                .emit(
-                    ProtocolRevenueCollected {
-                        token,
-                        collected_by: get_caller_address(),
-                        sent_to: to,
-                        amount: protocol_revenue,
-                    },
-                )
-        }
-
         fn is_stream(self: @ContractState, stream_id: u256) -> bool {
             let stream: Stream = self.streams.read(stream_id);
             if stream.status == StreamStatus::Active {
@@ -1161,14 +1121,6 @@ pub mod PaymentStream {
         fn is_paused(self: @ContractState, stream_id: u256) -> bool {
             let stream: Stream = self.streams.read(stream_id);
             if stream.status == StreamStatus::Paused {
-                return true;
-            }
-            false
-        }
-
-        fn is_voided(self: @ContractState, stream_id: u256) -> bool {
-            let stream: Stream = self.streams.read(stream_id);
-            if stream.status == StreamStatus::Voided {
                 return true;
             }
             false
@@ -1196,7 +1148,7 @@ pub mod PaymentStream {
             rate
         }
 
-        fn aggregate_balance(self: @ContractState, token: ContractAddress) -> u256 {
+        fn get_aggregate_balance(self: @ContractState, token: ContractAddress) -> u256 {
             self.aggregate_balance.read(token)
         }
 

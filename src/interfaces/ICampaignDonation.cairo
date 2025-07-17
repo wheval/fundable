@@ -17,6 +17,7 @@ pub trait ICampaignDonation<TContractState> {
     /// # Arguments
     /// * `campaign_ref` - A unique 5-character identifier for the campaign
     /// * `target_amount` - The fundraising goal amount in the donation token
+    /// * `donation_token` - The address of the donation token
     ///
     /// # Returns
     /// * `u256` - The newly created campaign's ID
@@ -26,7 +27,10 @@ pub trait ICampaignDonation<TContractState> {
     /// * If `campaign_ref` already exists
     /// * If `target_amount` is zero
     fn create_campaign(
-        ref self: TContractState, campaign_ref: felt252, target_amount: u256,
+        ref self: TContractState,
+        campaign_ref: felt252,
+        target_amount: u256,
+        donation_token: ContractAddress,
     ) -> u256;
 
     /// Makes a donation to a specific campaign
@@ -104,6 +108,22 @@ pub trait ICampaignDonation<TContractState> {
     /// * `Array<Donations>` - An array of all donations made to the campaign
     fn get_campaign_donations(self: @TContractState, campaign_id: u256) -> Array<Donations>;
 
+    /// Sets the address of the donation NFT contract
+    ///
+    /// # Arguments
+    /// * `donation_nft_address` - The address of the donation NFT contract
+    ///
+    fn set_donation_nft_address(ref self: TContractState, donation_nft_address: ContractAddress);
+    /// Mint NFT receipt for a donation
+    ///
+    /// # Arguments
+    /// * `campaign_id` - The ID of the campaign associated with the donation
+    /// * `donation_id` - The ID of the donation to mint an NFT for
+    ///
+    /// # Returns
+    /// * `u256` - The token ID of the minted NFT
+    fn mint_donation_nft(ref self: TContractState, campaign_id: u256, donation_id: u256) -> u256;
+
     // *************************************************************************
     //                        USER EXPERIENCE ENHANCEMENTS
     // *************************************************************************
@@ -143,8 +163,11 @@ pub trait ICampaignDonation<TContractState> {
     ///
     /// # Returns
     /// * `Array<(u256, Donations)>` - Array of tuples (campaign_id, donation)
-    // fn get_donations_by_donor(self: @TContractState, donor: ContractAddress) -> Array<(u256,
-    // Donations)>;
+
+    fn get_donations_by_donor(
+        self: @TContractState, donor: ContractAddress,
+    ) -> Array<(u256, Donations)>;
+
 
     /// Gets the total amount donated by a specific address
     ///
@@ -153,7 +176,9 @@ pub trait ICampaignDonation<TContractState> {
     ///
     /// # Returns
     /// * `u256` - Total amount donated across all campaigns
-    // fn get_total_donated_by_donor(self: @TContractState, donor: ContractAddress) -> u256;
+
+    fn get_total_donated_by_donor(self: @TContractState, donor: ContractAddress) -> u256;
+
 
     /// Checks if a donor has contributed to a specific campaign
     ///
@@ -163,9 +188,10 @@ pub trait ICampaignDonation<TContractState> {
     ///
     /// # Returns
     /// * `bool` - True if the donor has contributed, false otherwise
-    // fn has_donated_to_campaign(self: @TContractState, campaign_id: u256, donor: ContractAddress)
-    // -> bool;
 
+    fn has_donated_to_campaign(
+        self: @TContractState, campaign_id: u256, donor: ContractAddress,
+    ) -> bool;
     // *************************************************************************
     //                        CAMPAIGN MANAGEMENT
     // *************************************************************************
@@ -180,30 +206,50 @@ pub trait ICampaignDonation<TContractState> {
     /// * Caller must be campaign owner
     /// * Campaign must have zero balance
     /// * New target must be greater than zero
-    // fn update_campaign_target(ref self: TContractState, campaign_id: u256, new_target: u256);
+    fn update_campaign_target(ref self: TContractState, campaign_id: u256, new_target: u256);
 
-    /// Cancels a campaign and enables refunds (only if no withdrawals have occurred)
-    ///
-    /// # Arguments
-    /// * `campaign_id` - The campaign ID
-    ///
-    /// # Requirements
-    /// * Caller must be campaign owner
-    /// * Campaign must not be withdrawn
-    /// * Campaign must not have reached its goal
-    // fn cancel_campaign(ref self: TContractState, campaign_id: u256);
+    //     / Cancels a campaign and enables refunds (only if no withdrawals have occurred)
+    // /
+    // / # Arguments
+    // / * `campaign_id` - The campaign ID
+    // /
+    // / # Requirements
+    // / * Caller must be campaign owner
+    // / * Campaign must not be withdrawn
+    // / * Campaign must not have reached its goal
+    fn cancel_campaign(ref self: TContractState, campaign_id: u256);
 
-    /// Allows donors to claim refunds from cancelled campaigns
-    ///
-    /// # Arguments
-    /// * `campaign_id` - The campaign ID
-    ///
-    /// # Requirements
-    /// * Campaign must be cancelled
-    /// * Caller must have donated to the campaign
-    /// * Refund must not have been claimed already
-    // fn claim_refund(ref self: TContractState, campaign_id: u256);
+    //     / Allows donors to claim refunds from cancelled campaigns
+    // /
+    // / # Arguments
+    // / * `campaign_id` - The campaign ID
+    // /
+    // / # Requirements
+    // / * Campaign must be cancelled
+    // / * Caller must have donated to the campaign
+    // / * Refund must not have been claimed already
+    fn claim_refund(ref self: TContractState, campaign_id: u256);
 
+    // *************************************************************************
+    //                        PROTOCOL FEES
+    // *************************************************************************
+
+    /// @notice Gets the current protocol fee percentage
+    /// @return The protocol fee percentage (100 = 1%)
+    fn get_protocol_fee_percent(self: @TContractState) -> u256;
+
+    /// @notice Sets a new protocol fee percentage
+    /// @param new_fee_percent The new fee percentage to set (100 = 1%)
+    fn set_protocol_fee_percent(ref self: TContractState, new_fee_percent: u256);
+
+    /// @notice Gets the current protocol fee collection address
+    /// @return The address where protocol fees are sent
+    fn get_protocol_fee_address(self: @TContractState) -> ContractAddress;
+
+
+    /// @notice Sets a new protocol fee collection address
+    /// @param new_fee_address The new address to collect protocol fees
+    fn set_protocol_fee_address(ref self: TContractState, new_fee_address: ContractAddress);
     // *************************************************************************
     //                        ANALYTICS & INSIGHTS
     // *************************************************************************

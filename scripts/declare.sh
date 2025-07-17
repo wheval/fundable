@@ -2,8 +2,8 @@
 
 # Configuration
 ACCOUNT_NAME="dev"  # account name
-NETWORK="testnet"         # target network (sepolia, mainnet, etc.)
-CONTRACT_NAME="Distributor"  # The contract name
+NETWORK="sepolia"         # target network (sepolia, mainnet, etc.)
+CONTRACT_NAME="PaymentStream"  # The contract name
 
 # Check if sncast is installed
 if ! command -v sncast &> /dev/null; then
