@@ -52,11 +52,6 @@ pub mod CampaignDonation {
         campaign_closed: Map<u256, bool>, // Map campaign ids to closing boolean
         campaign_withdrawn: Map<u256, bool>, //Map campaign ids to whether they have been withdrawn
         donation_token: ContractAddress,
-        unique_donors_count: Map<u256, u32>, // Number of unique donors per campaign
-        campaign_donors: Map<
-            (u256, ContractAddress), bool,
-        > // Track if an address has donated to a campaign
-
         donation_nft_address: ContractAddress, // Address of the Donation NFT contract
         donor_donations: Map<
             ContractAddress, Vec<(u256, u256)>,
@@ -68,6 +63,10 @@ pub mod CampaignDonation {
         /// Protocol fee percentage using 10000 basis points (e.g. 250 = 2.5%). Default is 0.
         protocol_fee_percent: u256,
         protocol_fee_address: ContractAddress,
+        unique_donors_count: Map<u256, u32>, // Number of unique donors per campaign
+        campaign_donors: Map<
+            (u256, ContractAddress), bool,
+        >, // Track if an address has donated to a campaign
 
     }
 
@@ -315,59 +314,9 @@ pub mod CampaignDonation {
         }
 
 
-        fn get_campaign_donor_count(self: @ContractState, campaign_id: u256) -> u32 {
-            // Simply return the stored count of unique donors
-            self.unique_donors_count.read(campaign_id)
-            <<<<<< feat/analytics_and_insight_functions
-            let mut campaign = self.get_campaign(campaign_id);
-            let contract_address = get_contract_address();
-            let timestamp = get_block_timestamp();
-            let donation_token = self.donation_token.read();
-            // cannot send more than target amount
-            assert!(amount <= campaign.target_amount, "Error: More than Target");
-
-            let donation_id = self.donation_count.read() + 1;
-
-            // Ensure the campaign is still accepting donations
-            assert(!campaign.is_goal_reached, TARGET_REACHED);
-
-            // Prepare the ERC20 interface
-            let token_dispatcher = IERC20Dispatcher { contract_address: donation_token };
-
-            // Transfer funds to contract — requires prior approval
-            token_dispatcher.transfer_from(donor, contract_address, amount);
-
-            // Update campaign amount
-            campaign.current_balance = campaign.current_balance + amount;
-
-            // If goal reached, mark as closed
-            if (campaign.current_balance >= campaign.target_amount) {
-                campaign.is_goal_reached = true;
-                campaign.is_closed = true;
-            }
-
-            // Check if this is the donor's first donation to this campaign
-            if !self.campaign_donors.read((campaign_id, donor)) {
-                // Mark that this address has donated to this campaign
-                self.campaign_donors.write((campaign_id, donor), true);
-                // Increment the unique donors count
-                let current_count = self.unique_donors_count.read(campaign_id);
-                self.unique_donors_count.write(campaign_id, current_count + 1);
-            }
-
-            self.campaigns.write(campaign_id, campaign);
-
-            // Create donation record
-            let donation = Donations { donation_id, donor, campaign_id, amount };
-
-            // Properly append to the Vec using push
-            self.donations.entry(campaign_id).push(donation);
-
-            self.donation_count.write(donation_id);
-
-            // Update the per-campaign donation count
-            let campaign_donation_count = self.donation_counts.read(campaign_id);
-            self.donation_counts.write(campaign_id, campaign_donation_count + 1);
+fn get_campaign_donor_count(self: @ContractState, campaign_id: u256) -> u32 {
+    // Simply return the stored count of unique donors
+    self.unique_donors_count.read(campaign_id)
 }
         fn set_donation_nft_address(
             ref self: ContractState, donation_nft_address: ContractAddress,
