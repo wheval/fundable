@@ -16,7 +16,8 @@ pub struct Stream {
     pub rate_per_second: u256,
     pub last_update_time: u64,
     pub transferable: bool,
-    pub first_update_time: u64,
+    pub start_time: u64,
+    pub end_time: u64,
 }
 
 #[derive(Drop, starknet::Event)]
