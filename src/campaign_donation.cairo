@@ -66,8 +66,7 @@ pub mod CampaignDonation {
         unique_donors_count: Map<u256, u32>, // Number of unique donors per campaign
         campaign_donors: Map<
             (u256, ContractAddress), bool,
-        >, // Track if an address has donated to a campaign
-
+        > // Track if an address has donated to a campaign
     }
 
 
@@ -296,7 +295,7 @@ pub mod CampaignDonation {
             // Validate campaign exists
             assert(campaign_id > 0, CAMPAIGN_NOT_FOUND);
             assert(campaign_id <= self.campaign_counts.read(), CAMPAIGN_NOT_FOUND);
-            
+
             let campaign: Campaigns = self.campaigns.read(campaign_id);
             if campaign.target_amount == 0 {
                 return 0_u8;
@@ -313,7 +312,7 @@ pub mod CampaignDonation {
             // Since we already capped at 100, this should always succeed
             let progress_u8: u8 = match progress.try_into() {
                 Option::Some(val) => val,
-                Option::None => 100_u8, // Fallback to 100% if conversion fails
+                Option::None => 100_u8 // Fallback to 100% if conversion fails
             };
 
             progress_u8
@@ -324,7 +323,7 @@ pub mod CampaignDonation {
             // Validate campaign exists
             assert(campaign_id > 0, CAMPAIGN_NOT_FOUND);
             assert(campaign_id <= self.campaign_counts.read(), CAMPAIGN_NOT_FOUND);
-            
+
             // Simply return the stored count of unique donors
             self.unique_donors_count.read(campaign_id)
         }
@@ -594,7 +593,8 @@ pub mod CampaignDonation {
             // Save donation reference for the donor
             self.donor_donations.entry(donor).push((campaign_id, donation_id));
 
-            // Update unique donor count if this is the first donation from this donor to this campaign
+            // Update unique donor count if this is the first donation from this donor to this
+            // campaign
             let has_donated_before = self.campaign_donors.read((campaign_id, donor));
             if !has_donated_before {
                 self.campaign_donors.write((campaign_id, donor), true);

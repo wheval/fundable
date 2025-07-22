@@ -601,9 +601,12 @@ fn test_get_campaign_progress() {
 
     // Create multiple campaigns
     start_cheat_caller_address(campaign_donation.contract_address, sender);
-    let campaign_id_1 = campaign_donation.create_campaign('Campaign1', target_amount, donation_token);
-    let campaign_id_2 = campaign_donation.create_campaign('Campaign2', target_amount, donation_token);
-    let campaign_id_3 = campaign_donation.create_campaign('Campaign3', target_amount, donation_token);
+    let campaign_id_1 = campaign_donation
+        .create_campaign('Campaign1', target_amount, donation_token);
+    let campaign_id_2 = campaign_donation
+        .create_campaign('Campaign2', target_amount, donation_token);
+    let campaign_id_3 = campaign_donation
+        .create_campaign('Campaign3', target_amount, donation_token);
     stop_cheat_caller_address(campaign_donation.contract_address);
 
     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
@@ -643,7 +646,8 @@ fn test_campaign_progress_precision() {
 
     // Create test campaign
     start_cheat_caller_address(campaign_donation.contract_address, sender);
-    let campaign_id = campaign_donation.create_campaign('PrecisionTest', target_amount, donation_token);
+    let campaign_id = campaign_donation
+        .create_campaign('PrecisionTest', target_amount, donation_token);
     stop_cheat_caller_address(campaign_donation.contract_address);
 
     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
@@ -870,7 +874,8 @@ fn test_repeat_donor_count() {
     // Create a campaign
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let donation_token = token_address;
-    let campaign_id = campaign_donation.create_campaign('RepeatDonorTest', target_amount, donation_token);
+    let campaign_id = campaign_donation
+        .create_campaign('RepeatDonorTest', target_amount, donation_token);
     stop_cheat_caller_address(campaign_donation.contract_address);
 
     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
@@ -906,8 +911,10 @@ fn test_multiple_campaigns_donor_count() {
     // Create two campaigns
     start_cheat_caller_address(campaign_donation.contract_address, sender);
     let donation_token = token_address;
-    let campaign_id_1 = campaign_donation.create_campaign('Campaign1', target_amount, donation_token);
-    let campaign_id_2 = campaign_donation.create_campaign('Campaign2', target_amount, donation_token);
+    let campaign_id_1 = campaign_donation
+        .create_campaign('Campaign1', target_amount, donation_token);
+    let campaign_id_2 = campaign_donation
+        .create_campaign('Campaign2', target_amount, donation_token);
     stop_cheat_caller_address(campaign_donation.contract_address);
 
     let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
