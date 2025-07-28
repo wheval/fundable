@@ -410,7 +410,9 @@ pub mod PaymentStream {
         /// @notice Internal function to collect protocol fees (without reentrancy protection)
         /// @param token The token address to collect fees in
         /// @param amount The fee amount to collect
-        fn _collect_protocol_fee_internal(ref self: ContractState, token: ContractAddress, amount: u256) {
+        fn _collect_protocol_fee_internal(
+            ref self: ContractState, token: ContractAddress, amount: u256,
+        ) {
             let fee_collector: ContractAddress = self.fee_collector.read();
             assert(fee_collector.is_non_zero(), INVALID_RECIPIENT);
             IERC20Dispatcher { contract_address: token }.transfer(fee_collector, amount);

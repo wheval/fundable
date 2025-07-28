@@ -1,21 +1,22 @@
-use starknet::ContractAddress;
-use starknet::storage::*;
-use starknet::get_caller_address;
-use fundable::payment_stream::PaymentStream;
-use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
 use fundable::base::types::{Stream, StreamStatus};
+use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
+use fundable::payment_stream::PaymentStream;
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 use snforge_std::{
-    declare, DeclareResultTrait, ContractClassTrait, start_cheat_caller_address, 
-    stop_cheat_caller_address, start_cheat_block_timestamp, spy_events, EventSpyAssertionsTrait
+    ContractClassTrait, DeclareResultTrait, EventSpyAssertionsTrait, declare, spy_events,
+    start_cheat_block_timestamp, start_cheat_caller_address, stop_cheat_caller_address,
 };
+use starknet::storage::*;
+use starknet::{ContractAddress, get_caller_address};
 
 #[starknet::interface]
 pub trait IMaliciousERC20<TContractState> {
     fn mint(ref self: TContractState, to: ContractAddress, amount: u256);
     fn approve(ref self: TContractState, spender: ContractAddress, amount: u256) -> bool;
     fn transfer(ref self: TContractState, to: ContractAddress, amount: u256) -> bool;
-    fn transfer_from(ref self: TContractState, from: ContractAddress, to: ContractAddress, amount: u256) -> bool;
+    fn transfer_from(
+        ref self: TContractState, from: ContractAddress, to: ContractAddress, amount: u256,
+    ) -> bool;
     fn balance_of(self: @TContractState, account: ContractAddress) -> u256;
     fn allowance(self: @TContractState, owner: ContractAddress, spender: ContractAddress) -> u256;
     fn total_supply(self: @TContractState) -> u256;
@@ -29,10 +30,11 @@ pub trait IMaliciousERC20<TContractState> {
 
 #[starknet::contract]
 pub mod MaliciousERC20 {
-    use starknet::ContractAddress;
+    use fundable::interfaces::IPaymentStream::{
+        IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait,
+    };
     use starknet::storage::*;
-    use starknet::get_caller_address;
-    use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
+    use starknet::{ContractAddress, get_caller_address};
 
     #[storage]
     pub struct Storage {
@@ -75,33 +77,35 @@ pub mod MaliciousERC20 {
             let caller = get_caller_address();
             let from_balance = self.balances.read(caller);
             assert(from_balance >= amount, 'Insufficient balance');
-            
+
             self.balances.write(caller, from_balance - amount);
             let to_balance = self.balances.read(to);
             self.balances.write(to, to_balance + amount);
-            
+
             // Attempt reentrancy attack during transfer
             self._attempt_reentrancy_attack();
-            
+
             true
         }
 
-        fn transfer_from(ref self: ContractState, from: ContractAddress, to: ContractAddress, amount: u256) -> bool {
+        fn transfer_from(
+            ref self: ContractState, from: ContractAddress, to: ContractAddress, amount: u256,
+        ) -> bool {
             let caller = get_caller_address();
             let allowance = self.allowances.read((from, caller));
             assert(allowance >= amount, 'Insufficient allowance');
-            
+
             let from_balance = self.balances.read(from);
             assert(from_balance >= amount, 'Insufficient balance');
-            
+
             self.allowances.write((from, caller), allowance - amount);
             self.balances.write(from, from_balance - amount);
             let to_balance = self.balances.read(to);
             self.balances.write(to, to_balance + amount);
-            
+
             // Attempt reentrancy attack during transfer_from
             self._attempt_reentrancy_attack();
-            
+
             true
         }
 
@@ -109,7 +113,9 @@ pub mod MaliciousERC20 {
             self.balances.read(account)
         }
 
-        fn allowance(self: @ContractState, owner: ContractAddress, spender: ContractAddress) -> u256 {
+        fn allowance(
+            self: @ContractState, owner: ContractAddress, spender: ContractAddress,
+        ) -> u256 {
             self.allowances.read((owner, spender))
         }
 
@@ -147,21 +153,21 @@ pub mod MaliciousERC20 {
         fn _attempt_reentrancy_attack(ref self: ContractState) {
             let attack_mode = self.attack_mode.read();
             let attack_count = self.attack_count.read();
-            
+
             if attack_mode == 0 || attack_count >= 3 {
                 return;
             }
-            
+
             let target = self.target_contract.read();
             let stream_id = self.stream_id.read();
-            
+
             if target.into() == 0 {
                 return;
             }
-            
+
             self.attack_count.write(attack_count + 1);
             let dispatcher = IPaymentStreamDispatcher { contract_address: target };
-            
+
             if attack_mode == 1 {
                 // Withdraw attack
                 dispatcher.withdraw(stream_id, 50_u256, starknet::get_contract_address());
@@ -187,9 +193,11 @@ pub trait IMaliciousWithdrawAttacker<TContractState> {
 
 #[starknet::contract]
 pub mod MaliciousWithdrawAttacker {
+    use fundable::interfaces::IPaymentStream::{
+        IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait,
+    };
     use starknet::ContractAddress;
     use starknet::storage::*;
-    use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
 
     #[storage]
     pub struct Storage {
@@ -215,7 +223,7 @@ pub mod MaliciousWithdrawAttacker {
             let target = self.target_contract.read();
             let stream_id = self.stream_id.read();
             let dispatcher = IPaymentStreamDispatcher { contract_address: target };
-            
+
             // Attempt initial withdrawal
             dispatcher.withdraw(stream_id, 100_u256, starknet::get_contract_address());
         }
@@ -236,9 +244,11 @@ pub trait IMaliciousCancelAttacker<TContractState> {
 
 #[starknet::contract]
 pub mod MaliciousCancelAttacker {
+    use fundable::interfaces::IPaymentStream::{
+        IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait,
+    };
     use starknet::ContractAddress;
     use starknet::storage::*;
-    use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
 
     #[storage]
     pub struct Storage {
@@ -264,7 +274,7 @@ pub mod MaliciousCancelAttacker {
             let target = self.target_contract.read();
             let stream_id = self.stream_id.read();
             let dispatcher = IPaymentStreamDispatcher { contract_address: target };
-            
+
             // Attempt to cancel stream
             dispatcher.cancel(stream_id);
         }
@@ -285,9 +295,11 @@ pub trait IMaliciousTransferAttacker<TContractState> {
 
 #[starknet::contract]
 pub mod MaliciousTransferAttacker {
+    use fundable::interfaces::IPaymentStream::{
+        IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait,
+    };
     use starknet::ContractAddress;
     use starknet::storage::*;
-    use fundable::interfaces::IPaymentStream::{IPaymentStreamDispatcher, IPaymentStreamDispatcherTrait};
 
     #[storage]
     pub struct Storage {
@@ -315,7 +327,7 @@ pub mod MaliciousTransferAttacker {
             let target = self.target_contract.read();
             let stream_id = self.stream_id.read();
             let dispatcher = IPaymentStreamDispatcher { contract_address: target };
-            
+
             // Attempt to transfer stream
             dispatcher.transfer_stream(stream_id, new_recipient);
         }
@@ -327,7 +339,6 @@ pub mod MaliciousTransferAttacker {
 }
 
 
-
 // Helper function to deploy malicious ERC20 token
 fn deploy_malicious_token() -> ContractAddress {
     let contract = declare("MaliciousERC20").unwrap().contract_class();
@@ -335,11 +346,11 @@ fn deploy_malicious_token() -> ContractAddress {
     let name: ByteArray = "Malicious Token";
     let symbol: ByteArray = "MAL";
     let decimals: u8 = 18;
-    
+
     name.serialize(ref constructor_args);
     symbol.serialize(ref constructor_args);
     decimals.serialize(ref constructor_args);
-    
+
     let (contract_address, _) = contract.deploy(@constructor_args).unwrap();
     contract_address
 }
@@ -348,15 +359,15 @@ fn deploy_malicious_token() -> ContractAddress {
 fn deploy_payment_stream() -> ContractAddress {
     let contract = declare("PaymentStream").unwrap().contract_class();
     let mut constructor_args = array![];
-    
+
     let protocol_owner: ContractAddress = 123.try_into().unwrap();
     let fee_collector: ContractAddress = 456.try_into().unwrap();
     let general_fee_rate: u64 = 250; // 2.5%
-    
+
     protocol_owner.serialize(ref constructor_args);
     fee_collector.serialize(ref constructor_args);
     general_fee_rate.serialize(ref constructor_args);
-    
+
     let (contract_address, _) = contract.deploy(@constructor_args).unwrap();
     contract_address
 }
@@ -385,6 +396,30 @@ fn deploy_malicious_transfer_attacker() -> ContractAddress {
     contract_address
 }
 
+// Helper functions to generate contract addresses
+fn get_sender_address() -> ContractAddress {
+    'WHEVAL'.try_into().unwrap()
+}
+
+fn get_recipient_address() -> ContractAddress {
+    'BOB'.try_into().unwrap()
+}
+
+fn get_new_recipient_address() -> ContractAddress {
+    'KANYE'.try_into().unwrap()
+}
+
+fn get_alt_sender_address() -> ContractAddress {
+    'MARY'.try_into().unwrap()
+}
+
+fn get_alt_recipient_address() -> ContractAddress {
+    'BEN'.try_into().unwrap()
+}
+
+fn get_alt_new_recipient_address() -> ContractAddress {
+    'WEST'.try_into().unwrap()
+}
 
 
 #[test]
@@ -392,44 +427,44 @@ fn deploy_malicious_transfer_attacker() -> ContractAddress {
 fn test_reentrancy_protection_on_withdraw() {
     let token_address = deploy_malicious_token();
     let stream_address = deploy_payment_stream();
-    
+
     let token_dispatcher = IMaliciousERC20Dispatcher { contract_address: token_address };
     let stream_dispatcher = IPaymentStreamDispatcher { contract_address: stream_address };
-    
 
-    let sender: ContractAddress = 1000.try_into().unwrap();
-    let recipient: ContractAddress = 2000.try_into().unwrap();
-    
+    let sender = get_sender_address();
+    let recipient = get_recipient_address();
+
     token_dispatcher.mint(sender, 100000_u256); // Increase amount
-    
+
     start_cheat_caller_address(token_address, sender);
     token_dispatcher.approve(stream_address, 100000_u256);
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(stream_address, sender);
     start_cheat_block_timestamp(stream_address, 1000);
-    
-    let stream_id = stream_dispatcher.create_stream(
-        recipient,
-        10000_u256,   // total_amount - increased
-        10,           // duration (10 hours) - increased
-        true,         // cancelable
-        token_address,
-        true          // transferable
-    );
-    
+
+    let stream_id = stream_dispatcher
+        .create_stream(
+            recipient,
+            10000_u256, // total_amount - increased
+            10, // duration (10 hours) - increased
+            true, // cancelable
+            token_address,
+            true // transferable
+        );
+
     stop_cheat_caller_address(stream_address);
-    
+
     token_dispatcher.set_attack_mode(1); // withdraw attack
     token_dispatcher.set_stream_id(stream_id);
     token_dispatcher.set_target(stream_address);
-    
+
     // Move time forward significantly to ensure withdrawable amount (5 hours = 18000 seconds)
     start_cheat_block_timestamp(stream_address, 19000); // 1000 + 18000
-    
+
     // Attempt withdrawal - should trigger reentrancy and fail
     start_cheat_caller_address(stream_address, recipient);
-    stream_dispatcher.withdraw(stream_id, 100, recipient); 
+    stream_dispatcher.withdraw(stream_id, 100, recipient);
     stop_cheat_caller_address(stream_address);
 }
 
@@ -438,37 +473,38 @@ fn test_reentrancy_protection_on_withdraw() {
 fn test_reentrancy_protection_on_cancel() {
     let token_address = deploy_malicious_token();
     let stream_address = deploy_payment_stream();
-    
+
     let token_dispatcher = IMaliciousERC20Dispatcher { contract_address: token_address };
     let stream_dispatcher = IPaymentStreamDispatcher { contract_address: stream_address };
-    
-    let sender: ContractAddress = 1000.try_into().unwrap();
-    let recipient: ContractAddress = 2000.try_into().unwrap();
-    
+
+    let sender = get_sender_address();
+    let recipient = get_recipient_address();
+
     token_dispatcher.mint(sender, 100000_u256);
-    
+
     start_cheat_caller_address(token_address, sender);
     token_dispatcher.approve(stream_address, 100000_u256);
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(stream_address, sender);
     start_cheat_block_timestamp(stream_address, 1000);
-    
-    let stream_id = stream_dispatcher.create_stream(
-        recipient,
-        10000_u256,   // total_amount
-        10,           // duration (10 hours)
-        true,         // cancelable
-        token_address,
-        true          // transferable
-    );
-    
+
+    let stream_id = stream_dispatcher
+        .create_stream(
+            recipient,
+            10000_u256, // total_amount
+            10, // duration (10 hours)
+            true, // cancelable
+            token_address,
+            true // transferable
+        );
+
     stop_cheat_caller_address(stream_address);
-    
+
     token_dispatcher.set_attack_mode(2); // cancel attack
     token_dispatcher.set_stream_id(stream_id);
     token_dispatcher.set_target(stream_address);
-    
+
     // Attempt cancellation - should trigger reentrancy and fail
     start_cheat_caller_address(stream_address, sender);
     stream_dispatcher.cancel(stream_id);
@@ -480,42 +516,46 @@ fn test_reentrancy_protection_on_cancel() {
 fn test_reentrancy_protection_on_transfer_stream() {
     let token_address = deploy_malicious_token();
     let stream_address = deploy_payment_stream();
-    
+
     let token_dispatcher = IMaliciousERC20Dispatcher { contract_address: token_address };
     let stream_dispatcher = IPaymentStreamDispatcher { contract_address: stream_address };
-    
-    let sender: ContractAddress = 1000.try_into().unwrap();
-    let recipient: ContractAddress = 2000.try_into().unwrap();
-    let new_recipient: ContractAddress = 3000.try_into().unwrap();
-    
+
+    let sender = get_sender_address();
+    let recipient = get_recipient_address();
+    let new_recipient = get_new_recipient_address();
+
     token_dispatcher.mint(sender, 100000_u256);
-    
+
     start_cheat_caller_address(token_address, sender);
     token_dispatcher.approve(stream_address, 100000_u256);
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(stream_address, sender);
     start_cheat_block_timestamp(stream_address, 1000);
-    
-    let stream_id = stream_dispatcher.create_stream(
-        recipient,
-        10000_u256,   // total_amount
-        10,           // duration (10 hours)
-        true,         // cancelable
-        token_address,
-        true          // transferable
-    );
-    
+
+    let stream_id = stream_dispatcher
+        .create_stream(
+            recipient,
+            10000_u256, // total_amount
+            10, // duration (10 hours)
+            true, // cancelable
+            token_address,
+            true // transferable
+        );
+
     stop_cheat_caller_address(stream_address);
-    
+
     token_dispatcher.set_attack_mode(3); // transfer_stream attack
     token_dispatcher.set_stream_id(stream_id);
     token_dispatcher.set_target(stream_address);
-    
-    start_cheat_block_timestamp(stream_address, 19000); 
-    
+
+    start_cheat_block_timestamp(stream_address, 19000);
+
     start_cheat_caller_address(stream_address, recipient);
-    stream_dispatcher.withdraw(stream_id, 100, recipient); // This will trigger malicious token's transfer_stream attack
+    stream_dispatcher
+        .withdraw(
+            stream_id, 100, recipient,
+        ); // This will trigger malicious token's transfer_stream attack
     stop_cheat_caller_address(stream_address);
 }
 
@@ -523,41 +563,41 @@ fn test_reentrancy_protection_on_transfer_stream() {
 fn test_reentrancy_protection_on_withdraw_max() {
     let token_address = deploy_malicious_token();
     let stream_address = deploy_payment_stream();
-    
+
     let token_dispatcher = IMaliciousERC20Dispatcher { contract_address: token_address };
     let stream_dispatcher = IPaymentStreamDispatcher { contract_address: stream_address };
-    
-    let sender: ContractAddress = 1000.try_into().unwrap();
-    let recipient: ContractAddress = 2000.try_into().unwrap();
-    
+
+    let sender = get_sender_address();
+    let recipient = get_recipient_address();
+
     token_dispatcher.mint(sender, 100000_u256);
-    
+
     start_cheat_caller_address(token_address, sender);
     token_dispatcher.approve(stream_address, 100000_u256);
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(stream_address, sender);
     start_cheat_block_timestamp(stream_address, 1000);
-    
-    let stream_id = stream_dispatcher.create_stream(
-        recipient,
-        10000_u256,   // total_amount
-        10,           // duration (10 hours)
-        true,         // cancelable
-        token_address,
-        true          // transferable
-    );
-    
+
+    let stream_id = stream_dispatcher
+        .create_stream(
+            recipient,
+            10000_u256, // total_amount
+            10, // duration (10 hours)
+            true, // cancelable
+            token_address,
+            true // transferable
+        );
+
     stop_cheat_caller_address(stream_address);
-    
-    
+
     start_cheat_block_timestamp(stream_address, 19000); // 1000 + 18000 (5 hours)
-    
+
     // Test withdraw_max with reentrancy protection
     start_cheat_caller_address(stream_address, recipient);
     let (_withdrawn_amount, _fee) = stream_dispatcher.withdraw_max(stream_id, recipient);
     stop_cheat_caller_address(stream_address);
-    
+
     // Should succeed without issues since no attack
     let stream = stream_dispatcher.get_stream(stream_id);
     assert(stream.status == StreamStatus::Active, 'Stream should still be active');
@@ -567,55 +607,56 @@ fn test_reentrancy_protection_on_withdraw_max() {
 fn test_successful_operations_after_reentrancy_protection() {
     let token_address = deploy_malicious_token();
     let stream_address = deploy_payment_stream();
-    
+
     let token_dispatcher = IMaliciousERC20Dispatcher { contract_address: token_address };
     let stream_dispatcher = IPaymentStreamDispatcher { contract_address: stream_address };
-    
+
     // Setup normal accounts (not malicious contracts)
-    let sender: ContractAddress = 6000.try_into().unwrap();
-    let recipient: ContractAddress = 7000.try_into().unwrap();
-    
+    let sender = get_alt_sender_address();
+    let recipient = get_alt_recipient_address();
+
     token_dispatcher.mint(sender, 100000_u256);
-    
+
     start_cheat_caller_address(token_address, sender);
     token_dispatcher.approve(stream_address, 100000_u256);
     stop_cheat_caller_address(token_address);
-    
+
     start_cheat_caller_address(stream_address, sender);
     start_cheat_block_timestamp(stream_address, 1000);
-    
-    let stream_id = stream_dispatcher.create_stream(
-        recipient,
-        10000_u256,   // total_amount
-        10,           // duration (10 hours)
-        true,         // cancelable
-        token_address,
-        true          // transferable
-    );
-    
+
+    let stream_id = stream_dispatcher
+        .create_stream(
+            recipient,
+            10000_u256, // total_amount
+            10, // duration (10 hours)
+            true, // cancelable
+            token_address,
+            true // transferable
+        );
+
     stop_cheat_caller_address(stream_address);
-    
+
     start_cheat_block_timestamp(stream_address, 19000); // 1000 + 18000 (5 hours)
-    
+
     start_cheat_caller_address(stream_address, recipient);
     let (withdrawn_amount, _fee) = stream_dispatcher.withdraw(stream_id, 100_u256, recipient);
     assert(withdrawn_amount > 0, 'Normal withdrawal should work');
     stop_cheat_caller_address(stream_address);
-    
+
     // Test normal stream transfer (should work)
-    let new_recipient: ContractAddress = 8000.try_into().unwrap();
+    let new_recipient = get_alt_new_recipient_address();
     start_cheat_caller_address(stream_address, recipient);
     stream_dispatcher.transfer_stream(stream_id, new_recipient);
     stop_cheat_caller_address(stream_address);
-    
+
     let updated_stream = stream_dispatcher.get_stream(stream_id);
     assert(updated_stream.recipient == new_recipient, 'Transfer should work');
-    
+
     // Test normal cancellation (should work)
     start_cheat_caller_address(stream_address, sender);
     stream_dispatcher.cancel(stream_id);
     stop_cheat_caller_address(stream_address);
-    
+
     let cancelled_stream = stream_dispatcher.get_stream(stream_id);
     assert(cancelled_stream.status == StreamStatus::Canceled, 'Cancel should work');
 }
