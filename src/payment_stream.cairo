@@ -5,7 +5,6 @@ pub mod PaymentStream {
     use fundable::interfaces::IPaymentStream::IPaymentStream;
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::introspection::src5::SRC5Component;
-    use openzeppelin::security::reentrancyguard::ReentrancyGuardComponent;
     use openzeppelin::token::erc20::interface::{
         IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
         IERC20MetadataDispatcherTrait,
@@ -33,9 +32,6 @@ pub mod PaymentStream {
     component!(path: SRC5Component, storage: src5, event: Src5Event);
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
-    component!(
-        path: ReentrancyGuardComponent, storage: reentrancy_guard, event: ReentrancyGuardEvent,
-    );
 
     #[abi(embed_v0)]
     impl AccessControlImpl =
@@ -46,7 +42,6 @@ pub mod PaymentStream {
     impl ERC721MixinImpl = ERC721Component::ERC721MixinImpl<ContractState>;
     impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
     impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
-    impl ReentrancyGuardInternalImpl = ReentrancyGuardComponent::InternalImpl<ContractState>;
 
     const PROTOCOL_OWNER_ROLE: felt252 = selector!("PROTOCOL_OWNER");
     // Note: STREAM_ADMIN_ROLE removed - using stream-specific access control
@@ -66,8 +61,6 @@ pub mod PaymentStream {
         src5: SRC5Component::Storage,
         #[substorage(v0)]
         accesscontrol: AccessControlComponent::Storage,
-        #[substorage(v0)]
-        reentrancy_guard: ReentrancyGuardComponent::Storage,
         next_stream_id: u256,
         streams: Map<u256, Stream>,
         protocol_fee_rate: Map<ContractAddress, u64>, // Single source of truth for fee rates
@@ -98,8 +91,6 @@ pub mod PaymentStream {
         AccessControlEvent: AccessControlComponent::Event,
         #[flat]
         UpgradeableEvent: UpgradeableComponent::Event,
-        #[flat]
-        ReentrancyGuardEvent: ReentrancyGuardComponent::Event,
         StreamCreated: StreamCreated,
         StreamWithdrawn: StreamWithdrawn,
         StreamCanceled: StreamCanceled,
@@ -401,18 +392,7 @@ pub mod PaymentStream {
             }
         }
 
-        fn collect_protocol_fee(ref self: ContractState, token: ContractAddress, amount: u256) {
-            self.reentrancy_guard.start();
-            self._collect_protocol_fee_internal(token, amount);
-            self.reentrancy_guard.end();
-        }
-
-        /// @notice Internal function to collect protocol fees (without reentrancy protection)
-        /// @param token The token address to collect fees in
-        /// @param amount The fee amount to collect
-        fn _collect_protocol_fee_internal(
-            ref self: ContractState, token: ContractAddress, amount: u256,
-        ) {
+        fn collect_protocol_fee(self: @ContractState, token: ContractAddress, amount: u256) {
             let fee_collector: ContractAddress = self.fee_collector.read();
             assert(fee_collector.is_non_zero(), INVALID_RECIPIENT);
             IERC20Dispatcher { contract_address: token }.transfer(fee_collector, amount);
@@ -729,7 +709,7 @@ pub mod PaymentStream {
 
             let token_dispatcher = IERC20Dispatcher { contract_address: token_address };
 
-            self._collect_protocol_fee_internal(token_address, fee);
+            self.collect_protocol_fee(token_address, fee);
             token_dispatcher.transfer(to, net_amount);
 
             self
@@ -817,27 +797,19 @@ pub mod PaymentStream {
         fn withdraw(
             ref self: ContractState, stream_id: u256, amount: u256, to: ContractAddress,
         ) -> (u128, u128) {
-            self.reentrancy_guard.start();
-            let result = self._withdraw(stream_id, amount, to);
-            self.reentrancy_guard.end();
-            result
+            self._withdraw(stream_id, amount, to)
         }
 
         fn withdraw_max(
             ref self: ContractState, stream_id: u256, to: ContractAddress,
         ) -> (u128, u128) {
-            self.reentrancy_guard.start();
             let withdrawable_amount = self._withdrawable_amount(stream_id);
-            let result = self._withdraw(stream_id, withdrawable_amount, to);
-            self.reentrancy_guard.end();
-            result
+            self._withdraw(stream_id, withdrawable_amount, to)
         }
 
         fn transfer_stream(
             ref self: ContractState, stream_id: u256, new_recipient: ContractAddress,
         ) {
-            self.reentrancy_guard.start();
-
             // Verify stream exists
             self.assert_stream_exists(stream_id);
 
@@ -865,8 +837,6 @@ pub mod PaymentStream {
 
             // Emit event about stream transfer
             self.emit(StreamTransferred { stream_id, new_recipient });
-
-            self.reentrancy_guard.end();
         }
 
         fn set_transferability(ref self: ContractState, stream_id: u256, transferable: bool) {
@@ -970,8 +940,6 @@ pub mod PaymentStream {
         }
 
         fn cancel(ref self: ContractState, stream_id: u256) {
-            self.reentrancy_guard.start();
-
             // Ensure the caller is the stream sender
             self.assert_stream_sender_access(stream_id);
 
@@ -1068,7 +1036,7 @@ pub mod PaymentStream {
                 let net_amount = amount_due_to_recipient - fee;
 
                 // Transfer fee to collector and net amount to recipient
-                self._collect_protocol_fee_internal(token_address, fee);
+                self.collect_protocol_fee(token_address, fee);
                 token_dispatcher.transfer(recipient, net_amount);
 
                 // Emit withdrawal event
@@ -1096,8 +1064,6 @@ pub mod PaymentStream {
 
             // Emit cancellation event
             self.emit(StreamCanceled { stream_id });
-
-            self.reentrancy_guard.end();
         }
 
         fn restart(ref self: ContractState, stream_id: u256) {
